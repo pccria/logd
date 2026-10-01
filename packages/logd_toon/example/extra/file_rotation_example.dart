@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:logd/logd.dart'
-    hide ToonEncoder, ToonFormatter, ToonFileHandler, ToonPrettyFormatter;
+import 'package:logd/logd.dart';
 import 'package:logd_toon/logd_toon.dart';
 
 Future<void> main() async {

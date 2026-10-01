@@ -200,8 +200,7 @@ Future<void> chargePaymentGateway() async {
 Token-Oriented Object Notation emits the column schema once, then tab-delimited rows — **30–50% fewer tokens than JSON** for the same data (provided by [`package:logd_toon`](https://pub.dev/packages/logd_toon)):
 
 ```dart
-import 'package:logd/logd.dart'
-    hide ToonEncoder, ToonFormatter, ToonFileHandler, ToonPrettyFormatter;
+import 'package:logd/logd.dart';
 import 'package:logd_toon/logd_toon.dart';
 
 Logger.configure('ai.agent', handlers: [

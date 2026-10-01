@@ -4,7 +4,7 @@ import 'dart:async';
 import 'dart:io' as io;
 import 'dart:isolate';
 
-import 'package:logd/logd.dart' hide HtmlEncoder, HttpServerSink;
+import 'package:logd/logd.dart';
 import 'package:meta/meta.dart';
 
 import '../sink/http_server_sink.dart';

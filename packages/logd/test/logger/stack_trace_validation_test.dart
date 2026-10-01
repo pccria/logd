@@ -96,20 +96,20 @@ void main() {
         expect(sink.logs.first.origin, isEmpty);
       });
 
-      test('ToonFormatter: omits origin line cleanly when empty', () async {
+      test('PlainFormatter: omits origin line cleanly when empty', () async {
         final sink = CaptureSink();
         Logger.configure(
-          'toon.no_origin',
+          'plain.no_origin',
           includeOrigin: false,
           handlers: [
             Handler(
-              formatter: const ToonFormatter(),
+              formatter: const PlainFormatter(),
               sink: sink,
             ),
           ],
         );
 
-        Logger.get('toon.no_origin').info('TOON log payload');
+        Logger.get('plain.no_origin').info('Plain log payload');
         await Future<void>.delayed(const Duration(milliseconds: 50));
 
         expect(sink.logs.first.origin, isEmpty);

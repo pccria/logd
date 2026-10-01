@@ -4,8 +4,7 @@
 /// generating rich, browser-friendly log documents.
 library;
 
-import 'package:logd/logd.dart'
-    hide DefaultHtmlStylesheet, HtmlEncoder, HtmlFileHandler, HtmlStylesheet;
+import 'package:logd/logd.dart';
 
 import 'src/html_encoder.dart';
 import 'src/html_file_handler.dart';

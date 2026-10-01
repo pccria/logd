@@ -15,17 +15,5 @@ void main() {
       expect(darkTheme.brightness, equals(LogBrightness.dark));
       expect(lightTheme.brightness, equals(LogBrightness.light));
     });
-
-    test('should resolve high contrast light colors in DefaultHtmlStylesheet',
-        () {
-      const stylesheet = DefaultHtmlStylesheet();
-      const lightTheme = LightTheme();
-
-      final css = stylesheet.buildCss(lightTheme);
-
-      expect(css, contains('--bg: #ffffff;'));
-      expect(css, contains('--fg: #000000;'));
-      expect(css, contains('--warning: #92400e;')); // High contrast amber
-    });
   });
 }

@@ -1,7 +1,6 @@
 import 'dart:io';
 
-import 'package:logd/logd.dart'
-    hide HtmlEncoder, HtmlFileHandler, HtmlStylesheet;
+import 'package:logd/logd.dart';
 import 'package:logd_html/logd_html.dart';
 import 'package:test/test.dart';
 

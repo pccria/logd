@@ -1,6 +1,6 @@
 import 'package:meta/meta.dart';
 
-import 'package:logd/logd.dart' hide HtmlEncoder;
+import 'package:logd/logd.dart';
 
 /// A [LogSink] that throws under browser/web environments as HTTP servers are
 /// unsupported.

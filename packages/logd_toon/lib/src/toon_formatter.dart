@@ -1,5 +1,4 @@
-import 'package:logd/logd.dart'
-    hide ToonEncoder, ToonFormatter, ToonFileHandler, ToonPrettyFormatter;
+import 'package:logd/logd.dart';
 import 'package:meta/meta.dart';
 
 import 'toon_encoder.dart';

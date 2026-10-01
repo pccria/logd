@@ -1,4 +1,4 @@
-import 'package:logd/logd.dart' hide MarkdownEncoder, MarkdownFileHandler;
+import 'package:logd/logd.dart';
 import 'package:meta/meta.dart';
 
 import 'markdown_formatter.dart';

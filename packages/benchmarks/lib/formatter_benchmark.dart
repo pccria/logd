@@ -1,7 +1,6 @@
 // ignore_for_file: invalid_use_of_internal_member, implementation_imports
 import 'package:benchmark_harness/benchmark_harness.dart';
-import 'package:logd/logd.dart'
-    hide MarkdownEncoder, ToonEncoder, ToonFormatter;
+import 'package:logd/logd.dart';
 import 'package:logd/src/handler/handler.dart' show TerminalLayout;
 import 'package:logd_markdown/logd_markdown.dart';
 import 'package:logd_toon/logd_toon.dart';

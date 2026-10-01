@@ -5,8 +5,7 @@
 /// analytical query engines.
 library;
 
-import 'package:logd/logd.dart'
-    hide ToonEncoder, ToonFormatter, ToonFileHandler, ToonPrettyFormatter;
+import 'package:logd/logd.dart';
 
 import 'src/toon_formatter.dart';
 
