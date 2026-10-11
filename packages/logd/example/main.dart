@@ -5,7 +5,7 @@ import 'package:meta/meta.dart';
 
 /// This example serves as a comprehensive tutorial for [logd].
 /// It covers everything from basic usage to advanced hierarchical configuration,
-/// custom pipelines, and network logging.
+/// custom pipelines, and multi-column terminal layouts.
 void main() async {
   print('================================================');
   print('          LOGD: COMPREHENSIVE SHOWCASE          ');

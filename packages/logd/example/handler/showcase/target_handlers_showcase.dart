@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:logd/logd.dart';
 
-/// Comprehensive showcase demonstrating 7 pre-wired TargetHandlers (v0.9.3+),
+/// Comprehensive showcase demonstrating 4 core pre-wired TargetHandlers (v0.9.3+),
 /// including synchronous in-process handlers and background isolate offloaded
 /// `.async()` file handlers.
 void main() async {
@@ -10,7 +10,7 @@ void main() async {
   print('       LOGD: PRE-WIRED TARGET HANDLERS SHOWCASE (v0.9.3+)       ');
   print('=================================================================');
   print(
-      'Demonstrating 7 pre-wired handlers across terminal, memory, and disk.\n');
+      'Demonstrating 4 core pre-wired handlers across terminal, memory, and disk.\n');
 
   final tempDir = Directory('temp_showcase_logs');
   if (tempDir.existsSync()) {

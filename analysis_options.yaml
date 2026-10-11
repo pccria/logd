@@ -1,6 +1,8 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  errors:
+    analysis_options_deprecated_plugins: ignore
   plugins:
     - custom_lint
 
