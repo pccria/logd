@@ -4,6 +4,9 @@
 
 - **Web & WASM Platform Support Fix**:
   - Split `HttpDashboardIsolateHandler` into conditional native and web stub implementations (`http_dashboard_isolate_handler_native.dart` and `http_dashboard_isolate_handler_stub.dart`), eliminating unconditional `dart:isolate` and `dart:io` imports when compiled for Web or WASM runtimes.
+- **`logd` v0.10.x Support**:
+  - Widened dependency constraint to `logd: '>=0.9.7 <0.11.0'`, enabling seamless compatibility with `logd` v0.10.0's pure semantic engine.
+  - Documented complete decoupling and permanent removal of network sinks from core `logd`.
 
 ## 0.1.4
 

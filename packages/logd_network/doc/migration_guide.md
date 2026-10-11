@@ -30,3 +30,10 @@ void main() {
 ## 3. Real-Time Dashboard Usage
 
 `HttpDashboardHandler` starts a local web server (default: `http://localhost:8080`) where you can view live log streams in any web browser.
+
+## 4. Status in `v0.10.0`
+
+In `logd` v0.10.0, all network sinks (`NetworkSink`, `HttpSink`, `SocketSink`, `HttpServerSink`, `HttpDashboardHandler`) were permanently removed from core `package:logd`.
+
+- Core `logd` no longer depends on `package:http` or `package:web_socket_channel`.
+- If migrating from `logd` <=0.9.7, replace all core network sink imports with `package:logd_network/logd_network.dart`.
