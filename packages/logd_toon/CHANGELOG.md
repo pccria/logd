@@ -1,6 +1,6 @@
 ## 0.1.2
 
-- **Pub Score & Lower-Bound Compatibility**: Updated `logd` dependency constraint to `^0.10.0` to resolve `AMBIGUOUS_IMPORT` errors during `dart pub downgrade` analysis.
+- **Dependency Resolution**: Tightened `logd` dependency constraint to `^0.10.0` to prevent ambiguous import collisions during dependency resolution.
 
 ## 0.1.1
 
