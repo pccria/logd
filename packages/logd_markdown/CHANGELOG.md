@@ -1,3 +1,7 @@
+## 0.1.2
+
+- **Pub Score & Lower-Bound Compatibility**: Updated `logd` dependency constraint to `^0.10.0` to resolve `AMBIGUOUS_IMPORT` errors during `dart pub downgrade` analysis.
+
 ## 0.1.1
 
 - **`logd` v0.10.x Support**: Widened dependency constraint to `logd: '>=0.9.7 <0.11.0'`, enabling seamless compatibility with `logd` v0.10.0's pure semantic engine.
