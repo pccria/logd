@@ -212,27 +212,6 @@ void main() {
           doc.releaseRecursive(Arena.instance);
         }
       });
-
-      test('ToonFormatter includes context column', () {
-        const formatter = ToonFormatter(metadata: {});
-        final doc = formatDoc(formatter, entry);
-        try {
-          final columns = doc.metadata['toon_columns']! as List<String>;
-          expect(columns, contains('context'));
-
-          // The metadata block has the actual context map
-          final mapNode = doc.nodes.whereType<MapNode>().first;
-          expect(
-            mapNode.map['context'],
-            equals({
-              'userId': 42,
-              'nested': {'active': true},
-            }),
-          );
-        } finally {
-          doc.releaseRecursive(Arena.instance);
-        }
-      });
     });
   });
 }

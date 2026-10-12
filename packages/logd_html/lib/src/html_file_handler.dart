@@ -2,8 +2,7 @@
 
 library;
 
-import 'package:logd/logd.dart'
-    hide DefaultHtmlStylesheet, HtmlEncoder, HtmlFileHandler, HtmlStylesheet;
+import 'package:logd/logd.dart';
 import 'package:meta/meta.dart';
 
 import 'html_encoder.dart';

@@ -1,7 +1,6 @@
 // ignore_for_file: experimental_member_use
 
-import 'package:logd/logd.dart'
-    hide DefaultHtmlStylesheet, HtmlEncoder, HtmlStylesheet;
+import 'package:logd/logd.dart';
 import 'package:logd_html/logd_html.dart';
 import 'package:test/test.dart';
 

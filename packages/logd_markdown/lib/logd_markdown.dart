@@ -4,7 +4,7 @@
 /// for rendering GitHub-Flavored Markdown (GFM) log documents.
 library;
 
-import 'package:logd/logd.dart' hide MarkdownEncoder, MarkdownFileHandler;
+import 'package:logd/logd.dart';
 
 import 'src/markdown_encoder.dart';
 import 'src/markdown_formatter.dart';

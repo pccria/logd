@@ -1,7 +1,7 @@
 // ignore_for_file: invalid_use_of_internal_member, implementation_imports
 import 'dart:async';
 import 'dart:developer';
-import 'package:logd/logd.dart' hide ToonEncoder, ToonFormatter;
+import 'package:logd/logd.dart';
 import 'package:logd_toon/logd_toon.dart';
 import 'package:vm_service/vm_service_io.dart';
 

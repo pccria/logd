@@ -3,12 +3,9 @@ library;
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert' as convert;
-import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../core/context/io/io_stub.dart'
     if (dart.library.io) '../../core/context/io/io_native.dart' as io;
@@ -22,7 +19,6 @@ part 'console_sink.dart';
 part 'encoding_sink.dart';
 part 'memory_sink.dart';
 part 'multi_sink.dart';
-part 'network_sink.dart';
 part 'print_sink.dart';
 
 /// Abstract base class for outputting logs to a destination.

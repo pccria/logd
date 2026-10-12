@@ -25,6 +25,8 @@ The following table tracks the performance evolution of the `logd` handler archi
 | **M14** | `0d14f22` | Zero-Latency Native Offload | 171.3 | 355.5 | 319.6 |
 | **M15** | `9ea5843` | FFI Layout Parity & Stabilization | **221.1** | **342.0** | **366.3** |
 | **M16** | `HEAD` | v0.9.1 API Stabilization & Hardening | **243.9** | **398.7** | **345.8** |
+| **M17** | `6a972dc` | v0.9.3 Target Handlers | **235.0** | **380.9** | **408.7** |
+| **M18** | `0be0f37` | v0.10.0 Pure Semantic Engine | **90.4** | **143.2** | **168.2** |
 
 *\*M12 represents Native/FFI micro-benchmarks.*
 *\*Legacy JSON utilized raw `jsonEncode` without semantic layout support.*
@@ -49,6 +51,8 @@ The following table tracks the performance evolution of the `logd` handler archi
 - [Milestone 14 (Phase 2): LogEntry Pooling](./M14_Phase2_LogEntryPooling.md)
 - [Milestone 15: FFI Layout Parity & Stabilization](./M15_FfiLayoutParity.md)
 - [Milestone 16: v0.9.1 API Stabilization & Hardening](./M16_v091_ApiHardening.md)
+- [Milestone 17: v0.9.3 Target Handlers](./M17_v093_TargetHandlers.md)
+- [Milestone 18: v0.10.0 Pure Semantic Engine](./M18_v0100_PureSemanticEngine.md)
 
 ## Usage & Maintenance
 

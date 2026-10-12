@@ -14,10 +14,6 @@ abstract base class AutoEncoder implements LogEncoder {
   @override
   WrappingStrategy get wrappingStrategy => WrappingStrategy.document;
 
-  @Deprecated('Use wrappingStrategy instead. Will be removed in v0.10.0.')
-  @override
-  WrappingStrategy get requiredStrategy => wrappingStrategy;
-
   /// Resolves the delegate encoder based on the standard `'logd.encoder'`
   /// metadata contract, or [defaultFallback].
   @protected
@@ -81,7 +77,7 @@ abstract base class AutoEncoder implements LogEncoder {
 
 /// An encoder for console output that automatically detects document protocol
 /// metadata (e.g. TOON or JSON) and delegates to protocol-specific encoders
-/// ([ToonEncoder], [JsonEncoder]), falling back to terminal capabilities
+/// (such as [JsonEncoder]), falling back to terminal capabilities
 /// ([AnsiEncoder] vs [PlainTextEncoder]).
 final class AutoConsoleEncoder extends AutoEncoder {
   /// Creates an [AutoConsoleEncoder].
@@ -105,7 +101,7 @@ final class AutoConsoleEncoder extends AutoEncoder {
 
 /// An encoder for non-terminal sinks (Files, Network) that automatically
 /// detects document protocol metadata (e.g. TOON or JSON) and delegates to
-/// protocol-specific encoders ([ToonEncoder], [JsonEncoder]), falling back to
+/// protocol-specific encoders (such as [JsonEncoder]), falling back to
 /// [PlainTextEncoder] for standard plain text.
 final class AutoTextEncoder extends AutoEncoder {
   /// Creates an [AutoTextEncoder].

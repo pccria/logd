@@ -1,5 +1,4 @@
-import 'package:logd/logd.dart'
-    hide DefaultHtmlStylesheet, HtmlEncoder, HtmlFileHandler, HtmlStylesheet;
+import 'package:logd/logd.dart';
 import 'package:meta/meta.dart';
 
 import 'html_stylesheet.dart';
@@ -21,10 +20,6 @@ class HtmlEncoder implements LogEncoder {
 
   @override
   WrappingStrategy get wrappingStrategy => WrappingStrategy.document;
-
-  @Deprecated('Use wrappingStrategy instead. Will be removed in v0.10.0.')
-  @override
-  WrappingStrategy get requiredStrategy => wrappingStrategy;
 
   /// The title of the generated HTML document.
   final String title;

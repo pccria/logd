@@ -1,8 +1,7 @@
 import 'dart:convert' as convert;
 import 'dart:typed_data';
 
-import 'package:logd/logd.dart'
-    hide ToonEncoder, ToonFormatter, ToonFileHandler, ToonPrettyFormatter;
+import 'package:logd/logd.dart';
 
 /// An encoder that serializes [LogDocument]s into Token-Oriented Object
 /// Notation (TOON).
@@ -15,10 +14,6 @@ class ToonEncoder implements LogEncoder {
   const ToonEncoder();
   @override
   WrappingStrategy get wrappingStrategy => WrappingStrategy.document;
-
-  @Deprecated('Use wrappingStrategy instead. Will be removed in v0.10.0.')
-  @override
-  WrappingStrategy get requiredStrategy => wrappingStrategy;
 
   @override
   void preamble(

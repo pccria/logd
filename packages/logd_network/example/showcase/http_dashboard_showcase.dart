@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:logd/logd.dart'
-    hide HttpSink, SocketSink, HttpServerSink, HttpDashboardHandler, DropPolicy;
+import 'package:logd/logd.dart';
 import 'package:logd_network/logd_network.dart';
 
 /// Demonstrates using the high-level pre-wired [HttpDashboardHandler] DX preset.

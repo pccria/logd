@@ -28,7 +28,6 @@ void main() {
     final formatters = {
       'Plain': const PlainFormatter(),
       'Structured': const StructuredFormatter(),
-      'Toon': const ToonFormatter(),
     };
 
     final widths = [80, 40];

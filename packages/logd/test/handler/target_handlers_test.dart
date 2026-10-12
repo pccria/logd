@@ -56,56 +56,6 @@ void main() {
       await handler.dispose();
     });
 
-    test('HtmlFileHandler logs HTML content with document preamble', () async {
-      final file = File('${tempDir.path}/log.html');
-      final handler = HtmlFileHandler(
-        path: file.path,
-        title: 'Test Session',
-      );
-
-      final entry = LogEntry(
-        loggerName: 'test.html',
-        origin: 'test_file.dart',
-        level: LogLevel.info,
-        message: 'Hello HTML World',
-        timestamp: '2026-08-15 12:00:00.000',
-      );
-
-      await handler.log(entry);
-
-      expect(file.existsSync(), isTrue);
-      final content = file.readAsStringSync();
-      expect(content, contains('<!DOCTYPE html>'));
-      expect(content, contains('Test Session'));
-      expect(content, contains('Hello HTML World'));
-    });
-
-    test('HtmlFileHandler.async creates an AsyncHandler pipeline', () async {
-      final file = File('${tempDir.path}/log_async.html');
-      final handler = HtmlFileHandler.async(
-        path: file.path,
-        title: 'Async Session',
-      );
-
-      expect(handler, isA<AsyncHandler>());
-      final entry = LogEntry(
-        loggerName: 'test.html_async',
-        origin: 'test_file.dart',
-        level: LogLevel.info,
-        message: 'Async HTML Event',
-        timestamp: '2026-08-15 12:00:00.000',
-      );
-
-      await handler.log(entry);
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      await handler.dispose();
-
-      expect(file.existsSync(), isTrue);
-      final content = file.readAsStringSync();
-      expect(content, contains('<!DOCTYPE html>'));
-      expect(content, contains('Async HTML Event'));
-    });
-
     test(
       'JsonFileHandler logs formatted JSON payload when pretty is true',
       () async {
@@ -236,112 +186,6 @@ void main() {
       },
     );
 
-    test('ToonFileHandler logs token-optimized TOON output', () async {
-      final file = File('${tempDir.path}/log.toon');
-      final handler = ToonFileHandler(
-        path: file.path,
-        arrayName: 'telemetry',
-      );
-
-      final entry = LogEntry(
-        loggerName: 'test.toon',
-        origin: 'test_file.dart',
-        level: LogLevel.info,
-        message: 'TOON tokenized line',
-        timestamp: '2026-08-15 12:00:00.000',
-      );
-
-      await handler.log(entry);
-
-      expect(file.existsSync(), isTrue);
-      final content = file.readAsStringSync();
-      expect(content, contains('telemetry'));
-      expect(content, contains('TOON tokenized line'));
-    });
-
-    test('ToonFileHandler.async logs TOON via background isolate', () async {
-      final file = File('${tempDir.path}/log_async.toon');
-      final handler = ToonFileHandler.async(
-        path: file.path,
-        arrayName: 'telemetry_async',
-      );
-
-      expect(handler, isA<AsyncHandler>());
-      final entry = LogEntry(
-        loggerName: 'test.toon_async',
-        origin: 'test_file.dart',
-        level: LogLevel.info,
-        message: 'Async TOON tokenized line',
-        timestamp: '2026-08-15 12:00:00.000',
-      );
-
-      await handler.log(entry);
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      await handler.dispose();
-
-      expect(file.existsSync(), isTrue);
-      final content = file.readAsStringSync();
-      expect(content, contains('telemetry_async'));
-      expect(content, contains('Async TOON tokenized line'));
-    });
-
-    test('MarkdownFileHandler logs Markdown formatting', () async {
-      final file = File('${tempDir.path}/log.md');
-      final handler = MarkdownFileHandler(
-        path: file.path,
-      );
-
-      final entry = LogEntry(
-        loggerName: 'test.md',
-        origin: 'test_file.dart',
-        level: LogLevel.error,
-        message: 'Markdown error report',
-        timestamp: '2026-08-15 12:00:00.000',
-      );
-
-      await handler.log(entry);
-
-      expect(file.existsSync(), isTrue);
-      final content = file.readAsStringSync();
-      expect(content, contains('Markdown error report'));
-    });
-
-    test('MarkdownFileHandler.async logs Markdown via background isolate',
-        () async {
-      final file = File('${tempDir.path}/log_async.md');
-      final handler = MarkdownFileHandler.async(
-        path: file.path,
-      );
-
-      expect(handler, isA<AsyncHandler>());
-      final entry = LogEntry(
-        loggerName: 'test.md_async',
-        origin: 'test_file.dart',
-        level: LogLevel.error,
-        message: 'Async Markdown report',
-        timestamp: '2026-08-15 12:00:00.000',
-      );
-
-      await handler.log(entry);
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      await handler.dispose();
-
-      expect(file.existsSync(), isTrue);
-      final content = file.readAsStringSync();
-      expect(content, contains('Async Markdown report'));
-    });
-
-    test('HttpDashboardHandler creates valid dashboard pipeline', () {
-      final handler = HttpDashboardHandler(
-        port: 8888,
-        title: 'Test Dashboard',
-      );
-
-      expect(handler, isA<Handler>());
-      expect(handler.formatter, isA<StructuredFormatter>());
-      expect(handler.sink, isA<HttpServerSink>());
-    });
-
     test('MemoryHandler retains log entries in memory ring-buffer', () async {
       final handler = MemoryHandler(capacity: 5);
 
@@ -371,11 +215,9 @@ void main() {
     group('2. File System & Lifecycle Edge Cases', () {
       test('TargetHandlers auto-create missing deep parent directories',
           () async {
-        final deepFile =
-            File('${tempDir.path}/nested/deep/logs/telemetry.toon');
-        final handler = ToonFileHandler(
+        final deepFile = File('${tempDir.path}/nested/deep/logs/plain.log');
+        final handler = PlainFileHandler(
           path: deepFile.path,
-          arrayName: 'telemetry',
         );
 
         final entry = LogEntry(
@@ -416,20 +258,6 @@ void main() {
 
         final backupFile = File('${tempDir.path}/rotate_app.1.json');
         expect(backupFile.existsSync(), isTrue);
-      });
-
-      test('HttpDashboardHandler cleanly releases resources on dispose',
-          () async {
-        final handler = HttpDashboardHandler(
-          port: 0, // 0 lets OS pick random port
-          title: 'Test Dashboard',
-        );
-
-        // Wait a tiny bit for the internal HttpServer to bind
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-
-        // Dispose should complete without hanging or crashing
-        await expectLater(handler.dispose(), completes);
       });
     });
 

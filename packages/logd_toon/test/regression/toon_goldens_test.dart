@@ -3,8 +3,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:logd/logd.dart'
-    hide ToonEncoder, ToonFileHandler, ToonFormatter, ToonPrettyFormatter;
+import 'package:logd/logd.dart';
 import 'package:logd_toon/logd_toon.dart';
 import 'package:test/test.dart';
 

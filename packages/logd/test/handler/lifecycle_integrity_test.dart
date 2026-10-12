@@ -1,10 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
-import 'package:http/http.dart' as http;
 import 'package:logd/logd.dart';
 import 'package:test/test.dart';
-
-import 'test_helpers.dart';
 
 base class TestSink extends LogSink<LogDocument> {
   final List<String> logs = [];
@@ -41,15 +37,6 @@ base class FailingSink extends LogSink<LogDocument> {
     final LogPipelineFactory factory,
   ) async {
     throw Exception('Simulated sink failure');
-  }
-}
-
-class FailingHttpClient extends http.BaseClient {
-  int postCalls = 0;
-  @override
-  Future<http.StreamedResponse> send(final http.BaseRequest request) async {
-    postCalls++;
-    throw Exception('Simulated network error');
   }
 }
 
@@ -147,48 +134,6 @@ void main() {
         () => LoggerConfig.fromJson(const {'handlers': 'not_a_list'}),
         throwsA(isA<FormatException>()),
       );
-    });
-
-    test('HttpSink dropped batch counter and callback', () async {
-      LoggerMetrics.reset();
-      final client = FailingHttpClient();
-
-      List<Uint8List>? droppedBatch;
-      Object? droppedError;
-
-      final sink = HttpSink(
-        url: 'https://example.com',
-        client: client,
-        batchSize: 1,
-        maxRetries: 2,
-        onDropped: (final batch, final error) {
-          droppedBatch = batch;
-          droppedError = error;
-        },
-      );
-
-      final entry = LogEntry(
-        loggerName: 'HttpTest',
-        origin: 'test',
-        level: LogLevel.info,
-        message: 'http_log',
-        timestamp: '2025-01-01',
-      );
-
-      await sink.output(
-        createTestDocument(['http_log']),
-        entry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-
-      // Yield control and wait a bit for retries and failure callback.
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      expect(client.postCalls, equals(2));
-      expect(LoggerMetrics.droppedBatches, equals(1));
-      expect(droppedBatch, isNotNull);
-      expect(droppedError.toString(), contains('Simulated network error'));
     });
 
     test('Handler failure warning rate-limiting (per-type)', () async {

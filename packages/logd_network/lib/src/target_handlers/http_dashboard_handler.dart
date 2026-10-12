@@ -4,8 +4,7 @@ library;
 
 import 'package:meta/meta.dart';
 
-import 'package:logd/logd.dart'
-    hide HtmlEncoder, HttpServerSink, HttpSink, SocketSink;
+import 'package:logd/logd.dart';
 import '../sink/http_server_sink.dart';
 import '../sink/network_sink.dart';
 import 'http_dashboard_isolate_handler.dart';

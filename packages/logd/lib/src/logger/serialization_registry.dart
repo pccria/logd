@@ -77,11 +77,6 @@ class LoggerSerializationRegistry {
       fromJson: (final json) => const StructuredFormatter(),
       toJson: (final val) => <String, dynamic>{},
     );
-    registerFormatter<ToonFormatter>(
-      type: 'ToonFormatter',
-      fromJson: (final json) => const ToonFormatter(),
-      toJson: (final val) => <String, dynamic>{},
-    );
 
     // --- Sinks ---
     registerSink<ConsoleSink>(

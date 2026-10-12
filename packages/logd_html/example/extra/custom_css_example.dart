@@ -1,5 +1,4 @@
-import 'package:logd/logd.dart'
-    hide DefaultHtmlStylesheet, HtmlEncoder, HtmlFileHandler, HtmlStylesheet;
+import 'package:logd/logd.dart';
 import 'package:logd_html/logd_html.dart';
 
 /// A custom stylesheet implementation to rebrand the HTML output.

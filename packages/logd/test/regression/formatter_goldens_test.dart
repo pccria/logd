@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:logd/logd.dart';
@@ -29,7 +28,6 @@ void main() {
     final formatters = {
       'Plain': const PlainFormatter(),
       'Structured': const StructuredFormatter(),
-      'Toon': const ToonFormatter(),
     };
 
     final widths = [80, 40, 20];
@@ -96,83 +94,6 @@ void main() {
           });
         }
       });
-    }
-  });
-
-  group('Html Goldens (Baseline)', () {
-    final entry = LogEntry(
-      loggerName: 'HtmlTest',
-      origin: 'html.dart:5:1',
-      level: LogLevel.info,
-      message: 'Html golden message for regression.',
-      timestamp: '2025-01-01 12:00:00',
-    );
-
-    final errorEntry = LogEntry(
-      loggerName: 'HtmlTest',
-      origin: 'html.dart:10:1',
-      level: LogLevel.error,
-      message: 'An error occurred during processing.',
-      timestamp: '2025-01-01 12:00:05',
-    );
-
-    const encoder = HtmlEncoder();
-
-    final htmlFormatters = {
-      'plain': const PlainFormatter(),
-      'structured': const StructuredFormatter(),
-      'toon': const ToonFormatter(),
-    };
-
-    for (final testEntry in {'standard': entry, 'error': errorEntry}.entries) {
-      final entryName = testEntry.key;
-      final currentEntry = testEntry.value;
-
-      for (final fEntry in htmlFormatters.entries) {
-        final formatterName = fEntry.key;
-        final formatter = fEntry.value;
-
-        test('HtmlEncoder $formatterName $entryName', () {
-          final doc = formatDoc(formatter, currentEntry);
-          try {
-            final context = HandlerContext();
-            const factory = StandardPipelineFactory();
-            encoder.encode(
-              currentEntry,
-              doc,
-              currentEntry.level,
-              context,
-              factory,
-            );
-            final html = const Utf8Decoder().convert(context.takeBytes());
-
-            // Detect package root
-            final baseDir = File('lib/logd.dart').existsSync()
-                ? 'test/regression/goldens'
-                : 'packages/logd/test/regression/goldens';
-
-            final fileName = 'html_${formatterName}_$entryName.html';
-            final file = File('$baseDir/html/$fileName');
-
-            if (!file.existsSync()) {
-              file.parent.createSync(recursive: true);
-              file.writeAsStringSync(html);
-              print('Generated HTML golden: ${file.path}');
-            } else {
-              final expected = file.readAsStringSync().replaceAll('\r\n', '\n');
-              final normalizedHtml = html.replaceAll('\r\n', '\n');
-              expect(
-                normalizedHtml,
-                expected,
-                reason: 'HTML output mismatch for $formatterName | $entryName. '
-                    'If intentional, delete the golden file and re-run.',
-              );
-            }
-          } finally {
-            doc.releaseRecursive(Arena.instance);
-          }
-        });
-      }
     }
   });
 }

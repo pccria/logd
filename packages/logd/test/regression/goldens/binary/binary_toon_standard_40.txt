@@ -1,7 +1,0 @@
-{"timestamp":"2025-01-01
-12:00:00","logger":"BinarySnap","origin"
-:"binary.dart:42","level":"INFO","messag
-e":"Verified Binary IR rendering with
-semantic coloring and
-alignment.","error":"","stackTrace":"","
-context":""}

@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:logd/logd.dart'
-    hide HttpSink, SocketSink, HttpServerSink, HttpDashboardHandler, DropPolicy;
+import 'package:logd/logd.dart';
 import 'package:logd_network/logd_network.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
