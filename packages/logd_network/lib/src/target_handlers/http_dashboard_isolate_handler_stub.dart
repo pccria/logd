@@ -1,6 +1,6 @@
 library;
 
-import 'package:logd/logd.dart' hide HtmlEncoder, HttpServerSink;
+import 'package:logd/logd.dart';
 import 'package:meta/meta.dart';
 
 /// A web/browser stub for [HttpDashboardIsolateHandler] where isolates

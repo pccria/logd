@@ -1,1 +1,0 @@
-"2025-01-01 12:00:00"	SnapTest	"snap.dart:10:5"	INFO	This is a standard log message for golden verification.			

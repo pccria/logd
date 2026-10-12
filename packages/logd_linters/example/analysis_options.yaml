@@ -1,5 +1,6 @@
 analyzer:
   errors:
     experimental_member_use: ignore
+    analysis_options_deprecated_plugins: ignore
   plugins:
     - custom_lint

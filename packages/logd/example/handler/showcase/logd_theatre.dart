@@ -33,23 +33,11 @@ void main() async {
     ),
   );
 
-  final htmlSink = FileSink(
-    '$basePath/dashboard.html',
-    encoder: const HtmlEncoder(title: 'logd Theatre Production Run'),
-  );
-  final htmlHandler = Handler(
-    formatter: const StructuredFormatter(),
-    decorators: const [StyleDecorator(DarkTheme())],
-    sink: htmlSink,
+  final plainFileHandler = PlainFileHandler(
+    path: '$basePath/app.log',
   );
 
-  final markdownHandler = Handler(
-    formatter: const StructuredFormatter(),
-    sink: FileSink(
-      '$basePath/report.md',
-      encoder: const MarkdownEncoder(),
-    ),
-  );
+  final memoryHandler = MemoryHandler(capacity: 50);
 
   final semanticHandler = Handler(
     formatter: const JsonPrettyFormatter(),
@@ -59,7 +47,7 @@ void main() async {
   final structuredHandler = Handler(
     formatter: const StructuredFormatter(),
     sink: FileSink(
-      '$basePath/llm_context.structured',
+      '$basePath/structured.log',
       encoder: const JsonEncoder(),
     ),
   );
@@ -69,8 +57,8 @@ void main() async {
     'theatre',
     handlers: [
       consoleHandler,
-      htmlHandler,
-      markdownHandler,
+      plainFileHandler,
+      memoryHandler,
       semanticHandler,
       structuredHandler,
     ],
@@ -129,16 +117,19 @@ void main() async {
   await Future.delayed(const Duration(milliseconds: 500));
 
   // Finalize sinks
-  await htmlSink.dispose();
+  await plainFileHandler.dispose();
+  await semanticHandler.sink.dispose();
+  await structuredHandler.sink.dispose();
 
   print('\n✅ Showcase Complete!');
   print('-----------------------------------------');
   print('Check the following files for results:');
   print('  🖥️  Terminal: Structured & Boxed output');
-  print('  🌐  HTML Dashboard: $basePath/dashboard.html');
-  print('  📝  Markdown Report: $basePath/report.md');
+  print('  📄  Plain Log:      $basePath/app.log');
   print('  🧬  JSON Telemetry: $basePath/telemetry.json');
-  print('  🤖  LLM Context:    $basePath/llm_context.structured');
+  print('  🤖  Structured Log: $basePath/structured.log');
+  print(
+      '  💾  In-Memory Log:  ${memoryHandler.entries.length} entries retained');
   print('-----------------------------------------');
 }
 

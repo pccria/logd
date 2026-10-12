@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:logd/logd.dart'
-    hide HttpSink, SocketSink, HttpServerSink, HttpDashboardHandler, DropPolicy;
+import 'package:logd/logd.dart';
 import 'package:logd_network/logd_network.dart';
 
 /// Demonstrates hosting a local HTTP & WebSocket real-time log viewer dashboard using [HttpServerSink].

@@ -1,5 +1,40 @@
 # Migration Guide
 
+## v0.9.7 to v0.10.0 (Hard Deprecation Removal & Pure Semantic Core)
+
+### 1. Permanent Removal of Satellite Shims from Core (`package:logd`)
+**Change**: Soft-deprecated format and target handler shims (`HtmlEncoder`, `HtmlStylesheet`, `HtmlFileHandler`, `HtmlFormatter`, `MarkdownEncoder`, `MarkdownFileHandler`, `ToonEncoder`, `ToonFormatter`, `ToonFileHandler`) have been permanently removed from `package:logd`.
+* **Impact**:
+  - Code importing `package:logd` can no longer reference these symbols directly.
+  - Any previous `hide` clauses (e.g. `import 'package:logd/logd.dart' hide ToonEncoder, ...;`) must be removed, as hiding non-existent symbols triggers analyzer warnings (`undefined_hidden_name`).
+* **Migration**:
+  - For TOON formatting & file output, import `package:logd_toon/logd_toon.dart`.
+  - For HTML formatting & file output, import `package:logd_html/logd_html.dart`.
+  - For Markdown formatting & file output, import `package:logd_markdown/logd_markdown.dart`.
+
+### 2. Zero-Network Core & Permanent Removal of Network Sinks
+**Change**: All network components (`HttpSink`, `SocketSink`, `NetworkSink`, `HttpServerSink`, `HttpDashboardHandler`, `DropPolicy`) have been permanently removed from `package:logd`. External dependencies (`package:http`, `package:web_socket_channel`) have been completely dropped from `packages/logd/pubspec.yaml`.
+* **Impact**:
+  - `package:logd` is now a pure semantic logging engine with zero external network dependencies.
+* **Migration**:
+  - Add `package:logd_network` to `pubspec.yaml`:
+    ```yaml
+    dependencies:
+      logd: ^0.10.0
+      logd_network: ^0.1.0
+    ```
+  - Import `package:logd_network/logd_network.dart` for all network sinks and dashboard handlers.
+
+### 3. Removal of `LogEncoder.requiredStrategy` Getter
+**Change**: The deprecated `requiredStrategy` getter on `LogEncoder` has been permanently removed.
+* **Impact**:
+  - Subclasses of `LogEncoder` or custom encoders implementing `requiredStrategy` must override `wrappingStrategy` instead.
+* **Migration**:
+  - Replace `encoder.requiredStrategy` with `encoder.wrappingStrategy`.
+  - In custom `LogEncoder` implementations, override `WrappingStrategy get wrappingStrategy => ...;`.
+
+---
+
 ## v0.9.6 to v0.9.7 (Satellite Package Decoupling & Direct Isolate Transfer)
 
 ### 1. Satellite Extraction (`logd_toon`, `logd_html`, `logd_markdown`)

@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:logd/logd.dart';
 
-/// Comprehensive showcase demonstrating 7 pre-wired TargetHandlers (v0.9.3+),
+/// Comprehensive showcase demonstrating 4 core pre-wired TargetHandlers (v0.9.3+),
 /// including synchronous in-process handlers and background isolate offloaded
 /// `.async()` file handlers.
 void main() async {
@@ -10,7 +10,7 @@ void main() async {
   print('       LOGD: PRE-WIRED TARGET HANDLERS SHOWCASE (v0.9.3+)       ');
   print('=================================================================');
   print(
-      'Demonstrating 7 pre-wired handlers across terminal, memory, and disk.\n');
+      'Demonstrating 4 core pre-wired handlers across terminal, memory, and disk.\n');
 
   final tempDir = Directory('temp_showcase_logs');
   if (tempDir.existsSync()) {
@@ -57,9 +57,6 @@ void main() async {
     _section('CHAPTER 2: Background Isolate File Offloading (.async())');
 
     final jsonFile = File('${tempDir.path}/app_logs.json');
-    final htmlFile = File('${tempDir.path}/app_report.html');
-    final structuredFile = File('${tempDir.path}/app_telemetry.structured');
-    final markdownFile = File('${tempDir.path}/app_summary.md');
     final plainFile = File('${tempDir.path}/app_raw.log');
 
     // Zero-config background isolate offloading
@@ -67,25 +64,12 @@ void main() async {
       path: jsonFile.path,
       pretty: true,
     );
-    final htmlHandler = HtmlFileHandler.async(
-      path: htmlFile.path,
-      title: 'Target Handlers Showcase Session',
-    );
-    final structuredHandler = PlainFileHandler.async(
-      path: structuredFile.path,
-    );
-    final markdownHandler = MarkdownFileHandler.async(
-      path: markdownFile.path,
-    );
     final plainHandler = PlainFileHandler.async(
       path: plainFile.path,
     );
 
     Logger.configure('app.async_file', handlers: [
       jsonHandler,
-      htmlHandler,
-      structuredHandler,
-      markdownHandler,
       plainHandler,
     ]);
 
@@ -100,7 +84,7 @@ void main() async {
       context: {'transactionId': 'TX-9842', 'amount': 249.99},
     );
 
-    print('Dispatched 3 log records across 5 background isolate file sinks...');
+    print('Dispatched 3 log records across background isolate file sinks...');
     print('Main thread returned immediately (~15µs unblocked execution).');
 
     // Allow background worker isolates to finish disk flushes
@@ -108,9 +92,6 @@ void main() async {
 
     // Dispose handlers safely
     await jsonHandler.dispose();
-    await htmlHandler.dispose();
-    await structuredHandler.dispose();
-    await markdownHandler.dispose();
     await plainHandler.dispose();
 
     // -----------------------------------------------------------------
@@ -131,35 +112,19 @@ void main() async {
     );
 
     _inspectFile(
-      '2. HtmlFileHandler.async()',
-      htmlFile,
-      preview: (final content) =>
-          'Contains HTML doctype: ${content.contains('<!DOCTYPE html>')} | Title: Showcase Session',
-    );
-
-    _inspectFile(
-      '3. PlainFileHandler.async()',
-      structuredFile,
-      preview: (final content) => content.split('\n').take(2).join(' | '),
-    );
-
-    _inspectFile(
-      '4. MarkdownFileHandler.async()',
-      markdownFile,
-      preview: (final content) => content.split('\n').take(2).join(' | '),
-    );
-
-    _inspectFile(
-      '5. PlainFileHandler.async()',
+      '2. PlainFileHandler.async()',
       plainFile,
       preview: (final content) => content.split('\n').first,
     );
 
     _section('SHOWCASE COMPLETE');
-    print(
-        'All 7 core pre-wired TargetHandlers executed & verified successfully!');
-    print(
-        '(Note: For live HTTP dashboard monitoring, use HttpDashboardHandler from package:logd_network)\n');
+    print('Core pre-wired TargetHandlers executed & verified successfully!');
+    print('Available satellite handlers:');
+    print('  - SqliteHandler: package:logd_sqlite');
+    print('  - HttpDashboardHandler: package:logd_network');
+    print('  - HtmlFileHandler: package:logd_html');
+    print('  - MarkdownFileHandler: package:logd_markdown');
+    print('  - ToonFileHandler: package:logd_toon\n');
   } finally {
     if (tempDir.existsSync()) {
       tempDir.deleteSync(recursive: true);

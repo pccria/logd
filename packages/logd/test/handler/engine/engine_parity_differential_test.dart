@@ -46,7 +46,6 @@ void main() {
     final formatters = {
       'Plain': const PlainFormatter(),
       'Structured': const StructuredFormatter(),
-      'Toon': const ToonFormatter(),
       'Json': const JsonFormatter(),
     };
 

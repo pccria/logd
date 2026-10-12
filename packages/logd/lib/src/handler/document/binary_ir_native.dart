@@ -1260,16 +1260,17 @@ final class BinaryAnsiEncoder {
           ensureIndent();
 
           applyStyle(buffer, style);
-          buffer.write(
-            border.getCorner(BoxBorderPosition.top, BoxBorderCorner.left),
-          );
-          buffer.write(
-            border.getChar(BoxBorderPosition.horizontal) *
-                (terminalWidth - currentLineWidth - 2).clamp(0, 1000),
-          );
-          buffer.write(
-            border.getCorner(BoxBorderPosition.top, BoxBorderCorner.right),
-          );
+          buffer
+            ..write(
+              border.getCorner(BoxBorderPosition.top, BoxBorderCorner.left),
+            )
+            ..write(
+              border.getChar(BoxBorderPosition.horizontal) *
+                  (terminalWidth - currentLineWidth - 2).clamp(0, 1000),
+            )
+            ..write(
+              border.getCorner(BoxBorderPosition.top, BoxBorderCorner.right),
+            );
           resetStyle(buffer);
           buffer.writeln();
 

@@ -2,17 +2,26 @@
 
 ## Next Milestones
 
-### 🔲 v0.10.0: Pure Semantic Engine & Hard Deprecation Removal
-**Goal**: Permanently remove all soft-deprecated satellite shims and external dependencies from `packages/logd`, achieving a zero-network-dependency core logging engine focused on semantic IR dispatch.
-- [ ] Delete deprecated network classes (`network_sink.dart`, `http_server_sink_native.dart`, `http_server_sink_stub.dart`, `dashboard_html.dart`, `http_dashboard_handler.dart`) and remove `package:http` and `package:web_socket_channel` from `pubspec.yaml`.
-- [ ] Delete deprecated HTML shims (`html_encoder.dart`, `html_stylesheet.dart`, `html_file_handler.dart`, `html_formatter.dart`).
-- [ ] Delete deprecated Markdown shims (`markdown_encoder.dart`, `markdown_file_handler.dart`).
-- [ ] Delete deprecated TOON shims (`toon_encoder.dart`, `toon_file_handler.dart`, `toon_formatter.dart`).
-- [ ] Remove deprecated `requiredStrategy` getter on `LogEncoder`.
+### 🔲 v0.11.0: Ecosystem Maturation & Advanced Satellite Telemetry
+**Goal**: Expand capabilities across satellite packages (`logd_sqlite`, `logd_network`, `logd_html`), refine performance profiling hooks, and stabilize APIs toward v1.0.0.
+- [ ] Implement query builder extensions and pagination in `logd_sqlite`.
+- [ ] Add compression support (gzip/zstd stream wrappers) in `logd_network` sinks.
+- [ ] Introduce interactive log search and level filtering in `logd_html` standalone reports.
 
 ---
 
 ## Completed
+
+### ✅ v0.10.0: Pure Semantic Engine & Hard Deprecation Removal
+**Goal**: Permanently remove all soft-deprecated satellite shims and external dependencies from `packages/logd`, achieving a zero-network-dependency core logging engine focused on semantic IR dispatch.
+**Result**: Successfully removed all network sinks (`NetworkSink`, `HttpSink`, `SocketSink`, `HttpServerSink`, `HttpDashboardHandler`, `DropPolicy`) and dropped `http` and `web_socket_channel` from `pubspec.yaml`. Removed legacy satellite format shims (HTML, Markdown, TOON) and the deprecated `requiredStrategy` getter on `LogEncoder`. Streamlined core handlers to 4 essential targets (`Console`, `JsonFile`, `PlainFile`, `Memory`).
+- [x] Delete deprecated network classes (`network_sink.dart`, `http_server_sink_native.dart`, `http_server_sink_stub.dart`, `dashboard_html.dart`, `http_dashboard_handler.dart`) and remove `package:http` and `package:web_socket_channel` from `pubspec.yaml`.
+- [x] Delete deprecated HTML shims (`html_encoder.dart`, `html_stylesheet.dart`, `html_file_handler.dart`, `html_formatter.dart`).
+- [x] Delete deprecated Markdown shims (`markdown_encoder.dart`, `markdown_file_handler.dart`).
+- [x] Delete deprecated TOON shims (`toon_encoder.dart`, `toon_file_handler.dart`, `toon_formatter.dart`).
+- [x] Remove deprecated `requiredStrategy` getter on `LogEncoder`.
+
+---
 
 ### ✅ v0.9.7: Core Decoupling, Satellite Expansion & Direct Isolate Transfer (ADR-008)
 **Goal**: Complete extraction of specialized log formats into satellite packages, establish direct isolate transfer for `@immutable` formatters, and standardize `wrappingStrategy`.

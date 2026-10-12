@@ -1,5 +1,4 @@
-import 'package:logd/logd.dart'
-    hide HttpSink, SocketSink, HttpServerSink, HttpDashboardHandler, DropPolicy;
+import 'package:logd/logd.dart';
 import 'sink/http_server_sink.dart';
 import 'sink/network_sink.dart';
 

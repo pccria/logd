@@ -8,10 +8,6 @@ class CustomTestEncoder implements LogEncoder {
   @override
   final WrappingStrategy wrappingStrategy;
 
-  @Deprecated('Use wrappingStrategy instead. Will be removed in v0.10.0.')
-  @override
-  WrappingStrategy get requiredStrategy => wrappingStrategy;
-
   @override
   void preamble(
     final HandlerContext context,
@@ -58,9 +54,10 @@ void main() {
       expect(sink.strategy, equals(WrappingStrategy.none));
     });
 
-    test('HtmlEncoder wrappingStrategy is WrappingStrategy.document', () {
+    test('AutoConsoleEncoder wrappingStrategy is WrappingStrategy.document',
+        () {
       final sink = EncodingSink(
-        encoder: const HtmlEncoder(),
+        encoder: const AutoConsoleEncoder(),
         delegate: (final data) {},
       );
       expect(sink.strategy, equals(WrappingStrategy.document));

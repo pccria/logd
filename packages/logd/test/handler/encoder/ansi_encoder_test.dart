@@ -19,10 +19,8 @@ void main() {
       );
     });
 
-    test('wrappingStrategy is none and requiredStrategy matches it', () {
+    test('wrappingStrategy is none', () {
       expect(encoder.wrappingStrategy, equals(WrappingStrategy.none));
-      // ignore: deprecated_member_use_from_same_package
-      expect(encoder.requiredStrategy, equals(WrappingStrategy.none));
     });
 
     test('preamble and postamble execute cleanly without modifying context',

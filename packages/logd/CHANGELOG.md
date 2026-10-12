@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.10.0: Pure Semantic Engine & Hard Deprecation Removal
+
+This major milestone release completes the architectural transition of `logd` into a pure semantic logging engine. All soft-deprecated network sinks and legacy format shims have been permanently removed, eliminating all external network dependencies from the core package and establishing a zero-network-dependency core.
+
+- ### Zero-Network-Dependency Core
+  - **Permanent Removal of Network Sinks**: Removed `NetworkSink`, `HttpSink`, `SocketSink`, `HttpServerSink`, `HttpDashboardHandler`, and `DropPolicy` from `package:logd`.
+  - **Pruned Dependencies**: Dropped `package:http` and `package:web_socket_channel` from `pubspec.yaml`. All network telemetry and live web dashboard features are now exclusively maintained in [`package:logd_network`](https://pub.dev/packages/logd_network).
+
+- ### Satellite Decoupling & Shim Elimination
+  - **Permanent Removal of Satellite Format Shims**:
+    - **TOON**: Removed `ToonEncoder`, `ToonFormatter`, and `ToonFileHandler`. Use [`package:logd_toon`](https://pub.dev/packages/logd_toon).
+    - **HTML**: Removed `HtmlEncoder`, `HtmlStylesheet`, `HtmlFormatter`, and `HtmlFileHandler`. Use [`package:logd_html`](https://pub.dev/packages/logd_html).
+    - **Markdown**: Removed `MarkdownEncoder`, `MarkdownFormatter`, and `MarkdownFileHandler`. Use [`package:logd_markdown`](https://pub.dev/packages/logd_markdown).
+  - **Pruned Pre-Wired Handlers**: Core `packages/logd` now focuses strictly on four fundamental handlers: `ConsoleHandler`, `JsonFileHandler`, `PlainFileHandler`, and `MemoryHandler`. Specialized targets are provided by their dedicated satellite packages.
+
+- ### Encoder Contract Hardening
+  - **`requiredStrategy` Removal**: Permanently removed the deprecated `requiredStrategy` getter from `LogEncoder` and all encoder implementations (`AnsiEncoder`, `JsonEncoder`, `PlainTextEncoder`, `AutoEncoder`). All callers and custom encoders must now use `wrappingStrategy`.
+
+- ### Documentation & Testing Streamlining
+  - **Zero-Warning Workspace Cleanliness**: Removed all obsolete `hide` clauses across downstream packages and tests, eliminating `undefined_hidden_name` analyzer warnings.
+  - **Modular Test Suites**: Removed legacy format and network integration tests from core `packages/logd`, transferring full test ownership to satellite packages (`logd_network`, `logd_toon`, `logd_html`, `logd_markdown`).
+
+---
+
 ## 0.9.7: Core Decoupling & Satellite Ecosystem Expansion
 
 This release completes core decoupling for specialized log formats and layout strategies, establishing first-class satellite packages, modernizing isolate offloading with direct immutable transfer, and renaming internal wrapping contracts for enhanced clarity.

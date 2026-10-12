@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:logd/logd.dart' hide MarkdownEncoder, MarkdownFileHandler;
+import 'package:logd/logd.dart';
 import 'package:logd_markdown/logd_markdown.dart';
 import 'package:test/test.dart';
 

@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:logd/logd.dart'
-    hide HttpSink, SocketSink, HttpServerSink, HttpDashboardHandler, DropPolicy;
+import 'package:logd/logd.dart';
 import 'package:logd_network/logd_network.dart';
 
 import '../../../../scripts/servers/network_test_utils.dart';

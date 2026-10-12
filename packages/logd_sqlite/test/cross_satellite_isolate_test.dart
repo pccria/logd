@@ -2,8 +2,7 @@
 
 import 'dart:io';
 
-import 'package:logd/logd.dart'
-    hide ToonEncoder, ToonFileHandler, ToonFormatter, ToonPrettyFormatter;
+import 'package:logd/logd.dart';
 import 'package:logd_html/logd_html.dart';
 import 'package:logd_markdown/logd_markdown.dart';
 import 'package:logd_sqlite/logd_sqlite.dart';

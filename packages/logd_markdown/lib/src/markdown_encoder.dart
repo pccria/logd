@@ -1,6 +1,6 @@
 import 'dart:convert' as convert;
 
-import 'package:logd/logd.dart' hide MarkdownEncoder, MarkdownFileHandler;
+import 'package:logd/logd.dart';
 import 'package:meta/meta.dart';
 
 /// An encoder that transforms [LogDocument] into Markdown (GFM) markup.
@@ -18,10 +18,6 @@ class MarkdownEncoder implements LogEncoder {
 
   @override
   WrappingStrategy get wrappingStrategy => WrappingStrategy.none;
-
-  @Deprecated('Use wrappingStrategy instead. Will be removed in v0.10.0.')
-  @override
-  WrappingStrategy get requiredStrategy => wrappingStrategy;
 
   @override
   void preamble(

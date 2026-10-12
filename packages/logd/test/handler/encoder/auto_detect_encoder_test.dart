@@ -3,8 +3,46 @@ import 'package:logd/logd.dart';
 import 'package:test/test.dart';
 import '../test_helpers.dart';
 
+class _ProtocolTestEncoder implements LogEncoder {
+  const _ProtocolTestEncoder();
+
+  @override
+  WrappingStrategy get wrappingStrategy => WrappingStrategy.document;
+
+  @override
+  void preamble(
+    final HandlerContext context,
+    final LogLevel level,
+    final LogPipelineFactory factory, {
+    final LogDocument? document,
+  }) {
+    context.writeString('custom_protocol[]:\n');
+  }
+
+  @override
+  void postamble(
+    final HandlerContext context,
+    final LogLevel level,
+    final LogPipelineFactory factory,
+  ) {}
+
+  @override
+  void encode(
+    final LogEntry entry,
+    final LogDocument document,
+    final LogLevel level,
+    final HandlerContext context,
+    final LogPipelineFactory factory, {
+    final int? width,
+  }) {
+    context.writeString('[PROTOCOL:${entry.message}]');
+  }
+}
+
 class _CustomFormatter implements LogFormatter {
-  const _CustomFormatter();
+  const _CustomFormatter() : customEncoder = const _ProtocolTestEncoder();
+
+  final LogEncoder customEncoder;
 
   @override
   Set<LogMetadata> get metadata => const {};
@@ -15,9 +53,9 @@ class _CustomFormatter implements LogFormatter {
     final LogDocument document,
     final LogPipelineFactory factory,
   ) {
-    document.metadata[AutoEncoder.encoderKey] = const MarkdownEncoder();
+    document.metadata[AutoEncoder.encoderKey] = customEncoder;
     final node = factory.checkoutMessage()
-      ..segments.add(const StyledText('Custom Formatter Message'));
+      ..segments.add(StyledText(entry.message));
     document.writeNode(node);
   }
 }
@@ -29,11 +67,12 @@ void main() {
     group('AutoConsoleEncoder', () {
       const encoder = AutoConsoleEncoder();
 
-      test('auto-detects ToonFormatter metadata and uses ToonEncoder', () {
-        const formatter = ToonFormatter();
+      test('auto-detects custom formatter metadata and uses protocol encoder',
+          () {
+        const formatter = _CustomFormatter();
         final entry = LogEntry(
           level: LogLevel.info,
-          message: 'Hello TOON',
+          message: 'Hello Protocol',
           loggerName: 'test',
           timestamp: '2026-08-01 10:00:00.000',
           origin: 'test.dart:10',
@@ -53,14 +92,8 @@ void main() {
             ..encode(entry, document, LogLevel.info, context, factory);
           final output = const Utf8Decoder().convert(context.takeBytes());
 
-          expect(
-            output,
-            contains(
-              'logs[]{timestamp,logger,origin,level,message,error,stackTrace,'
-              'context}:',
-            ),
-          );
-          expect(output, contains('Hello TOON'));
+          expect(output, contains('custom_protocol[]:'));
+          expect(output, contains('[PROTOCOL:Hello Protocol]'));
         } finally {
           document.releaseRecursive(Arena.instance);
         }
@@ -109,8 +142,7 @@ void main() {
           encoder.encode(entry, document, LogLevel.info, context, factory);
           final output = const Utf8Decoder().convert(context.takeBytes());
 
-          // MarkdownEncoder renders bold text
-          expect(output, contains('**Custom Formatter Message**'));
+          expect(output, contains('[PROTOCOL:Custom Message]'));
         } finally {
           document.releaseRecursive(Arena.instance);
         }
@@ -120,11 +152,11 @@ void main() {
     group('AutoTextEncoder', () {
       const encoder = AutoTextEncoder();
 
-      test('auto-detects ToonFormatter metadata for non-terminal sinks', () {
-        const formatter = ToonFormatter();
+      test('auto-detects protocol metadata for non-terminal sinks', () {
+        const formatter = _CustomFormatter();
         final entry = LogEntry(
           level: LogLevel.warning,
-          message: 'Telemetry TOON',
+          message: 'Telemetry Protocol',
           loggerName: 'audit',
           timestamp: '2026-08-01 10:00:00.000',
           origin: 'test.dart:10',
@@ -144,14 +176,8 @@ void main() {
             ..encode(entry, document, LogLevel.warning, context, factory);
           final output = const Utf8Decoder().convert(context.takeBytes());
 
-          expect(
-            output,
-            contains(
-              'logs[]{timestamp,logger,origin,level,message,error,stackTrace,'
-              'context}:',
-            ),
-          );
-          expect(output, contains('Telemetry TOON'));
+          expect(output, contains('custom_protocol[]:'));
+          expect(output, contains('[PROTOCOL:Telemetry Protocol]'));
         } finally {
           document.releaseRecursive(Arena.instance);
         }

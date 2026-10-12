@@ -15,7 +15,6 @@ import '../layout/layout.dart';
 part 'plain_formatter.dart';
 part 'json_formatter.dart';
 part 'structured_formatter.dart';
-part 'toon_formatter.dart';
 
 /// Abstract interface for transforming a [LogEntry] into a semantic
 /// [LogDocument].

@@ -9,22 +9,14 @@ part of 'encoder.dart';
 /// Common implementations include:
 /// - PlainTextEncoder: Converts lines to a simple string.
 /// - AnsiEncoder: Translates LogStyles to ANSI escape codes.
-/// - HtmlEncoder: Translates structure to HTML5 elements.
-/// - MarkdownEncoder: Translates structure to Markdown.
 /// - JsonEncoder: Produces structured JSON.
-/// - ToonEncoder: Produces TOON-formatted rows.
 abstract interface class LogEncoder {
   /// The wrapping strategy required by this encoder.
   ///
   /// Defaults to [WrappingStrategy.none]. Encoders producing document-level
-  /// structures (such as [HtmlEncoder]) should override this to
-  /// [WrappingStrategy.document] so that [EncodingSink] can manage the
-  /// lifecycle automatically.
+  /// structures should override this to [WrappingStrategy.document] so that
+  /// [EncodingSink] can manage the lifecycle automatically.
   WrappingStrategy get wrappingStrategy => WrappingStrategy.none;
-
-  /// Deprecated alias for [wrappingStrategy].
-  @Deprecated('Use wrappingStrategy instead. Will be removed in v0.10.0.')
-  WrappingStrategy get requiredStrategy => wrappingStrategy;
 
   /// Returns the document start (e.g., HTML header or TOON header), if
   /// applicable.

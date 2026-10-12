@@ -8,7 +8,7 @@ import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 
-import 'package:logd/logd.dart' hide HtmlEncoder;
+import 'package:logd/logd.dart';
 import 'package:logd/src/logger/internal_logger.dart';
 import 'dashboard_html.dart';
 

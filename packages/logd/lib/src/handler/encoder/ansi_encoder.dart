@@ -12,10 +12,6 @@ class AnsiEncoder implements LogEncoder {
   @override
   WrappingStrategy get wrappingStrategy => WrappingStrategy.none;
 
-  @Deprecated('Use wrappingStrategy instead. Will be removed in v0.10.0.')
-  @override
-  WrappingStrategy get requiredStrategy => wrappingStrategy;
-
   @override
   void preamble(
     final HandlerContext context,

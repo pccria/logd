@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:logd/logd.dart' hide MarkdownEncoder;
+import 'package:logd/logd.dart';
 import 'package:logd_markdown/logd_markdown.dart';
 import 'package:test/test.dart';
 
@@ -326,9 +326,7 @@ void main() {
       expect(output, contains('End of audit'));
     });
 
-    test('deprecated requiredStrategy returns wrappingStrategy', () {
-      // ignore: deprecated_member_use_from_same_package
-      expect(encoder.requiredStrategy, equals(encoder.wrappingStrategy));
+    test('wrappingStrategy returns WrappingStrategy.none', () {
       expect(encoder.wrappingStrategy, equals(WrappingStrategy.none));
     });
   });
