@@ -18,15 +18,18 @@ Run `dart pub get` or `flutter pub get`.
 
 ## 2. Update Imports
 
-Since `logd` v0.9.7 still contains deprecated shims for the TOON classes, importing both `package:logd/logd.dart` and `package:logd_toon/logd_toon.dart` will cause `Ambiguous import` errors.
-
-You must `hide` the deprecated classes from the `logd` import:
+### On `logd` v0.10.0+ (Pure Semantic Engine)
+In `logd` v0.10.0 and above, all legacy TOON shims have been completely removed from core `package:logd`. You can import both packages directly with zero conflicts:
 
 ```dart
-// Before
 import 'package:logd/logd.dart';
+import 'package:logd_toon/logd_toon.dart';
+```
 
-// After
+### On `logd` v0.9.7 (Transitional Period)
+If you are temporarily using `logd` v0.9.7, hide the deprecated classes from the `logd` import:
+
+```dart
 import 'package:logd/logd.dart'
     hide ToonEncoder, ToonFormatter, ToonFileHandler, ToonPrettyFormatter;
 import 'package:logd_toon/logd_toon.dart';
@@ -62,6 +65,6 @@ void main() {
 }
 ```
 
-## 5. Removal in v0.10.0
+## 5. Status in `v0.10.0`
 
-The deprecated shims in `package:logd` will be completely removed in `v0.10.0`. Once you upgrade to v0.10.0, you can remove the `hide` clauses from your imports.
+The legacy shims in `package:logd` have been **completely removed** in `v0.10.0`. Core `logd` has zero TOON formatting dependencies. All TOON document generation, schema reflection, and preamble extraction utilities are housed strictly in `package:logd_toon`.

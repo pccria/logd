@@ -43,3 +43,7 @@ final logs = sink.queryLogs(
   limit: 50,
 );
 ```
+
+## 4. Compatibility with `logd` v0.10.0+
+
+`logd_sqlite` v0.1.5+ is fully compatible with both `logd` v0.9.7 and `logd` v0.10.0+ (`>=0.9.7 <0.11.0`). In `logd` v0.10.0+, core logging remains purely semantic while `logd_sqlite` provides high-performance relational storage without any API changes.

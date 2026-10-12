@@ -1,3 +1,8 @@
+## 0.1.5
+
+- **`logd` v0.10.x Support**: Widened dependency constraint to `logd: '>=0.9.7 <0.11.0'`, enabling seamless compatibility with `logd` v0.10.0's pure semantic engine.
+- **Documentation**: Updated migration and usage guides for `logd` v0.10.0+ integration.
+
 ## 0.1.4
 
 - **Async Isolate Support (`SqliteHandler.async`)**: Added `SqliteHandler.async()` static factory method allowing SQLite log persistence to run on background isolates without blocking main event loops.

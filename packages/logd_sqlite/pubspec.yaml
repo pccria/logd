@@ -1,6 +1,6 @@
 name: logd_sqlite
 description: High-performance SQLite log sink for logd featuring WAL mode, prepared statements, atomic transaction batching, retention policies, and full-text search.
-version: 0.1.4
+version: 0.1.5
 repository: https://github.com/pooriaaskarim/logd
 homepage: https://github.com/pooriaaskarim/logd
 documentation: https://github.com/pooriaaskarim/logd

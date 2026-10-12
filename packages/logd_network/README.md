@@ -203,6 +203,16 @@ dart run example/showcase/http_dashboard_showcase.dart
 
 ---
 
+## Migration from `logd` <=0.9.7
+
+In `logd` v0.10.0, all network transport sinks (`NetworkSink`, `HttpSink`, `SocketSink`, `HttpServerSink`, `HttpDashboardHandler`) were permanently removed from core `package:logd`.
+
+- All network logging, HTTP batch shipping, and embedded dashboard capabilities are now exclusively provided by `package:logd_network`.
+- Core `package:logd` contains zero network dependencies (e.g. `package:http`, `package:web_socket_channel`).
+- For detailed migration instructions, see the [Migration Guide](doc/migration_guide.md).
+
+---
+
 ## Documentation & Monorepo
 
 For deep-dive documentation on `logd` architecture, migration guides, and execution engines:

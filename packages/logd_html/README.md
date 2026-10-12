@@ -22,8 +22,7 @@ dependencies:
 ## Quick Start
 
 ```dart
-import 'package:logd/logd.dart'
-    hide DefaultHtmlStylesheet, HtmlEncoder, HtmlFileHandler, HtmlStylesheet;
+import 'package:logd/logd.dart';
 import 'package:logd_html/logd_html.dart';
 
 void main() async {
@@ -76,3 +75,13 @@ final handler = HtmlFileHandler(
   ),
 );
 ```
+
+---
+
+## Migration from `logd` <=0.9.7
+
+Starting with `logd` v0.10.0, all legacy HTML shims (`HtmlEncoder`, `HtmlFileHandler`, `HtmlFormatter`, `HtmlStylesheet`) have been permanently removed from core `package:logd`.
+
+- **On `logd >=0.10.0`**: Simply import `package:logd_html/logd_html.dart`. No `hide` clauses are required.
+- **On `logd 0.9.7`**: If upgrading gradually, hide the legacy shims (`import 'package:logd/logd.dart' hide HtmlEncoder...`).
+- For detailed instructions, see the [Migration Guide](doc/migration_guide.md).

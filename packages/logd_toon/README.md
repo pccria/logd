@@ -39,8 +39,7 @@ dependencies:
 ### 1. Basic File Logging
 
 ```dart
-import 'package:logd/logd.dart'
-    hide ToonEncoder, ToonFormatter, ToonFileHandler, ToonPrettyFormatter;
+import 'package:logd/logd.dart';
 import 'package:logd_toon/logd_toon.dart';
 
 void main() async {
@@ -126,6 +125,16 @@ ${recentLines.join('\n')}
 - [TOON Specification Document](doc/toon_spec.md)
 - [logd Core Package](https://pub.dev/packages/logd)
 - [Issue Tracker](https://github.com/pooriaaskarim/logd/issues)
+
+---
+
+## Migration from `logd` <=0.9.7
+
+Starting with `logd` v0.10.0, all legacy TOON shims (`ToonEncoder`, `ToonFormatter`, `ToonFileHandler`, `ToonPrettyFormatter`) have been permanently removed from core `package:logd`.
+
+- **On `logd >=0.10.0`**: Simply import `package:logd_toon/logd_toon.dart`. No `hide` clauses are required.
+- **On `logd 0.9.7`**: If upgrading gradually, hide the legacy shims (`import 'package:logd/logd.dart' hide ToonEncoder...`).
+- For detailed instructions, see the [Migration Guide](doc/migration_guide.md).
 
 ---
 

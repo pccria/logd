@@ -1,3 +1,9 @@
+## 0.1.1
+
+- **`logd` v0.10.x Support**: Widened dependency constraint to `logd: '>=0.9.7 <0.11.0'`, enabling seamless compatibility with `logd` v0.10.0's pure semantic engine.
+- **Clean Imports (No Shims)**: Removed obsolete `hide` clauses from documentation and examples as legacy Markdown shims have been permanently deleted in `logd` v0.10.0.
+- **Documentation**: Updated migration guide to reflect permanent removal of core shims in `logd` v0.10.0+.
+
 ## 0.1.0
 
 - **Initial Stable Release:** Promoted `logd_markdown` to a mature, standalone satellite package.

@@ -21,7 +21,7 @@ dependencies:
 ## Quick Start
 
 ```dart
-import 'package:logd/logd.dart' hide MarkdownEncoder, MarkdownFileHandler;
+import 'package:logd/logd.dart';
 import 'package:logd_markdown/logd_markdown.dart';
 
 void main() async {
@@ -37,3 +37,13 @@ void main() async {
   await handler.dispose();
 }
 ```
+
+---
+
+## Migration from `logd` <=0.9.7
+
+Starting with `logd` v0.10.0, all legacy Markdown shims (`MarkdownEncoder`, `MarkdownFormatter`, `MarkdownFileHandler`) have been permanently removed from core `package:logd`.
+
+- **On `logd >=0.10.0`**: Simply import `package:logd_markdown/logd_markdown.dart`. No `hide` clauses are required.
+- **On `logd 0.9.7`**: If upgrading gradually, hide the legacy shims (`import 'package:logd/logd.dart' hide MarkdownEncoder, MarkdownFileHandler;`).
+- For detailed instructions, see the [Migration Guide](doc/migration_guide.md).

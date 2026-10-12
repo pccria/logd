@@ -1,6 +1,6 @@
 name: logd_markdown
 description: Markdown (GFM) encoder and pre-wired file handler satellite package for logd.
-version: 0.1.0
+version: 0.1.1
 repository: https://github.com/pooriaaskarim/logd
 homepage: https://github.com/pooriaaskarim/logd
 documentation: https://github.com/pooriaaskarim/logd
