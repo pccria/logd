@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6
+
+- **Dependency Alignment**: Updated `logd` dependency constraint to `^0.10.0`.
+
 ## 0.1.5
 
 - **Web & WASM Platform Support Fix**:

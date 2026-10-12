@@ -1,3 +1,7 @@
+## 0.1.6
+
+- **Dependency Alignment**: Updated `logd` dependency constraint to `^0.10.0`.
+
 ## 0.1.5
 
 - **`logd` v0.10.x Support**: Widened dependency constraint to `logd: '>=0.9.7 <0.11.0'`, enabling seamless compatibility with `logd` v0.10.0's pure semantic engine.
