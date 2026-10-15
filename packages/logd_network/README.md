@@ -101,7 +101,12 @@ final httpHandler = Handler(
   formatter: const JsonFormatter(),
   sink: HttpSink(
     url: 'https://logs.example.com/api/v1/ingest',
-    headers: const {'Authorization': 'Bearer token-xyz'},
+    headers: const {'X-App-Id': 'mobile'},
+    // Dynamic Auth: evaluated before each batch POST (OAuth2, rotating HMAC)
+    headersProvider: () async {
+      final token = await authManager.getFreshAccessToken();
+      return {'Authorization': 'Bearer $token'};
+    },
     batchSize: 50,
     flushInterval: const Duration(seconds: 30),
     maxRetries: 5,

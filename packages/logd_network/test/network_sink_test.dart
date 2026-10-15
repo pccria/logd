@@ -232,6 +232,134 @@ void main() {
       ).called(1);
     });
 
+    test('evaluates async headersProvider and overrides static headers',
+        () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('OK', 200));
+
+      final sink = HttpSink(
+        url: httpUrl,
+        batchSize: 1,
+        headers: const {
+          'Authorization': 'Bearer old-token',
+          'X-Static': 'static-val',
+        },
+        headersProvider: () async => {
+          'Authorization': 'Bearer refreshed-token',
+          'X-Dynamic': 'dynamic-val',
+        },
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['dynamic-headers']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future.delayed(Duration.zero);
+
+      verify(
+        () => mockClient.post(
+          any(),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer refreshed-token',
+            'X-Static': 'static-val',
+            'X-Dynamic': 'dynamic-val',
+          },
+          body: any(named: 'body'),
+        ),
+      ).called(1);
+    });
+
+    test('supports synchronous headersProvider callback', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('OK', 200));
+
+      final sink = HttpSink(
+        url: httpUrl,
+        batchSize: 1,
+        headersProvider: () => {'X-Sync-Auth': 'signature-456'},
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['sync-headers']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future.delayed(Duration.zero);
+
+      verify(
+        () => mockClient.post(
+          any(),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Sync-Auth': 'signature-456',
+          },
+          body: any(named: 'body'),
+        ),
+      ).called(1);
+    });
+
+    test('re-evaluates headersProvider on retry when token provider throws',
+        () async {
+      var providerCalls = 0;
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('OK', 200));
+
+      final sink = HttpSink(
+        url: httpUrl,
+        batchSize: 1,
+        maxRetries: 3,
+        headersProvider: () {
+          providerCalls++;
+          if (providerCalls == 1) {
+            throw StateError('Auth server timeout');
+          }
+          return {'Authorization': 'Bearer recovered-jwt'};
+        },
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['retry-token']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      expect(providerCalls, equals(2));
+      verify(
+        () => mockClient.post(
+          any(),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer recovered-jwt',
+          },
+          body: any(named: 'body'),
+        ),
+      ).called(1);
+    });
+
     test('invokes onDropped callback when max retries exceeded', () async {
       when(
         () => mockClient.post(

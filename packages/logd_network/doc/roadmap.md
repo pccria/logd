@@ -35,22 +35,20 @@ cadence. A `logd` core minor bump does not automatically trigger a
 - [x] Fix `SocketSink` reconnect-after-dispose race: store reconnect timer on `_SocketState` and cancel in `dispose()`.
 - [x] Harden `DropPolicy.block`: fail eagerly at construction time with constructor `assert` and add `@Deprecated` targeting `1.0.0` removal.
 
----
-
-## Next Milestones
-
-### 🔲 v0.2.0 (Minor): Dynamic Auth Hooks
+### ✅ v0.2.0 (Minor): Dynamic Auth Hooks
 
 **Goal**: Introduce the first non-breaking transport enhancement: dynamic
 request header composition for OAuth2, HMAC, and rotating credentials.
 
-- [ ] Add `Future<Map<String, String>> Function()? headersProvider` to
+- [x] Add `FutureOr<Map<String, String>> Function()? headersProvider` to
       `HttpSink`. When provided, it is awaited before each batch POST and its
       result is merged on top of the static `headers` map.
-- [ ] `headersProvider` is a transient field — not round-tripped across
+- [x] `headersProvider` is a transient field — not round-tripped across
       isolates in `registerLogdNetworkSerializers()`. Document this explicitly.
 
 ---
+
+## Next Milestones
 
 ### 🔲 v0.3.0 (Minor): Circuit Breaker & HTTP Resilience
 

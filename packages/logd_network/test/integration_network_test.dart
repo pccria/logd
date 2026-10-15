@@ -171,5 +171,57 @@ void main() {
         await retryServer.close(force: true);
       },
     );
+
+    test('HttpSink delivers logs with dynamic auth headersProvider', () async {
+      final authServer = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final receivedHeaders = <String, String>{};
+      final completer = Completer<void>();
+
+      authServer.listen((final request) async {
+        if (request.method == 'POST') {
+          request.headers.forEach((final name, final values) {
+            receivedHeaders[name] = values.join(',');
+          });
+          // Consume request body to release socket
+          await utf8.decoder.bind(request).drain<void>();
+          request.response
+            ..statusCode = HttpStatus.ok
+            ..write('OK');
+          await request.response.close();
+          if (!completer.isCompleted) {
+            completer.complete();
+          }
+        }
+      });
+
+      final sink = HttpSink(
+        url: 'http://127.0.0.1:${authServer.port}/auth_logs',
+        batchSize: 1,
+        headers: const {'X-Static-Client': 'mobile-app'},
+        headersProvider: () async => {
+          'Authorization': 'Bearer dynamic-oauth-token-789',
+        },
+      );
+
+      final handler = Handler(
+        formatter: const PlainFormatter(metadata: {}),
+        sink: sink,
+      );
+
+      Logger.configure('test.http.auth', handlers: [handler]);
+      final logger = Logger.get('test.http.auth');
+
+      logger.info('auth_test_log');
+
+      await completer.future.timeout(const Duration(seconds: 5));
+      expect(receivedHeaders['x-static-client'], equals('mobile-app'));
+      expect(
+        receivedHeaders['authorization'],
+        equals('Bearer dynamic-oauth-token-789'),
+      );
+
+      await sink.dispose();
+      await authServer.close(force: true);
+    });
   });
 }

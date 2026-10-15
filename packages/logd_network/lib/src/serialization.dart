@@ -7,6 +7,10 @@ import 'sink/network_sink.dart';
 ///
 /// If using background isolates with [HttpSink], [SocketSink], or [HttpServerSink],
 /// call this function once in each isolate before calling `Logger.importConfig()`.
+///
+/// **Note**: Dynamic closure callbacks such as [HttpSink.headersProvider] and
+/// [HttpSink.onDropped] are transient and cannot be serialized across isolates.
+/// When deserializing in a worker isolate, these fields default to `null`.
 void registerLogdNetworkSerializers() {
   LoggerSerializationRegistry.registerSink<HttpSink>(
     type: 'HttpSink',

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- **Dynamic Auth Hooks (`headersProvider`)**: Added `headersProvider` callback to `HttpSink` for composing dynamic request headers (OAuth2 bearer token refresh, rotating HMAC signatures) evaluated before each batch POST and re-evaluated during retry backoffs.
+- **Pure Dart Integration Tests**: Converted integration tests to in-process `dart:io` `HttpServer` and `WebSocketTransformer` servers, eliminating external Python environment dependencies.
+- **Document Postamble Drain Fix**: Fixed `HttpSink.dispose()` and `SocketSink.dispose()` to ensure document-level postambles are enqueued and drained before connection shutdown.
+- **Expanded Test Coverage**: Added comprehensive unit test coverage for `onDropped` callbacks, transport exception recovery, custom headers, FIFO buffer eviction, and HTTP 404 routing.
+
 ## 0.1.6
 
 - **Dependency Alignment**: Updated `logd` dependency constraint to `^0.10.0`.

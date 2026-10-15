@@ -1,6 +1,6 @@
 name: logd_network
 description: Network-based sinks and real-time observability handlers (HTTP batching, WebSocket streaming, live browser dashboard) for logd.
-version: 0.1.6
+version: 0.2.0
 repository: https://github.com/pooriaaskarim/logd
 homepage: https://github.com/pooriaaskarim/logd
 documentation: https://github.com/pooriaaskarim/logd

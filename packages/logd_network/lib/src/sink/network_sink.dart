@@ -176,6 +176,10 @@ base class HttpSink extends NetworkSink {
   /// - [encoder]: The encoder used to serialize logs (default:
   ///   [PlainTextEncoder]).
   /// - [headers]: Custom headers to include in the request.
+  /// - [headersProvider]: Dynamic header provider callback invoked before each
+  ///   batch POST (e.g. for OAuth2 refresh tokens or rotating HMAC signatures).
+  ///   Results are merged on top of [headers]. Note: this is a transient field
+  ///   and is not serialized across isolates.
   /// - [batchSize]: Sink when this many logs are accumulated (default: 50).
   /// - [flushInterval]: Sink interval (default: 60s).
   /// - [maxRetries]: Max attempts for a single batch (default: 5).
@@ -187,6 +191,7 @@ base class HttpSink extends NetworkSink {
     required this.url,
     super.encoder = const AutoTextEncoder(),
     this.headers = const {},
+    this.headersProvider,
     this.batchSize = 50,
     this.flushInterval = const Duration(seconds: 60),
     this.maxRetries = 5,
@@ -206,6 +211,17 @@ base class HttpSink extends NetworkSink {
 
   /// Custom headers to include in the request.
   final Map<String, String> headers;
+
+  /// Optional dynamic header provider callback invoked before each batch POST.
+  ///
+  /// Useful for rotating credentials, HMAC signatures, or refreshing OAuth2
+  /// bearer tokens. When provided, this callback is evaluated before each HTTP
+  /// transmission attempt and its returned key-value pairs are merged on top
+  /// of the static [headers] map.
+  ///
+  /// **Note**: This callback is transient and is not transferred across isolates
+  /// via [registerLogdNetworkSerializers].
+  final FutureOr<Map<String, String>> Function()? headersProvider;
 
   /// Sink when this many logs are accumulated.
   final int batchSize;
@@ -272,9 +288,19 @@ base class HttpSink extends NetworkSink {
     int attempts = 0;
     while (attempts < maxRetries) {
       try {
+        final resolvedHeaders = <String, String>{
+          'Content-Type': 'application/json',
+          ...headers,
+        };
+
+        if (headersProvider != null) {
+          final dynamicHeaders = await headersProvider!();
+          resolvedHeaders.addAll(dynamicHeaders);
+        }
+
         final response = await httpClient.post(
           uri,
-          headers: {'Content-Type': 'application/json', ...headers},
+          headers: resolvedHeaders,
           body: convert.jsonEncode(
             batch.map((final b) => convert.utf8.decode(b)).toList(),
           ),
