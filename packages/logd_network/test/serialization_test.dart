@@ -32,6 +32,7 @@ void main() {
       expect(restored.maxRetries, equals(7));
       expect(restored.maxBufferSize, equals(500));
       expect(restored.dropPolicy, equals(DropPolicy.discardNewest));
+      expect(restored.headersProvider, isNull);
     });
 
     test('SocketSink round-trip serialization and deserialization', () {

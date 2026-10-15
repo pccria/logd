@@ -360,6 +360,138 @@ void main() {
       ).called(1);
     });
 
+    test(
+      'invokes onDropped with provider error when headersProvider throws continuously',
+      () async {
+        List<Uint8List>? droppedBatch;
+        Object? droppedError;
+
+        final sink = HttpSink(
+          url: httpUrl,
+          batchSize: 1,
+          maxRetries: 2,
+          headersProvider: () =>
+              throw const FormatException('Invalid auth state'),
+          client: mockClient,
+          onDropped: (final batch, final error) {
+            droppedBatch = batch;
+            droppedError = error;
+          },
+        );
+
+        await sink.output(
+          createTestDocument(['fail-token']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        expect(droppedBatch, isNotNull);
+        expect(droppedBatch, hasLength(1));
+        expect(utf8.decode(droppedBatch!.first), equals('fail-token'));
+        expect(droppedError, isA<FormatException>());
+      },
+    );
+
+    test('evaluates headersProvider during periodic timer flushes', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('OK', 200));
+
+      final sink = HttpSink(
+        url: httpUrl,
+        flushInterval: const Duration(milliseconds: 50),
+        headersProvider: () async => {'X-Timer-Auth': 'scheduled-token'},
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['scheduled-log']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      verify(
+        () => mockClient.post(
+          any(),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Timer-Auth': 'scheduled-token',
+          },
+          body: any(named: 'body'),
+        ),
+      ).called(1);
+
+      await sink.dispose();
+    });
+
+    test('re-evaluates headersProvider dynamically across distinct batches',
+        () async {
+      var callIndex = 0;
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('OK', 200));
+
+      final sink = HttpSink(
+        url: httpUrl,
+        batchSize: 1,
+        headersProvider: () => {'X-Sequence': 'seq-${++callIndex}'},
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['batch-1']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future.delayed(Duration.zero);
+
+      verify(
+        () => mockClient.post(
+          any(),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Sequence': 'seq-1',
+          },
+          body: any(named: 'body'),
+        ),
+      ).called(1);
+
+      await sink.output(
+        createTestDocument(['batch-2']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future.delayed(Duration.zero);
+
+      verify(
+        () => mockClient.post(
+          any(),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Sequence': 'seq-2',
+          },
+          body: any(named: 'body'),
+        ),
+      ).called(1);
+
+      expect(callIndex, equals(2));
+      await sink.dispose();
+    });
+
     test('invokes onDropped callback when max retries exceeded', () async {
       when(
         () => mockClient.post(
