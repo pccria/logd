@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:http/http.dart' as http;
 import 'package:logd/logd.dart';
 import 'package:logd_network/logd_network.dart';
@@ -14,6 +16,44 @@ class MockHttpClient extends Mock implements http.Client {}
 class MockWebSocketChannel extends Mock implements WebSocketChannel {}
 
 class MockWebSocketSink extends Mock implements WebSocketSink {}
+
+class _TestDocumentEncoder implements LogEncoder {
+  const _TestDocumentEncoder();
+
+  @override
+  WrappingStrategy get wrappingStrategy => WrappingStrategy.document;
+
+  @override
+  void preamble(
+    final HandlerContext context,
+    final LogLevel level,
+    final LogPipelineFactory factory, {
+    final LogDocument? document,
+  }) {
+    context.writeString('<!-- PREAMBLE -->');
+  }
+
+  @override
+  void postamble(
+    final HandlerContext context,
+    final LogLevel level,
+    final LogPipelineFactory factory,
+  ) {
+    context.writeString('<!-- POSTAMBLE -->');
+  }
+
+  @override
+  void encode(
+    final LogEntry entry,
+    final LogDocument document,
+    final LogLevel level,
+    final HandlerContext context,
+    final LogPipelineFactory factory, {
+    final int? width,
+  }) {
+    context.writeString(entry.message);
+  }
+}
 
 void main() {
   const httpUrl = 'https://example.com/logs';
@@ -151,6 +191,149 @@ void main() {
       expect(attempts, equals(2));
       await sink.dispose();
     });
+
+    test('forwards custom headers in HTTP request', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('OK', 200));
+
+      final sink = HttpSink(
+        url: httpUrl,
+        batchSize: 1,
+        headers: const {
+          'Authorization': 'Bearer token-xyz',
+          'X-Custom': '123',
+        },
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['custom-headers']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future.delayed(Duration.zero);
+
+      verify(
+        () => mockClient.post(
+          any(),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer token-xyz',
+            'X-Custom': '123',
+          },
+          body: any(named: 'body'),
+        ),
+      ).called(1);
+    });
+
+    test('invokes onDropped callback when max retries exceeded', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('Internal Error', 500));
+
+      List<Uint8List>? droppedBatch;
+      Object? droppedError;
+
+      final sink = HttpSink(
+        url: httpUrl,
+        batchSize: 1,
+        maxRetries: 2,
+        client: mockClient,
+        onDropped: (final batch, final error) {
+          droppedBatch = batch;
+          droppedError = error;
+        },
+      );
+
+      await sink.output(
+        createTestDocument(['drop-me']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      expect(droppedBatch, isNotNull);
+      expect(droppedBatch, hasLength(1));
+      expect(utf8.decode(droppedBatch!.first), equals('drop-me'));
+      expect(droppedError, isA<http.ClientException>());
+    });
+
+    test('handles exception thrown inside onDropped gracefully', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('Internal Error', 500));
+
+      final sink = HttpSink(
+        url: httpUrl,
+        batchSize: 1,
+        maxRetries: 1,
+        client: mockClient,
+        onDropped: (final _, final __) {
+          throw StateError('Callback failed');
+        },
+      );
+
+      await expectLater(
+        sink.output(
+          createTestDocument(['safe-drop']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        ),
+        completes,
+      );
+      await Future.delayed(const Duration(milliseconds: 100));
+    });
+
+    test('retries on ClientException network failures', () async {
+      var attempts = 0;
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async {
+        attempts++;
+        if (attempts == 1) {
+          throw http.ClientException('Connection reset');
+        }
+        return http.Response('OK', 200);
+      });
+
+      final sink = HttpSink(
+        url: httpUrl,
+        batchSize: 1,
+        maxRetries: 3,
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['network-fail']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      expect(attempts, equals(2));
+      await sink.dispose();
+    });
   });
 
   group('SocketSink', () {
@@ -187,7 +370,6 @@ void main() {
 
       final sink = SocketSink(url: wsUrl, channel: mockChannel);
 
-      // don't await because it will block on readyCompleter
       final f = sink.output(
         createTestDocument(['buffered']),
         testEntry,
@@ -199,7 +381,7 @@ void main() {
       verifyNever(() => mockSink.add(any()));
 
       readyCompleter.complete();
-      await f; // finish the output call
+      await f;
 
       verify(() => mockSink.add('buffered')).called(1);
     });
@@ -226,6 +408,33 @@ void main() {
 
       expect(sink.isDisposed, isTrue);
     });
+
+    test('re-enqueues line and initiates reconnect when send fails', () async {
+      var sendCalls = 0;
+      when(() => mockSink.add(any())).thenAnswer((final _) {
+        sendCalls++;
+        if (sendCalls == 1) {
+          throw StateError('Socket closed abruptly');
+        }
+      });
+
+      final sink = SocketSink(
+        url: wsUrl,
+        channel: mockChannel,
+        reconnectInterval: const Duration(milliseconds: 50),
+      );
+
+      await sink.output(
+        createTestDocument(['faulty-stream']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      expect(sendCalls, greaterThanOrEqualTo(1));
+      await sink.dispose();
+    });
   });
 
   group('NetworkSink Edge Cases', () {
@@ -248,7 +457,7 @@ void main() {
       final sink = HttpSink(
         url: 'https://example.com/logs',
         maxBufferSize: 2,
-        batchSize: 10, // Don't auto-flush
+        batchSize: 10,
         dropPolicy: DropPolicy.discardNewest,
         client: mockClient,
       );
@@ -270,11 +479,10 @@ void main() {
         testEntry,
         LogLevel.info,
         const StandardPipelineFactory(),
-      ); // Should be dropped
+      );
 
       await sink.dispose();
 
-      // Verify only first 2 logs were sent
       verify(
         () => mockClient.post(
           any(),
@@ -283,6 +491,94 @@ void main() {
         ),
       ).called(1);
     });
+
+    test('respects DropPolicy.discardOldest when buffer is full', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('OK', 200));
+
+      final sink = HttpSink(
+        url: 'https://example.com/logs',
+        maxBufferSize: 2,
+        batchSize: 10,
+        dropPolicy: DropPolicy.discardOldest,
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['first']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await sink.output(
+        createTestDocument(['second']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await sink.output(
+        createTestDocument(['third']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+
+      await sink.dispose();
+
+      verify(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: jsonEncode(['second', 'third']),
+        ),
+      ).called(1);
+    });
+
+    test(
+      'writes preamble and postamble for WrappingStrategy.document',
+      () async {
+        when(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((final _) async => http.Response('OK', 200));
+
+        final sink = HttpSink(
+          url: 'https://example.com/logs',
+          encoder: const _TestDocumentEncoder(),
+          batchSize: 10,
+          client: mockClient,
+        );
+
+        await sink.output(
+          createTestDocument(['body']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+
+        await sink.dispose();
+
+        verify(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: jsonEncode([
+              '<!-- PREAMBLE -->',
+              'msg',
+              '<!-- POSTAMBLE -->',
+            ]),
+          ),
+        ).called(1);
+      },
+    );
 
     test('does not output when enabled is false', () async {
       when(
@@ -328,7 +624,7 @@ void main() {
 
       final sink = HttpSink(
         url: 'https://example.com/logs',
-        batchSize: 100, // High threshold
+        batchSize: 100,
         client: mockClient,
       );
 

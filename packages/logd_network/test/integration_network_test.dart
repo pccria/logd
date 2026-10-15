@@ -1,192 +1,90 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:logd/logd.dart';
 import 'package:logd_network/logd_network.dart';
 import 'package:test/test.dart';
-import '../../../scripts/servers/network_test_utils.dart';
 
 void main() {
-  group('Network Sinks Integration', () {
-    Process? socketProcess;
-    Process? httpProcess;
+  group('Network Sinks Integration (Pure Dart)', () {
+    late HttpServer socketServer;
+    late HttpServer httpServer;
 
-    Stream<String>? socketStdout;
-    Stream<String>? socketStderr;
-    Stream<String>? httpStdout;
-    Stream<String>? httpStderr;
-
-    int? socketPort;
-    int? httpPort;
-
-    bool hasPython = false;
-    String? socketPython;
-    String? httpPython;
-
-    // Helper to wait for a specific string in process output
-    Future<void> waitForOutput(
-      final Stream<String> stdout,
-      final Stream<String> stderr,
-      final String pattern, {
-      final Duration timeout = const Duration(seconds: 15),
-    }) async {
-      final completer = Completer<void>();
-
-      void check(final String line, final String type) {
-        if (line.contains(pattern)) {
-          if (!completer.isCompleted) {
-            completer.complete();
-          }
-        }
-      }
-
-      final subStdout = stdout.listen((final line) => check(line, 'STDOUT'));
-      final subStderr = stderr.listen((final line) => check(line, 'STDERR'));
-
-      try {
-        await completer.future.timeout(timeout);
-      } finally {
-        await subStdout.cancel();
-        await subStderr.cancel();
-      }
-    }
+    final receivedSocketMessages = StreamController<String>.broadcast();
+    final receivedHttpBatches = StreamController<List<dynamic>>.broadcast();
 
     setUpAll(() async {
-      final serversDir = Directory('scripts/servers').existsSync()
-          ? Directory('scripts/servers').absolute.path
-          : Directory('../../scripts/servers').absolute.path;
-      final socketDir = '$serversDir/socket';
-      final httpDir = '$serversDir/http';
+      // 1. Start pure-Dart WebSocket server on an ephemeral port
+      socketServer = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      socketServer.transform(WebSocketTransformer()).listen((final webSocket) {
+        webSocket.listen((final data) {
+          receivedSocketMessages.add(data as String);
+        });
+      });
 
-      final socketPythonExe = Platform.isWindows
-          ? '$socketDir/.venv/Scripts/python.exe'
-          : '$socketDir/.venv/bin/python';
-
-      final httpPythonExe = Platform.isWindows
-          ? '$httpDir/.venv/Scripts/python.exe'
-          : '$httpDir/.venv/bin/python';
-
-      if (File(socketPythonExe).existsSync() &&
-          File(httpPythonExe).existsSync()) {
-        hasPython = true;
-        socketPython = File(socketPythonExe).absolute.path;
-        httpPython = File(httpPythonExe).absolute.path;
-      } else {
-        // Fallback: check system python has required packages
-        try {
-          final res = await Process.run('python', [
-            '-c',
-            'import flask, websockets',
-          ]);
-          if (res.exitCode == 0) {
-            hasPython = true;
-            socketPython = 'python';
-            httpPython = 'python';
-          }
-        } catch (_) {}
-      }
-
-      if (!hasPython) {
-        return;
-      }
-
-      // 1. Dynamic Port Discovery
-      socketPort = await NetworkTestUtils.findAvailablePort(12347);
-      httpPort = await NetworkTestUtils.findAvailablePort(8081);
-
-      // 2. Start WebSocket server
-      socketProcess = await Process.start(
-        socketPython!,
-        ['main.py', '--port', socketPort.toString()],
-        workingDirectory: socketDir,
-        environment: {'HOST': '127.0.0.1', 'PYTHONUNBUFFERED': '1'},
-      );
-      socketStdout = socketProcess!.stdout
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .asBroadcastStream();
-      socketStderr = socketProcess!.stderr
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .asBroadcastStream();
-
-      // 3. Start HTTP server
-      httpProcess = await Process.start(
-        httpPython!,
-        ['main.py', '--port', httpPort.toString()],
-        workingDirectory: httpDir,
-        environment: {'HOST': '127.0.0.1', 'PYTHONUNBUFFERED': '1'},
-      );
-      httpStdout = httpProcess!.stdout
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .asBroadcastStream();
-      httpStderr = httpProcess!.stderr
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .asBroadcastStream();
-
-      // 4. Wait for both servers to be ready
-      await Future.wait([
-        waitForOutput(socketStdout!, socketStderr!, 'SocketSink'),
-        waitForOutput(httpStdout!, httpStderr!, 'HttpSink'),
-      ]);
+      // 2. Start pure-Dart HTTP server on an ephemeral port
+      httpServer = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      httpServer.listen((final request) async {
+        if (request.method == 'POST' && request.uri.path == '/logs') {
+          final body = await utf8.decoder.bind(request).join();
+          final decoded = jsonDecode(body) as List<dynamic>;
+          receivedHttpBatches.add(decoded);
+          request.response
+            ..statusCode = HttpStatus.ok
+            ..headers.contentType = ContentType.json
+            ..write(jsonEncode({'status': 'ok'}));
+          await request.response.close();
+        } else {
+          request.response
+            ..statusCode = HttpStatus.notFound
+            ..write('Not Found');
+          await request.response.close();
+        }
+      });
     });
 
     tearDownAll(() async {
-      if (!hasPython) {
-        return;
-      }
-      socketProcess?.kill();
-      httpProcess?.kill();
-      await Future.wait([
-        socketProcess!.exitCode,
-        httpProcess!.exitCode,
-      ]).catchError((final _) => [0, 0]);
+      await socketServer.close(force: true);
+      await httpServer.close(force: true);
+      await receivedSocketMessages.close();
+      await receivedHttpBatches.close();
+    });
+
+    setUp(() {
+      Logger.reset();
     });
 
     test('SocketSink streams logs in real-time', () async {
-      if (!hasPython) {
-        markTestSkipped('Python environment with requirements not found');
-        return;
-      }
-      final sink = SocketSink(url: 'ws://127.0.0.1:$socketPort');
+      final sink = SocketSink(
+        url: 'ws://127.0.0.1:${socketServer.port}',
+      );
 
       final handler = Handler(
         formatter: const PlainFormatter(metadata: {}),
         sink: sink,
       );
 
-      final logger = Logger.get('test.socket');
       Logger.configure('test.socket', handlers: [handler]);
+      final logger = Logger.get('test.socket');
 
-      // Verify connection on server side
-      final serverReady = waitForOutput(
-        socketStdout!,
-        socketStderr!,
-        'Connection established',
+      final messageFuture = receivedSocketMessages.stream.firstWhere(
+        (final msg) => msg.contains('INTEGRATION_TEST_SOCKET'),
       );
-      logger.info('handshake');
-      await serverReady;
 
-      final messageReceived = waitForOutput(
-        socketStdout!,
-        socketStderr!,
-        'INTEGRATION_TEST_SOCKET',
-      );
       logger.info('INTEGRATION_TEST_SOCKET');
-      await messageReceived;
 
+      final receivedMessage = await messageFuture.timeout(
+        const Duration(seconds: 5),
+      );
+
+      expect(receivedMessage, contains('INTEGRATION_TEST_SOCKET'));
       await sink.dispose();
     });
 
     test('HttpSink ships logs in batches', () async {
-      if (!hasPython) {
-        markTestSkipped('Python environment with requirements not found');
-        return;
-      }
       final sink = HttpSink(
-        url: 'http://127.0.0.1:$httpPort/logs',
+        url: 'http://127.0.0.1:${httpServer.port}/logs',
         batchSize: 2,
       );
 
@@ -195,19 +93,83 @@ void main() {
         sink: sink,
       );
 
-      final logger = Logger.get('test.http');
       Logger.configure('test.http', handlers: [handler]);
+      final logger = Logger.get('test.http');
 
-      // Send first - should NOT be received yet
+      // Send first - should NOT be sent yet because batchSize is 2
       logger.info('log_1');
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      final batchFuture = receivedHttpBatches.stream.firstWhere(
+        (final batch) => batch.length == 2,
+      );
 
       // Send second - should trigger batch flush
-      final batchReceived = waitForOutput(httpStdout!, httpStderr!, 'BATCH');
       logger.info('INTEGRATION_TEST_HTTP_BATCH');
-      await batchReceived;
+
+      final batch = await batchFuture.timeout(
+        const Duration(seconds: 5),
+      );
+
+      expect(batch.length, equals(2));
+      expect(batch[0], contains('log_1'));
+      expect(batch[1], contains('INTEGRATION_TEST_HTTP_BATCH'));
 
       await sink.dispose();
     });
+
+    test(
+      'HttpSink retries and succeeds against transient HTTP 500 error',
+      () async {
+        var failCount = 1;
+        final retryServer =
+            await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        final retryBatches = <List<dynamic>>[];
+        final completer = Completer<void>();
+
+        retryServer.listen((final request) async {
+          if (failCount > 0) {
+            failCount--;
+            request.response
+              ..statusCode = HttpStatus.internalServerError
+              ..write('Temporary Server Error');
+            await request.response.close();
+          } else {
+            final body = await utf8.decoder.bind(request).join();
+            retryBatches.add(jsonDecode(body) as List<dynamic>);
+            request.response
+              ..statusCode = HttpStatus.ok
+              ..write('OK');
+            await request.response.close();
+            if (!completer.isCompleted) {
+              completer.complete();
+            }
+          }
+        });
+
+        final sink = HttpSink(
+          url: 'http://127.0.0.1:${retryServer.port}/retry_logs',
+          batchSize: 1,
+          maxRetries: 3,
+        );
+
+        final handler = Handler(
+          formatter: const PlainFormatter(metadata: {}),
+          sink: sink,
+        );
+
+        Logger.configure('test.http.retry', handlers: [handler]);
+        final logger = Logger.get('test.http.retry');
+
+        logger.info('retry_payload');
+
+        await completer.future.timeout(const Duration(seconds: 5));
+        expect(retryBatches, hasLength(1));
+        expect(retryBatches[0][0], contains('retry_payload'));
+
+        await sink.dispose();
+        await retryServer.close(force: true);
+      },
+    );
   });
 }

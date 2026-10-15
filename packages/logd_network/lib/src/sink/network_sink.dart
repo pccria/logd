@@ -325,10 +325,10 @@ base class HttpSink extends NetworkSink {
   @override
   Future<void> dispose() async {
     _httpState.timer?.cancel();
-    await _flush(); // Final drain before marking disposed
+    await super.dispose();
+    await _flush(); // Final drain before marking disposed (includes postamble)
     _httpState.internalClient?.close();
     _state.isDisposed = true;
-    await super.dispose();
   }
 }
 
@@ -478,13 +478,13 @@ base class SocketSink extends NetworkSink {
   Future<void> dispose() async {
     _socketState.reconnectTimer?.cancel();
     _socketState.reconnectTimer = null;
+    await super.dispose();
     if (_socketState.isConnected) {
       _drainBuffer();
     }
     _state.isDisposed = true;
     _socketState.isConnected = false;
     await _socketState.channel?.sink.close();
-    await super.dispose();
   }
 }
 
