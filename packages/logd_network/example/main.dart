@@ -17,6 +17,11 @@ void main() async {
     formatter: const JsonFormatter(),
     sink: HttpSink(
       url: 'https://logs.example.com/api/v1/ingest',
+      headers: const {'X-Service': 'checkout-service'},
+      // Dynamic auth hook: refreshed before each batch POST (e.g. OAuth2 tokens)
+      headersProvider: () async => {
+        'Authorization': 'Bearer dynamic-oauth2-token-xyz',
+      },
       batchSize: 50,
       flushInterval: const Duration(seconds: 30),
       maxRetries: 3,
