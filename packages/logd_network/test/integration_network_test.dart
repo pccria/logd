@@ -330,5 +330,50 @@ void main() {
       await sink.dispose();
       await server.close(force: true);
     });
+
+    test(
+        'SocketSink sends periodic heartbeats and maintains active connection with WebSocket server',
+        () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final receivedPings = <String>[];
+      final pingReceivedCompleter = Completer<void>();
+
+      server.transform(WebSocketTransformer()).listen((final webSocket) {
+        webSocket.listen((final message) {
+          if (message == 'custom-ping') {
+            receivedPings.add(message as String);
+            webSocket.add('custom-pong');
+            if (!pingReceivedCompleter.isCompleted) {
+              pingReceivedCompleter.complete();
+            }
+          }
+        });
+      });
+
+      final sink = SocketSink(
+        url: 'ws://127.0.0.1:${server.port}',
+        heartbeatInterval: const Duration(milliseconds: 30),
+        heartbeatTimeout: const Duration(milliseconds: 50),
+        pingMessage: 'custom-ping',
+        pongMessage: 'custom-pong',
+      );
+
+      final handler = Handler(
+        formatter: const PlainFormatter(metadata: {}),
+        sink: sink,
+      );
+
+      Logger.configure('test.socket.heartbeat', handlers: [handler]);
+      final logger = Logger.get('test.socket.heartbeat');
+
+      logger.info('SOCKET_INIT_EVENT');
+
+      await pingReceivedCompleter.future.timeout(const Duration(seconds: 5));
+      expect(receivedPings, contains('custom-ping'));
+      expect(sink.isConnected, isTrue);
+
+      await sink.dispose();
+      await server.close(force: true);
+    });
   });
 }

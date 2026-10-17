@@ -49,6 +49,10 @@ void main() {
         url: 'wss://stream.example.com/logs',
         headers: const {'X-Custom-Protocol': 'v1'},
         reconnectInterval: const Duration(seconds: 10),
+        heartbeatInterval: const Duration(seconds: 20),
+        heartbeatTimeout: const Duration(seconds: 5),
+        pingMessage: 'heartbeat-ping',
+        pongMessage: 'heartbeat-pong',
         maxBufferSize: 800,
         dropPolicy: DropPolicy.discardOldest,
       );
@@ -61,6 +65,10 @@ void main() {
       expect(restored.url, equals('wss://stream.example.com/logs'));
       expect(restored.headers, equals({'X-Custom-Protocol': 'v1'}));
       expect(restored.reconnectInterval, equals(const Duration(seconds: 10)));
+      expect(restored.heartbeatInterval, equals(const Duration(seconds: 20)));
+      expect(restored.heartbeatTimeout, equals(const Duration(seconds: 5)));
+      expect(restored.pingMessage, equals('heartbeat-ping'));
+      expect(restored.pongMessage, equals('heartbeat-pong'));
       expect(restored.maxBufferSize, equals(800));
       expect(restored.dropPolicy, equals(DropPolicy.discardOldest));
     });

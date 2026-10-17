@@ -696,6 +696,95 @@ void main() {
       expect(sendCalls, greaterThanOrEqualTo(1));
       await sink.dispose();
     });
+
+    test('sends periodic heartbeat pings when heartbeatInterval is configured',
+        () async {
+      final streamController = StreamController<dynamic>.broadcast();
+      when(() => mockChannel.stream)
+          .thenAnswer((final _) => streamController.stream);
+
+      final addedMessages = <dynamic>[];
+      when(() => mockSink.add(any())).thenAnswer((final inv) {
+        addedMessages.add(inv.positionalArguments.first);
+      });
+
+      final sink = SocketSink(
+        url: wsUrl,
+        channel: mockChannel,
+        heartbeatInterval: const Duration(milliseconds: 30),
+        pingMessage: 'custom-ping',
+        pongMessage: 'custom-pong',
+      );
+
+      await sink.output(
+        createTestDocument(['hello']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+
+      // Wait for heartbeat interval to trigger at least once
+      await Future<void>.delayed(const Duration(milliseconds: 70));
+
+      expect(addedMessages, contains('hello'));
+      expect(addedMessages, contains('custom-ping'));
+
+      await sink.dispose();
+      await streamController.close();
+    });
+
+    test('reconnects when heartbeat pong times out', () async {
+      final streamController = StreamController<dynamic>.broadcast();
+      when(() => mockChannel.stream)
+          .thenAnswer((final _) => streamController.stream);
+
+      when(() => mockSink.add(any())).thenAnswer((final _) {});
+
+      final reconnectInitiatedCompleter = Completer<void>();
+      final reconnectCompleter = Completer<void>();
+      var connectAttempts = 0;
+      when(() => mockChannel.ready).thenAnswer((final _) {
+        connectAttempts++;
+        if (connectAttempts == 1) {
+          return Future<void>.value();
+        }
+        if (!reconnectInitiatedCompleter.isCompleted) {
+          reconnectInitiatedCompleter.complete();
+        }
+        return reconnectCompleter.future;
+      });
+
+      final sink = SocketSink(
+        url: wsUrl,
+        channel: mockChannel,
+        heartbeatInterval: const Duration(milliseconds: 20),
+        heartbeatTimeout: const Duration(milliseconds: 20),
+        reconnectInterval: const Duration(milliseconds: 30),
+      );
+
+      await sink.output(
+        createTestDocument(['init']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(sink.isConnected, isTrue);
+
+      // Wait for heartbeat timeout to detect loss of pong and trigger reconnect
+      await reconnectInitiatedCompleter.future.timeout(
+        const Duration(seconds: 2),
+      );
+
+      // Reconnect was initiated
+      expect(connectAttempts, greaterThanOrEqualTo(2));
+      expect(sink.isConnected, isFalse);
+
+      reconnectCompleter.complete();
+      await sink.dispose();
+      await streamController.close();
+    });
   });
 
   group('NetworkSink Edge Cases', () {

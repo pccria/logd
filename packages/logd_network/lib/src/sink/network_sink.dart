@@ -715,7 +715,14 @@ base class SocketSink extends NetworkSink {
   /// - [url]: The WebSocket server URL.
   /// - [headers]: Optional protocols/headers for the connection.
   /// - [reconnectInterval]: Delay before attempting reconnection
-  /// (default: 15s).
+  ///   (default: 15s).
+  /// - [heartbeatInterval]: Interval between heartbeat ping frames to
+  ///   detect dead/half-open connections (default: 30s). Set to `null` to
+  ///   disable heartbeats.
+  /// - [heartbeatTimeout]: Maximum wait time for a pong response before
+  ///   assuming the connection is lost (default: 10s).
+  /// - [pingMessage]: Payload sent for ping heartbeats (default: `'ping'`).
+  /// - [pongMessage]: Expected response payload for heartbeats (default: `'pong'`).
   /// - [channel]: Optional external WebSocketChannel.
   /// - [encoder]: The encoder used to serialize logs (default:
   ///   [PlainTextEncoder]).
@@ -726,6 +733,10 @@ base class SocketSink extends NetworkSink {
     required this.url,
     this.headers = const {},
     this.reconnectInterval = const Duration(seconds: 15),
+    this.heartbeatInterval = const Duration(seconds: 30),
+    this.heartbeatTimeout = const Duration(seconds: 10),
+    this.pingMessage = 'ping',
+    this.pongMessage = 'pong',
     this.channel,
     super.encoder = const AutoTextEncoder(),
     super.maxBufferSize = 1000,
@@ -742,6 +753,18 @@ base class SocketSink extends NetworkSink {
   /// Delay before attempting reconnection.
   final Duration reconnectInterval;
 
+  /// Interval between heartbeat ping frames to detect dropped connections.
+  final Duration? heartbeatInterval;
+
+  /// Maximum time to wait for a pong response before reconnecting.
+  final Duration heartbeatTimeout;
+
+  /// Payload sent for ping heartbeats.
+  final String pingMessage;
+
+  /// Expected response payload for heartbeats.
+  final String pongMessage;
+
   /// Optional external [WebSocketChannel].
   final WebSocketChannel? channel;
 
@@ -749,6 +772,12 @@ base class SocketSink extends NetworkSink {
   _NetworkState _createState() => _SocketState();
 
   _SocketState get _socketState => _state as _SocketState;
+
+  /// Whether the WebSocket connection is currently active and ready.
+  bool get isConnected => _socketState.isConnected;
+
+  /// The number of consecutive reconnect attempts made.
+  int get retryAttempts => _socketState.retryAttempts;
 
   @override
   Future<void> output(
@@ -806,6 +835,38 @@ base class SocketSink extends NetworkSink {
       _socketState.isConnected = true;
       _socketState.isConnecting = false;
       _socketState.retryAttempts = 0;
+      _socketState.awaitingPong = false;
+
+      // Subscribe to incoming stream to detect remote disconnects and pongs
+      try {
+        final stream = _socketState.channel?.stream;
+        if (stream != null) {
+          _socketState.subscription = stream.listen(
+            (final message) {
+              _onMessageReceived(message);
+            },
+            onError: (final error) {
+              _handleFailure(error);
+              _onConnectionLost(error);
+            },
+            onDone: () {
+              _onConnectionLost(null);
+            },
+            cancelOnError: true,
+          );
+        }
+      } catch (_) {
+        // Stream subscription is optional on custom mock channels
+      }
+
+      // Start heartbeat timer if configured
+      if (heartbeatInterval != null) {
+        _socketState.heartbeatTimer?.cancel();
+        _socketState.heartbeatTimer = Timer.periodic(
+          heartbeatInterval!,
+          (final _) => _sendHeartbeat(),
+        );
+      }
 
       _drainBuffer();
     } catch (e) {
@@ -830,6 +891,59 @@ base class SocketSink extends NetworkSink {
     }
   }
 
+  void _sendHeartbeat() {
+    if (!_socketState.isConnected || isDisposed) {
+      return;
+    }
+
+    if (_socketState.awaitingPong) {
+      final now = DateTime.now();
+      if (_socketState.lastPingSent != null &&
+          now.difference(_socketState.lastPingSent!) >= heartbeatTimeout) {
+        // ignore: invalid_use_of_internal_member
+        InternalLogger.log(
+          LogLevel.warning,
+          'SocketSink heartbeat timed out after ${heartbeatTimeout.inSeconds}s. '
+          'Connection assumed lost, reconnecting...',
+        );
+        _onConnectionLost(TimeoutException('WebSocket heartbeat timed out'));
+        return;
+      }
+    }
+
+    try {
+      _socketState.channel?.sink.add(pingMessage);
+      _socketState.lastPingSent = DateTime.now();
+      _socketState.awaitingPong = true;
+    } catch (e) {
+      _handleFailure(e);
+      _onConnectionLost(e);
+    }
+  }
+
+  void _onMessageReceived(final dynamic message) {
+    _socketState.lastActivity = DateTime.now();
+    if (message == pongMessage || pongMessage.isEmpty) {
+      _socketState.awaitingPong = false;
+    }
+  }
+
+  void _onConnectionLost(final Object? error) {
+    if (isDisposed) {
+      return;
+    }
+    _socketState.isConnected = false;
+    _socketState.awaitingPong = false;
+    _socketState.heartbeatTimer?.cancel();
+    _socketState.heartbeatTimer = null;
+    _socketState.subscription?.cancel();
+    _socketState.subscription = null;
+    try {
+      _socketState.channel?.sink.close();
+    } catch (_) {}
+    unawaited(_connect());
+  }
+
   void _handleFailure(final Object error) {
     // ignore: invalid_use_of_internal_member
     InternalLogger.log(
@@ -842,6 +956,10 @@ base class SocketSink extends NetworkSink {
   @override
   @mustCallSuper
   Future<void> dispose() async {
+    _socketState.heartbeatTimer?.cancel();
+    _socketState.heartbeatTimer = null;
+    _socketState.subscription?.cancel();
+    _socketState.subscription = null;
     _socketState.reconnectTimer?.cancel();
     _socketState.reconnectTimer = null;
     await super.dispose();
@@ -861,4 +979,9 @@ class _SocketState extends _NetworkState {
   bool isConnecting = false;
   int retryAttempts = 0;
   Timer? reconnectTimer;
+  Timer? heartbeatTimer;
+  StreamSubscription<dynamic>? subscription;
+  bool awaitingPong = false;
+  DateTime? lastPingSent;
+  DateTime? lastActivity;
 }

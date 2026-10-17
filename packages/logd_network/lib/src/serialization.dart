@@ -58,6 +58,14 @@ void registerLogdNetworkSerializers() {
       reconnectInterval: Duration(
         milliseconds: json['reconnectIntervalMs'] as int? ?? 15000,
       ),
+      heartbeatInterval: json['heartbeatIntervalMs'] != null
+          ? Duration(milliseconds: json['heartbeatIntervalMs'] as int)
+          : const Duration(seconds: 30),
+      heartbeatTimeout: Duration(
+        milliseconds: json['heartbeatTimeoutMs'] as int? ?? 10000,
+      ),
+      pingMessage: json['pingMessage'] as String? ?? 'ping',
+      pongMessage: json['pongMessage'] as String? ?? 'pong',
       maxBufferSize: json['maxBufferSize'] as int? ?? 1000,
       dropPolicy: DropPolicy.values.byName(
         json['dropPolicy'] as String? ?? 'discardOldest',
@@ -68,6 +76,11 @@ void registerLogdNetworkSerializers() {
       'url': val.url,
       'headers': val.headers,
       'reconnectIntervalMs': val.reconnectInterval.inMilliseconds,
+      if (val.heartbeatInterval != null)
+        'heartbeatIntervalMs': val.heartbeatInterval!.inMilliseconds,
+      'heartbeatTimeoutMs': val.heartbeatTimeout.inMilliseconds,
+      'pingMessage': val.pingMessage,
+      'pongMessage': val.pongMessage,
       'maxBufferSize': val.maxBufferSize,
       'dropPolicy': val.dropPolicy.name,
       'enabled': val.enabled,
