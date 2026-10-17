@@ -924,4 +924,449 @@ void main() {
       );
     });
   });
+
+  group('HttpDate and Retry-After Parsing', () {
+    test('parses integer seconds correctly', () {
+      expect(parseRetryAfter('120'), equals(const Duration(seconds: 120)));
+      expect(parseRetryAfter('0'), equals(Duration.zero));
+      expect(parseRetryAfter('  45  '), equals(const Duration(seconds: 45)));
+    });
+
+    test('parses IMF-fixdate / RFC 1123 HTTP-date', () {
+      final baseTime = DateTime.utc(1994, 11, 6, 8, 49, 0);
+      final duration = parseRetryAfter(
+        'Sun, 06 Nov 1994 08:49:37 GMT',
+        clock: () => baseTime,
+      );
+      expect(duration, equals(const Duration(seconds: 37)));
+    });
+
+    test('parses RFC 850 HTTP-date', () {
+      final baseTime = DateTime.utc(1994, 11, 6, 8, 49, 0);
+      final duration = parseRetryAfter(
+        'Sunday, 06-Nov-94 08:49:37 GMT',
+        clock: () => baseTime,
+      );
+      expect(duration, equals(const Duration(seconds: 37)));
+    });
+
+    test('parses asctime HTTP-date', () {
+      final baseTime = DateTime.utc(1994, 11, 6, 8, 49, 0);
+      final duration = parseRetryAfter(
+        'Sun Nov  6 08:49:37 1994',
+        clock: () => baseTime,
+      );
+      expect(duration, equals(const Duration(seconds: 37)));
+    });
+
+    test('returns Duration.zero for elapsed date in the past', () {
+      final baseTime = DateTime.utc(2026, 1, 1, 0, 0, 0);
+      final duration = parseRetryAfter(
+        'Sun, 06 Nov 1994 08:49:37 GMT',
+        clock: () => baseTime,
+      );
+      expect(duration, equals(Duration.zero));
+    });
+
+    test('returns null for invalid, empty, or null values', () {
+      expect(parseRetryAfter(null), isNull);
+      expect(parseRetryAfter(''), isNull);
+      expect(parseRetryAfter('   '), isNull);
+      expect(parseRetryAfter('invalid-header-content'), isNull);
+    });
+  });
+
+  group('HttpSink Circuit Breaker & Failover', () {
+    late MockHttpClient mockClient;
+
+    setUp(() {
+      mockClient = MockHttpClient();
+    });
+
+    test('initializes with closed circuit and zero consecutive failures', () {
+      final sink = HttpSink(
+        url: 'https://primary.example.com/logs',
+        failoverUrls: const ['https://backup.example.com/logs'],
+        failureThreshold: 3,
+        client: mockClient,
+      );
+
+      expect(sink.circuitState, equals(CircuitState.closed));
+      expect(sink.consecutiveFailures, equals(0));
+      expect(sink.currentUrl, equals('https://primary.example.com/logs'));
+      expect(sink.failoverUrls, equals(['https://backup.example.com/logs']));
+      expect(sink.failureThreshold, equals(3));
+    });
+
+    test(
+        'trips circuit to open after failureThreshold failures without failovers',
+        () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('Internal Error', 500));
+
+      final sink = HttpSink(
+        url: 'https://example.com/logs',
+        batchSize: 1,
+        maxRetries: 1,
+        failureThreshold: 2,
+        recoveryTimeout: const Duration(milliseconds: 50),
+        client: mockClient,
+      );
+
+      // Batch 1 fails
+      await sink.output(
+        createTestDocument(['msg1']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(sink.consecutiveFailures, equals(1));
+      expect(sink.circuitState, equals(CircuitState.closed));
+
+      // Batch 2 fails -> reaches failureThreshold (2) -> trips to open!
+      await sink.output(
+        createTestDocument(['msg2']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(sink.consecutiveFailures, equals(2));
+      expect(sink.circuitState, equals(CircuitState.open));
+
+      // Batch 3 sent while circuit is open -> fails fast, no network calls made!
+      await sink.output(
+        createTestDocument(['msg3']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      // Verify msg1 and msg2 were called, but msg3 was NEVER called because circuit is open!
+      verify(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: jsonEncode(['msg1']),
+        ),
+      ).called(1);
+      verify(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: jsonEncode(['msg2']),
+        ),
+      ).called(1);
+      verifyNever(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: jsonEncode(['msg3']),
+        ),
+      );
+      verifyNoMoreInteractions(mockClient);
+
+      await sink.dispose();
+    });
+
+    test('recovers from open to halfOpen and closes on successful probe',
+        () async {
+      int requestCount = 0;
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async {
+        requestCount++;
+        if (requestCount <= 2) {
+          return http.Response('Service Unavailable', 503);
+        }
+        return http.Response('OK', 200);
+      });
+
+      final sink = HttpSink(
+        url: 'https://example.com/logs',
+        batchSize: 1,
+        maxRetries: 1,
+        failureThreshold: 2,
+        recoveryTimeout: const Duration(milliseconds: 30),
+        client: mockClient,
+      );
+
+      // Send 2 batches to trip circuit to open
+      await sink.output(
+        createTestDocument(['batch1']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      await sink.output(
+        createTestDocument(['batch2']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(sink.circuitState, equals(CircuitState.open));
+
+      // Wait for recovery timeout to elapse
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+
+      // Send probe log
+      await sink.output(
+        createTestDocument(['probe']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      // Probe succeeded -> circuit closes and resets consecutiveFailures!
+      expect(sink.circuitState, equals(CircuitState.closed));
+      expect(sink.consecutiveFailures, equals(0));
+
+      await sink.dispose();
+    });
+
+    test('trips back to open if probe fails in halfOpen', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('Error', 500));
+
+      final sink = HttpSink(
+        url: 'https://example.com/logs',
+        batchSize: 1,
+        maxRetries: 1,
+        failureThreshold: 1,
+        recoveryTimeout: const Duration(milliseconds: 30),
+        client: mockClient,
+      );
+
+      // 1 failure trips circuit to open
+      await sink.output(
+        createTestDocument(['batch1']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(sink.circuitState, equals(CircuitState.open));
+
+      // Wait for recoveryTimeout
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+
+      // Send probe batch
+      await sink.output(
+        createTestDocument(['probe']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      // Probe failed -> immediately back to open!
+      expect(sink.circuitState, equals(CircuitState.open));
+
+      await sink.dispose();
+    });
+
+    test('fails over to fallback endpoint when primary endpoint fails',
+        () async {
+      final primaryUri = Uri.parse('https://primary.example.com/logs');
+      final backupUri = Uri.parse('https://backup.example.com/logs');
+
+      when(
+        () => mockClient.post(
+          primaryUri,
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('Primary down', 500));
+
+      when(
+        () => mockClient.post(
+          backupUri,
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('Backup OK', 200));
+
+      final sink = HttpSink(
+        url: 'https://primary.example.com/logs',
+        failoverUrls: const ['https://backup.example.com/logs'],
+        batchSize: 1,
+        maxRetries: 1,
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['important_log']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      // Failed over to backup endpoint and succeeded without dropping the log!
+      expect(sink.currentUrl, equals('https://backup.example.com/logs'));
+      expect(sink.circuitState, equals(CircuitState.closed));
+
+      verify(
+        () => mockClient.post(
+          backupUri,
+          headers: any(named: 'headers'),
+          body: jsonEncode(['important_log']),
+        ),
+      ).called(1);
+
+      // resetFailover brings it back to primary
+      sink.resetFailover();
+      expect(sink.currentUrl, equals('https://primary.example.com/logs'));
+
+      await sink.dispose();
+    });
+
+    test(
+        'manual resetCircuit restores closed state and resets consecutiveFailures',
+        () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async => http.Response('Error', 500));
+
+      final sink = HttpSink(
+        url: 'https://example.com/logs',
+        batchSize: 1,
+        maxRetries: 1,
+        failureThreshold: 1,
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['fail']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(sink.circuitState, equals(CircuitState.open));
+
+      sink.resetCircuit();
+      expect(sink.circuitState, equals(CircuitState.closed));
+      expect(sink.consecutiveFailures, equals(0));
+
+      await sink.dispose();
+    });
+  });
+
+  group('HttpSink Retry-After Backpressure', () {
+    late MockHttpClient mockClient;
+
+    setUp(() {
+      mockClient = MockHttpClient();
+    });
+
+    test('honors Retry-After integer delay and retries successfully', () async {
+      int attempts = 0;
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final _) async {
+        attempts++;
+        if (attempts == 1) {
+          return http.Response(
+            'Rate Limited',
+            429,
+            headers: {'retry-after': '0'},
+          );
+        }
+        return http.Response('OK', 200);
+      });
+
+      final sink = HttpSink(
+        url: 'https://example.com/logs',
+        batchSize: 1,
+        maxRetries: 2,
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['throttled_log']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      expect(attempts, equals(2));
+      expect(sink.consecutiveFailures, equals(0));
+
+      await sink.dispose();
+    });
+  });
+
+  group('HttpSink Serialization', () {
+    test(
+        'serializes and deserializes circuit breaker and failover configuration',
+        () {
+      registerLogdNetworkSerializers();
+
+      final sink = HttpSink(
+        url: 'https://logs.prod.acme.corp',
+        failoverUrls: const [
+          'https://backup1.acme.corp',
+          'https://backup2.acme.corp',
+        ],
+        failureThreshold: 7,
+        recoveryTimeout: const Duration(seconds: 45),
+        batchSize: 25,
+      );
+
+      final json = LoggerSerializationRegistry.serializeSink(sink);
+      expect(json['type'], equals('HttpSink'));
+      final config = json['config'] as Map<String, dynamic>;
+      expect(config['url'], equals('https://logs.prod.acme.corp'));
+      expect(
+          config['failoverUrls'],
+          equals([
+            'https://backup1.acme.corp',
+            'https://backup2.acme.corp',
+          ]));
+      expect(config['failureThreshold'], equals(7));
+      expect(config['recoveryTimeoutMs'], equals(45000));
+      expect(config['batchSize'], equals(25));
+
+      final deserialized =
+          LoggerSerializationRegistry.deserializeSink(json) as HttpSink;
+      expect(deserialized.url, equals(sink.url));
+      expect(deserialized.failoverUrls, equals(sink.failoverUrls));
+      expect(deserialized.failureThreshold, equals(7));
+      expect(deserialized.recoveryTimeout, equals(const Duration(seconds: 45)));
+      expect(deserialized.batchSize, equals(25));
+    });
+  });
 }

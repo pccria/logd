@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:logd/logd.dart';
 import 'package:logd_network/logd_network.dart';
 
+import 'circuit_breaker_example.dart' as circuit_breaker_example;
 import 'showcase/http_dashboard_showcase.dart' as http_dashboard_showcase;
 import 'showcase/http_server_sink_showcase.dart' as http_server_sink_showcase;
 import 'showcase/http_sink_showcase.dart' as http_sink_showcase;
@@ -30,6 +31,11 @@ void main(final List<String> args) async {
         await http_dashboard_showcase.main();
         return;
       case '5':
+      case 'circuit':
+      case 'breaker':
+        await circuit_breaker_example.main();
+        return;
+      case '6':
       case 'all':
         await _runAutomatedSummary();
         return;
@@ -45,10 +51,11 @@ void main(final List<String> args) async {
   print('  [2] SocketSink Showcase (Live WebSocket Streaming)');
   print('  [3] HttpServerSink Showcase (Embedded Browser Viewer)');
   print('  [4] HttpDashboardHandler Showcase (Pre-wired DX Preset)');
-  print('  [5] Run All Non-Blocking Demos Sequentially');
+  print('  [5] Circuit Breaker & Failover Demo (Resilience)');
+  print('  [6] Run All Non-Blocking Demos Sequentially');
   print('  [0] Exit');
   print('');
-  stdout.write('Enter choice [1-5, 0]: ');
+  stdout.write('Enter choice [1-6, 0]: ');
 
   final input = stdin.readLineSync()?.trim();
   print('');
@@ -67,6 +74,9 @@ void main(final List<String> args) async {
       await http_dashboard_showcase.main();
       break;
     case '5':
+      await circuit_breaker_example.main();
+      break;
+    case '6':
       await _runAutomatedSummary();
       break;
     case '0':

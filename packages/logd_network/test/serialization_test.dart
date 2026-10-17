@@ -12,6 +12,9 @@ void main() {
     test('HttpSink round-trip serialization and deserialization', () {
       final original = HttpSink(
         url: 'https://logs.example.com/api/v1',
+        failoverUrls: const ['https://logs-backup.example.com/api/v1'],
+        failureThreshold: 4,
+        recoveryTimeout: const Duration(seconds: 30),
         headers: const {'Authorization': 'Bearer token-123'},
         batchSize: 25,
         flushInterval: const Duration(seconds: 45),
@@ -26,6 +29,10 @@ void main() {
       final restored =
           LoggerSerializationRegistry.deserializeSink(json) as HttpSink;
       expect(restored.url, equals('https://logs.example.com/api/v1'));
+      expect(restored.failoverUrls,
+          equals(['https://logs-backup.example.com/api/v1']));
+      expect(restored.failureThreshold, equals(4));
+      expect(restored.recoveryTimeout, equals(const Duration(seconds: 30)));
       expect(restored.headers, equals({'Authorization': 'Bearer token-123'}));
       expect(restored.batchSize, equals(25));
       expect(restored.flushInterval, equals(const Duration(seconds: 45)));

@@ -28,6 +28,133 @@ enum DropPolicy {
   block,
 }
 
+/// Defines the operational state of the circuit breaker in [HttpSink].
+enum CircuitState {
+  /// Normal operation: outgoing requests are dispatched to the active endpoint.
+  closed,
+
+  /// Failing fast: outgoing requests are blocked without network I/O during
+  /// the recovery window.
+  open,
+
+  /// Probing: a single trial request is permitted to test endpoint health.
+  halfOpen,
+}
+
+const _months = <String, int>{
+  'jan': 1,
+  'feb': 2,
+  'mar': 3,
+  'apr': 4,
+  'may': 5,
+  'jun': 6,
+  'jul': 7,
+  'aug': 8,
+  'sep': 9,
+  'oct': 10,
+  'nov': 11,
+  'dec': 12,
+};
+
+/// Parses a `Retry-After` HTTP header value into a [Duration].
+///
+/// Supports:
+/// 1. Delay seconds (e.g. `"120"`).
+/// 2. HTTP-date in RFC 1123 / RFC 850 / asctime format (e.g. `"Sun, 06 Nov 1994 08:49:37 GMT"`).
+///
+/// Returns `null` if the header is missing, empty, or unparseable.
+Duration? parseRetryAfter(final String? headerValue,
+    {final DateTime Function()? clock}) {
+  if (headerValue == null) {
+    return null;
+  }
+  final trimmed = headerValue.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+
+  // 1. Try delay in seconds (integer)
+  final seconds = int.tryParse(trimmed);
+  if (seconds != null) {
+    return Duration(seconds: max(0, seconds));
+  }
+
+  // 2. Try HTTP-date
+  final date = parseHttpDate(trimmed);
+  if (date != null) {
+    final now = (clock != null ? clock() : DateTime.now()).toUtc();
+    final diff = date.difference(now);
+    return diff.isNegative ? Duration.zero : diff;
+  }
+
+  return null;
+}
+
+/// Parses an HTTP-date string (RFC 1123 / RFC 850 / asctime) into a UTC [DateTime].
+DateTime? parseHttpDate(final String dateString) {
+  final trimmed = dateString.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+
+  // Format 1: RFC 1123 / RFC 7231 (e.g., "Sun, 06 Nov 1994 08:49:37 GMT" or "06 Nov 1994 08:49:37 GMT")
+  final rfc1123Regex = RegExp(
+    r'^(?:[A-Za-z]{3},\s+)?(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})(?:\s+GMT)?$',
+  );
+  var match = rfc1123Regex.firstMatch(trimmed);
+  if (match != null) {
+    final day = int.parse(match.group(1)!);
+    final monthStr = match.group(2)!.toLowerCase();
+    final month = _months[monthStr];
+    final year = int.parse(match.group(3)!);
+    final hour = int.parse(match.group(4)!);
+    final minute = int.parse(match.group(5)!);
+    final second = int.parse(match.group(6)!);
+    if (month != null) {
+      return DateTime.utc(year, month, day, hour, minute, second);
+    }
+  }
+
+  // Format 2: RFC 850 (e.g., "Sunday, 06-Nov-94 08:49:37 GMT")
+  final rfc850Regex = RegExp(
+    r'^(?:[A-Za-z]+,\s+)?(\d{2})-([A-Za-z]{3})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})(?:\s+GMT)?$',
+  );
+  match = rfc850Regex.firstMatch(trimmed);
+  if (match != null) {
+    final day = int.parse(match.group(1)!);
+    final monthStr = match.group(2)!.toLowerCase();
+    final month = _months[monthStr];
+    var year = int.parse(match.group(3)!);
+    year += (year < 70) ? 2000 : 1900;
+    final hour = int.parse(match.group(4)!);
+    final minute = int.parse(match.group(5)!);
+    final second = int.parse(match.group(6)!);
+    if (month != null) {
+      return DateTime.utc(year, month, day, hour, minute, second);
+    }
+  }
+
+  // Format 3: asctime (e.g., "Sun Nov  6 08:49:37 1994")
+  final asctimeRegex = RegExp(
+    r'^[A-Za-z]{3}\s+([A-Za-z]{3})\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\s+(\d{4})$',
+  );
+  match = asctimeRegex.firstMatch(trimmed);
+  if (match != null) {
+    final monthStr = match.group(1)!.toLowerCase();
+    final month = _months[monthStr];
+    final day = int.parse(match.group(2)!);
+    final hour = int.parse(match.group(3)!);
+    final minute = int.parse(match.group(4)!);
+    final second = int.parse(match.group(5)!);
+    final year = int.parse(match.group(6)!);
+    if (month != null) {
+      return DateTime.utc(year, month, day, hour, minute, second);
+    }
+  }
+
+  return null;
+}
+
 /// A base class for network-based sinks that require an internal buffer.
 abstract base class NetworkSink extends EncodingSink {
   /// Creates a [NetworkSink].
@@ -168,11 +295,19 @@ class _NetworkState {
   bool isDisposed = false;
 }
 
-/// A [NetworkSink] that transmits logs via HTTP POST.
+/// A [NetworkSink] that transmits logs via HTTP POST with integrated circuit
+/// breaker, failover endpoints, and backpressure rate-limiting support.
 base class HttpSink extends NetworkSink {
   /// Creates an [HttpSink].
   ///
-  /// - [url]: The destination endpoint.
+  /// - [url]: The destination endpoint URL.
+  /// - [failoverUrls]: Optional fallback endpoints to cycle through if [url]
+  ///   experiences persistent failures.
+  /// - [failureThreshold]: The consecutive failure count required to trip
+  ///   the circuit breaker to [CircuitState.open] (default: 5).
+  /// - [recoveryTimeout]: The duration the circuit breaker remains in
+  ///   [CircuitState.open] before probing recovery in [CircuitState.halfOpen]
+  ///   (default: 60s).
   /// - [encoder]: The encoder used to serialize logs (default:
   ///   [PlainTextEncoder]).
   /// - [headers]: Custom headers to include in the request.
@@ -187,8 +322,12 @@ base class HttpSink extends NetworkSink {
   /// - [maxBufferSize]: Max entries to hold in memory.
   /// - [dropPolicy]: Behavior when [maxBufferSize] is reached.
   /// - [enabled]: Whether the sink is active.
+  /// - [onDropped]: Callback invoked when a batch cannot be delivered.
   const HttpSink({
     required this.url,
+    this.failoverUrls = const [],
+    this.failureThreshold = 5,
+    this.recoveryTimeout = const Duration(seconds: 60),
     super.encoder = const AutoTextEncoder(),
     this.headers = const {},
     this.headersProvider,
@@ -200,14 +339,23 @@ base class HttpSink extends NetworkSink {
     super.dropPolicy = DropPolicy.discardOldest,
     super.enabled,
     this.onDropped,
-  });
+  }) : assert(failureThreshold > 0, 'failureThreshold must be greater than 0');
 
   /// Optional callback invoked when a batch of logs is dropped due to
   /// persistent network errors.
   final void Function(List<Uint8List> batch, Object error)? onDropped;
 
-  /// The destination endpoint URL.
+  /// The primary destination endpoint URL.
   final String url;
+
+  /// Optional fallback endpoints to cycle through if [url] fails.
+  final List<String> failoverUrls;
+
+  /// The consecutive failure count required to trip the circuit breaker.
+  final int failureThreshold;
+
+  /// The duration the circuit breaker remains in [CircuitState.open].
+  final Duration recoveryTimeout;
 
   /// Custom headers to include in the request.
   final Map<String, String> headers;
@@ -239,6 +387,38 @@ base class HttpSink extends NetworkSink {
   _NetworkState _createState() => _HttpState();
 
   _HttpState get _httpState => _state as _HttpState;
+
+  /// The current state of the circuit breaker.
+  CircuitState get circuitState => _httpState.circuitState;
+
+  /// The number of consecutive batch failures accumulated on the active endpoint.
+  int get consecutiveFailures => _httpState.consecutiveFailures;
+
+  /// The currently active destination endpoint URL.
+  String get currentUrl {
+    final all = [url, ...failoverUrls];
+    final idx = _httpState.currentUrlIndex;
+    if (idx >= 0 && idx < all.length) {
+      return all[idx];
+    }
+    return url;
+  }
+
+  /// Resets the circuit breaker to [CircuitState.closed] and re-points the
+  /// sink to the primary [url].
+  void resetCircuit() {
+    _httpState.circuitState = CircuitState.closed;
+    _httpState.consecutiveFailures = 0;
+    _httpState.currentUrlIndex = 0;
+    _httpState.lastStateChange = null;
+    _httpState.backpressureUntil = null;
+  }
+
+  /// Resets failover cycling back to the primary [url].
+  void resetFailover() {
+    _httpState.currentUrlIndex = 0;
+    _httpState.consecutiveFailures = 0;
+  }
 
   @override
   Future<void> output(
@@ -273,54 +453,171 @@ base class HttpSink extends NetworkSink {
   }
 
   Future<void> _flush() async {
-    if (!hasBufferedLogs || isDisposed) {
+    if (_httpState.isFlushing || !hasBufferedLogs || isDisposed) {
       return;
     }
 
-    final batch = flush();
-    await _pushWithRetry(batch);
+    _httpState.isFlushing = true;
+
+    try {
+      while (hasBufferedLogs && !isDisposed) {
+        // 1. Evaluate Circuit Breaker state
+        if (_httpState.circuitState == CircuitState.open) {
+          final now = DateTime.now();
+          final stateChange = _httpState.lastStateChange;
+          if (stateChange != null &&
+              now.difference(stateChange) >= recoveryTimeout) {
+            _httpState.circuitState = CircuitState.halfOpen;
+            _httpState.lastStateChange = now;
+            _httpState.currentUrlIndex = 0;
+          } else {
+            // Fail fast: do not attempt network I/O
+            break;
+          }
+        }
+
+        // 2. Evaluate HTTP Backpressure (from Retry-After)
+        if (_httpState.backpressureUntil != null) {
+          final now = DateTime.now();
+          if (now.isBefore(_httpState.backpressureUntil!)) {
+            // Backpressure active: pause draining until expiration
+            break;
+          } else {
+            _httpState.backpressureUntil = null;
+          }
+        }
+
+        final batch = flush();
+        if (batch.isEmpty) {
+          break;
+        }
+
+        final isProbe = _httpState.circuitState == CircuitState.halfOpen;
+        final success = await _pushWithRetry(batch);
+
+        if (isProbe) {
+          if (success) {
+            _httpState.circuitState = CircuitState.closed;
+            _httpState.consecutiveFailures = 0;
+            _httpState.lastStateChange = DateTime.now();
+          } else {
+            // Probe failed: trip immediately back to open
+            _httpState.circuitState = CircuitState.open;
+            _httpState.lastStateChange = DateTime.now();
+            break;
+          }
+        } else if (!success && _httpState.circuitState == CircuitState.open) {
+          // Circuit opened as a result of failures, stop draining
+          break;
+        }
+      }
+    } finally {
+      _httpState.isFlushing = false;
+    }
   }
 
-  Future<void> _pushWithRetry(final List<Uint8List> batch) async {
+  Future<bool> _pushWithRetry(final List<Uint8List> batch) async {
+    final allUrls = [url, ...failoverUrls];
     final httpClient = client ?? (_httpState.internalClient ??= http.Client());
-    final uri = _httpState.uri ??= Uri.parse(url);
 
-    int attempts = 0;
-    while (attempts < maxRetries) {
-      try {
-        final resolvedHeaders = <String, String>{
-          'Content-Type': 'application/json',
-          ...headers,
-        };
+    Object? lastError;
 
-        if (headersProvider != null) {
-          final dynamicHeaders = await headersProvider!();
-          resolvedHeaders.addAll(dynamicHeaders);
+    while (_httpState.currentUrlIndex < allUrls.length) {
+      final targetUrl = allUrls[_httpState.currentUrlIndex];
+      final uri = _httpState.cachedUris.putIfAbsent(
+        targetUrl,
+        () => Uri.parse(targetUrl),
+      );
+
+      int attempts = 0;
+
+      while (attempts < maxRetries) {
+        try {
+          final resolvedHeaders = <String, String>{
+            'Content-Type': 'application/json',
+            ...headers,
+          };
+
+          if (headersProvider != null) {
+            final dynamicHeaders = await headersProvider!();
+            resolvedHeaders.addAll(dynamicHeaders);
+          }
+
+          final response = await httpClient.post(
+            uri,
+            headers: resolvedHeaders,
+            body: convert.jsonEncode(
+              batch.map((final b) => convert.utf8.decode(b)).toList(),
+            ),
+          );
+
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            _httpState.consecutiveFailures = 0;
+            return true;
+          }
+
+          // Check for Retry-After backpressure (429 or 503)
+          if (response.statusCode == 429 || response.statusCode == 503) {
+            final retryHeader = response.headers['retry-after'];
+            final delay = parseRetryAfter(retryHeader);
+            if (delay != null) {
+              _httpState.backpressureUntil = DateTime.now().add(delay);
+              if (delay <= const Duration(seconds: 5)) {
+                attempts++;
+                if (attempts < maxRetries) {
+                  await Future.delayed(delay);
+                  continue;
+                }
+              }
+            }
+          }
+
+          throw http.ClientException('HTTP Error ${response.statusCode}', uri);
+        } catch (e) {
+          lastError = e;
+          attempts++;
+          if (attempts >= maxRetries) {
+            break;
+          }
+          final delay = Duration(milliseconds: pow(2, attempts).toInt() * 100);
+          await Future.delayed(delay);
         }
-
-        final response = await httpClient.post(
-          uri,
-          headers: resolvedHeaders,
-          body: convert.jsonEncode(
-            batch.map((final b) => convert.utf8.decode(b)).toList(),
-          ),
-        );
-
-        if (response.statusCode >= 200 && response.statusCode < 300) {
-          return;
-        }
-
-        throw http.ClientException('HTTP Error ${response.statusCode}', uri);
-      } catch (e) {
-        attempts++;
-        if (attempts >= maxRetries) {
-          _handleFailure(batch, e);
-          return;
-        }
-        final delay = Duration(milliseconds: pow(2, attempts).toInt() * 100);
-        await Future.delayed(delay);
       }
+
+      // Endpoint failed after maxRetries attempts
+      _httpState.consecutiveFailures++;
+
+      // Failover if another URL is available
+      if (_httpState.currentUrlIndex + 1 < allUrls.length) {
+        final previousUrl = targetUrl;
+        _httpState.currentUrlIndex++;
+        final nextUrl = allUrls[_httpState.currentUrlIndex];
+        // ignore: invalid_use_of_internal_member
+        InternalLogger.log(
+          LogLevel.warning,
+          'HttpSink endpoint $previousUrl failed. Failing over to $nextUrl.',
+        );
+        continue;
+      }
+
+      break;
     }
+
+    // All available endpoints failed
+    if (_httpState.consecutiveFailures >= failureThreshold) {
+      _httpState.circuitState = CircuitState.open;
+      _httpState.lastStateChange = DateTime.now();
+      // ignore: invalid_use_of_internal_member
+      InternalLogger.log(
+        LogLevel.error,
+        'HttpSink circuit breaker tripped to open after '
+        '${_httpState.consecutiveFailures} consecutive failures. '
+        'Failing fast for ${recoveryTimeout.inSeconds}s.',
+      );
+    }
+
+    _handleFailure(batch, lastError ?? StateError('Unknown HTTP error'));
+    return false;
   }
 
   void _handleFailure(final List<Uint8List> batch, final Object error) {
@@ -361,7 +658,14 @@ base class HttpSink extends NetworkSink {
 class _HttpState extends _NetworkState {
   Timer? timer;
   http.Client? internalClient;
-  Uri? uri;
+  final Map<String, Uri> cachedUris = {};
+  bool isFlushing = false;
+
+  CircuitState circuitState = CircuitState.closed;
+  int consecutiveFailures = 0;
+  DateTime? lastStateChange;
+  DateTime? backpressureUntil;
+  int currentUrlIndex = 0;
 }
 
 /// A [NetworkSink] that transmits logs via a client WebSocket connection.

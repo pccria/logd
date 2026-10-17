@@ -12,11 +12,16 @@ void main() async {
     bufferCapacity: 200,
   );
 
-  // 2. HTTP POST batching sink with exponential backoff retries
+  // 2. Resilient HTTP POST sink with failover endpoints and circuit breaker
   final httpHandler = Handler(
     formatter: const JsonFormatter(),
     sink: HttpSink(
-      url: 'https://logs.example.com/api/v1/ingest',
+      url: 'https://primary.logs.example.com/api/v1/ingest',
+      failoverUrls: const [
+        'https://backup.logs.example.com/api/v1/ingest',
+      ],
+      failureThreshold: 5,
+      recoveryTimeout: const Duration(seconds: 30),
       headers: const {'X-Service': 'checkout-service'},
       // Dynamic auth hook: refreshed before each batch POST (e.g. OAuth2 tokens)
       headersProvider: () async => {

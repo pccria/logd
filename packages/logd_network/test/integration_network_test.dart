@@ -223,5 +223,64 @@ void main() {
       await sink.dispose();
       await authServer.close(force: true);
     });
+
+    test('HttpSink fails over to secondary server when primary is down',
+        () async {
+      // Primary server returns 503
+      final primaryServer =
+          await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      primaryServer.listen((final request) async {
+        request.response
+          ..statusCode = HttpStatus.serviceUnavailable
+          ..write('Maintenance');
+        await request.response.close();
+      });
+
+      // Backup server returns 200 and captures logs
+      final backupServer =
+          await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final receivedBackupBatches = <List<dynamic>>[];
+      final completer = Completer<void>();
+
+      backupServer.listen((final request) async {
+        final body = await utf8.decoder.bind(request).join();
+        receivedBackupBatches.add(jsonDecode(body) as List<dynamic>);
+        request.response
+          ..statusCode = HttpStatus.ok
+          ..write('OK');
+        await request.response.close();
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      });
+
+      final sink = HttpSink(
+        url: 'http://127.0.0.1:${primaryServer.port}/primary',
+        failoverUrls: ['http://127.0.0.1:${backupServer.port}/backup'],
+        batchSize: 1,
+        maxRetries: 1,
+      );
+
+      final handler = Handler(
+        formatter: const PlainFormatter(metadata: {}),
+        sink: sink,
+      );
+
+      Logger.configure('test.http.failover', handlers: [handler]);
+      final logger = Logger.get('test.http.failover');
+
+      logger.info('FAILOVER_SURVIVED_LOG');
+
+      await completer.future.timeout(const Duration(seconds: 5));
+      expect(receivedBackupBatches.length, equals(1));
+      expect(receivedBackupBatches[0][0], contains('FAILOVER_SURVIVED_LOG'));
+      expect(sink.currentUrl,
+          equals('http://127.0.0.1:${backupServer.port}/backup'));
+      expect(sink.circuitState, equals(CircuitState.closed));
+
+      await sink.dispose();
+      await primaryServer.close(force: true);
+      await backupServer.close(force: true);
+    });
   });
 }

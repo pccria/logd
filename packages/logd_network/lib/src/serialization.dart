@@ -16,6 +16,11 @@ void registerLogdNetworkSerializers() {
     type: 'HttpSink',
     fromJson: (final json) => HttpSink(
       url: json['url'] as String,
+      failoverUrls: (json['failoverUrls'] as List?)?.cast<String>() ?? const [],
+      failureThreshold: json['failureThreshold'] as int? ?? 5,
+      recoveryTimeout: Duration(
+        milliseconds: json['recoveryTimeoutMs'] as int? ?? 60000,
+      ),
       headers: (json['headers'] as Map?)?.cast<String, String>() ?? const {},
       batchSize: json['batchSize'] as int? ?? 50,
       flushInterval: Duration(
@@ -30,6 +35,9 @@ void registerLogdNetworkSerializers() {
     ),
     toJson: (final val) => <String, dynamic>{
       'url': val.url,
+      'failoverUrls': val.failoverUrls,
+      'failureThreshold': val.failureThreshold,
+      'recoveryTimeoutMs': val.recoveryTimeout.inMilliseconds,
       'headers': val.headers,
       'batchSize': val.batchSize,
       'flushIntervalMs': val.flushInterval.inMilliseconds,
