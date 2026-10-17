@@ -19,6 +19,7 @@ void main() {
         batchSize: 25,
         flushInterval: const Duration(seconds: 45),
         maxRetries: 7,
+        compress: true,
         maxBufferSize: 500,
         dropPolicy: DropPolicy.discardNewest,
       );
@@ -37,6 +38,7 @@ void main() {
       expect(restored.batchSize, equals(25));
       expect(restored.flushInterval, equals(const Duration(seconds: 45)));
       expect(restored.maxRetries, equals(7));
+      expect(restored.compress, isTrue);
       expect(restored.maxBufferSize, equals(500));
       expect(restored.dropPolicy, equals(DropPolicy.discardNewest));
       expect(restored.headersProvider, isNull);

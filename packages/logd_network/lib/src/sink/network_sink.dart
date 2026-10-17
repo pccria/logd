@@ -11,6 +11,8 @@ import 'package:logd/src/logger/internal_logger.dart';
 import 'package:meta/meta.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../compression/gzip_compressor.dart';
+
 /// Defines the behavior when the network buffer reaches its maximum capacity.
 enum DropPolicy {
   /// Discard the oldest entries in the buffer to make room for new ones.
@@ -317,7 +319,10 @@ base class HttpSink extends NetworkSink {
   ///   and is not serialized across isolates.
   /// - [batchSize]: Sink when this many logs are accumulated (default: 50).
   /// - [flushInterval]: Sink interval (default: 60s).
-  /// - [maxRetries]: Max attempts for a single batch (default: 5).
+  /// - [compress]: Whether to compress the batch JSON body with GZip before
+  ///   transmission, attaching `Content-Encoding: gzip` (default: false).
+  ///   On platforms where GZip is unavailable (e.g. Web/WASM), payloads are
+  ///   transmitted uncompressed.
   /// - [client]: Optional external [http.Client].
   /// - [maxBufferSize]: Max entries to hold in memory.
   /// - [dropPolicy]: Behavior when [maxBufferSize] is reached.
@@ -334,6 +339,7 @@ base class HttpSink extends NetworkSink {
     this.batchSize = 50,
     this.flushInterval = const Duration(seconds: 60),
     this.maxRetries = 5,
+    this.compress = false,
     this.client,
     super.maxBufferSize = 1000,
     super.dropPolicy = DropPolicy.discardOldest,
@@ -379,6 +385,9 @@ base class HttpSink extends NetworkSink {
 
   /// Max attempts for a single batch.
   final int maxRetries;
+
+  /// Whether to compress batch payloads with GZip before sending.
+  final bool compress;
 
   /// Optional external [http.Client].
   final http.Client? client;
@@ -458,6 +467,8 @@ base class HttpSink extends NetworkSink {
     }
 
     _httpState.isFlushing = true;
+    final completer = Completer<void>();
+    _httpState.activeFlushCompleter = completer;
 
     try {
       while (hasBufferedLogs && !isDisposed) {
@@ -513,6 +524,10 @@ base class HttpSink extends NetworkSink {
       }
     } finally {
       _httpState.isFlushing = false;
+      _httpState.activeFlushCompleter = null;
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
     }
   }
 
@@ -543,12 +558,23 @@ base class HttpSink extends NetworkSink {
             resolvedHeaders.addAll(dynamicHeaders);
           }
 
+          final jsonString = convert.jsonEncode(
+            batch.map((final b) => convert.utf8.decode(b)).toList(),
+          );
+
+          Object body = jsonString;
+          if (compress && isGzipSupported) {
+            final compressed = gzipCompress(convert.utf8.encode(jsonString));
+            if (compressed != null) {
+              body = compressed;
+              resolvedHeaders['Content-Encoding'] = 'gzip';
+            }
+          }
+
           final response = await httpClient.post(
             uri,
             headers: resolvedHeaders,
-            body: convert.jsonEncode(
-              batch.map((final b) => convert.utf8.decode(b)).toList(),
-            ),
+            body: body,
           );
 
           if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -574,6 +600,9 @@ base class HttpSink extends NetworkSink {
 
           throw http.ClientException('HTTP Error ${response.statusCode}', uri);
         } catch (e) {
+          if (isDisposed) {
+            return false;
+          }
           lastError = e;
           attempts++;
           if (attempts >= maxRetries) {
@@ -649,9 +678,15 @@ base class HttpSink extends NetworkSink {
   Future<void> dispose() async {
     _httpState.timer?.cancel();
     await super.dispose();
+
+    // If an active flush is in flight, wait for it to complete cleanly
+    if (_httpState.activeFlushCompleter != null) {
+      await _httpState.activeFlushCompleter!.future;
+    }
+
     await _flush(); // Final drain before marking disposed (includes postamble)
-    _httpState.internalClient?.close();
     _state.isDisposed = true;
+    _httpState.internalClient?.close();
   }
 }
 
@@ -660,6 +695,7 @@ class _HttpState extends _NetworkState {
   http.Client? internalClient;
   final Map<String, Uri> cachedUris = {};
   bool isFlushing = false;
+  Completer<void>? activeFlushCompleter;
 
   CircuitState circuitState = CircuitState.closed;
   int consecutiveFailures = 0;

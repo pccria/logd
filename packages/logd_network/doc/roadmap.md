@@ -57,20 +57,19 @@ Dynamic Auth Hooks, Circuit Breaker, HTTP Backpressure, and Failover Endpoints.
 - [x] Add `failoverUrls: List<String>` to `HttpSink` for primary/fallback
       endpoint cycling. Switches endpoints upon failure without losing batches,
       and provides `resetFailover()` to restore primary endpoint routing.
+- [x] **GZip batch compression** (`compress: bool = false` on `HttpSink`):
+      compresses the JSON batch payload with GZip and sets `Content-Encoding: gzip`.
+      Uses conditional imports (`gzip_compressor.dart`) for compile-time safety across
+      Web/WASM while leveraging native `dart:io` on VM/Flutter. Achieves >90% bandwidth savings.
 - [x] Provide working examples and interactive showcase in `example/`
       demonstrating live rotation and self-healing recovery.
 
 ---
 
-### 🔲 v0.4.0 (Minor): Payload Compression & WebSocket Heartbeats
+### 🔲 WebSocket Heartbeats & Resilience
 
-**Goal**: Reduce network overhead for high-throughput apps and harden
-`SocketSink` against half-open TCP connections.
+**Goal**: Harden `SocketSink` against half-open TCP connections.
 
-- [ ] **GZip compression** (`compress: bool = false` on `HttpSink`): compress
-      the JSON batch body with `dart:io`'s `GZipCodec` and set
-      `Content-Encoding: gzip`. Disable on Web via conditional import (same
-      pattern as `http_server_sink.dart`).
 - [ ] **WS ping/pong heartbeats** (`heartbeatInterval: Duration?` on
       `SocketSink`): send a periodic WS ping frame and treat a missed pong as
       a connection failure, triggering the existing reconnect path. Prevents

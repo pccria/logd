@@ -27,6 +27,7 @@ void registerLogdNetworkSerializers() {
         milliseconds: json['flushIntervalMs'] as int? ?? 60000,
       ),
       maxRetries: json['maxRetries'] as int? ?? 5,
+      compress: json['compress'] as bool? ?? false,
       maxBufferSize: json['maxBufferSize'] as int? ?? 1000,
       dropPolicy: DropPolicy.values.byName(
         json['dropPolicy'] as String? ?? 'discardOldest',
@@ -42,6 +43,7 @@ void registerLogdNetworkSerializers() {
       'batchSize': val.batchSize,
       'flushIntervalMs': val.flushInterval.inMilliseconds,
       'maxRetries': val.maxRetries,
+      'compress': val.compress,
       'maxBufferSize': val.maxBufferSize,
       'dropPolicy': val.dropPolicy.name,
       'enabled': val.enabled,

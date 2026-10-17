@@ -282,5 +282,53 @@ void main() {
       await primaryServer.close(force: true);
       await backupServer.close(force: true);
     });
+
+    test('HttpSink transmits GZip compressed batches to real HttpServer',
+        () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final completer = Completer<void>();
+      final receivedBatches = <List<dynamic>>[];
+      String? receivedEncoding;
+
+      server.listen((final request) async {
+        receivedEncoding = request.headers.value('content-encoding');
+        if (receivedEncoding == 'gzip') {
+          final decompressedStream = gzip.decoder.bind(request);
+          final body = await utf8.decoder.bind(decompressedStream).join();
+          receivedBatches.add(jsonDecode(body) as List<dynamic>);
+        }
+        request.response
+          ..statusCode = HttpStatus.ok
+          ..write('OK');
+        await request.response.close();
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      });
+
+      final sink = HttpSink(
+        url: 'http://127.0.0.1:${server.port}/gzip_logs',
+        batchSize: 1,
+        compress: true,
+      );
+
+      final handler = Handler(
+        formatter: const PlainFormatter(metadata: {}),
+        sink: sink,
+      );
+
+      Logger.configure('test.http.gzip', handlers: [handler]);
+      final logger = Logger.get('test.http.gzip');
+
+      logger.info('COMPRESSED_PAYLOAD_EVENT_4892');
+
+      await completer.future.timeout(const Duration(seconds: 5));
+      expect(receivedEncoding, equals('gzip'));
+      expect(receivedBatches.length, equals(1));
+      expect(receivedBatches[0][0], contains('COMPRESSED_PAYLOAD_EVENT_4892'));
+
+      await sink.dispose();
+      await server.close(force: true);
+    });
   });
 }

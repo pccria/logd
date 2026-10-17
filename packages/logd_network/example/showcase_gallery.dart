@@ -5,6 +5,7 @@ import 'package:logd/logd.dart';
 import 'package:logd_network/logd_network.dart';
 
 import 'circuit_breaker_example.dart' as circuit_breaker_example;
+import 'compression_example.dart' as compression_example;
 import 'showcase/http_dashboard_showcase.dart' as http_dashboard_showcase;
 import 'showcase/http_server_sink_showcase.dart' as http_server_sink_showcase;
 import 'showcase/http_sink_showcase.dart' as http_sink_showcase;
@@ -36,6 +37,11 @@ void main(final List<String> args) async {
         await circuit_breaker_example.main();
         return;
       case '6':
+      case 'compress':
+      case 'gzip':
+        await compression_example.main();
+        return;
+      case '7':
       case 'all':
         await _runAutomatedSummary();
         return;
@@ -52,10 +58,11 @@ void main(final List<String> args) async {
   print('  [3] HttpServerSink Showcase (Embedded Browser Viewer)');
   print('  [4] HttpDashboardHandler Showcase (Pre-wired DX Preset)');
   print('  [5] Circuit Breaker & Failover Demo (Resilience)');
-  print('  [6] Run All Non-Blocking Demos Sequentially');
+  print('  [6] GZip Batch Compression Demo (Bandwidth Savings)');
+  print('  [7] Run All Non-Blocking Demos Sequentially');
   print('  [0] Exit');
   print('');
-  stdout.write('Enter choice [1-6, 0]: ');
+  stdout.write('Enter choice [1-7, 0]: ');
 
   final input = stdin.readLineSync()?.trim();
   print('');
@@ -77,6 +84,9 @@ void main(final List<String> args) async {
       await circuit_breaker_example.main();
       break;
     case '6':
+      await compression_example.main();
+      break;
+    case '7':
       await _runAutomatedSummary();
       break;
     case '0':

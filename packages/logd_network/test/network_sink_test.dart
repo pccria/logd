@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -1367,6 +1368,106 @@ void main() {
       expect(deserialized.failureThreshold, equals(7));
       expect(deserialized.recoveryTimeout, equals(const Duration(seconds: 45)));
       expect(deserialized.batchSize, equals(25));
+    });
+  });
+
+  group('HttpSink GZip Compression', () {
+    late MockHttpClient mockClient;
+
+    setUp(() {
+      mockClient = MockHttpClient();
+    });
+
+    test(
+        'compresses payload with GZip and adds Content-Encoding header when compress is true',
+        () async {
+      Object? capturedBody;
+      Map<String, String>? capturedHeaders;
+
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final invocation) async {
+        capturedHeaders =
+            invocation.namedArguments[#headers] as Map<String, String>?;
+        capturedBody = invocation.namedArguments[#body];
+        return http.Response('OK', 200);
+      });
+
+      final sink = HttpSink(
+        url: 'https://example.com/logs',
+        batchSize: 1,
+        compress: true,
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['gzip_compressed_message']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(capturedHeaders, isNotNull);
+      expect(capturedHeaders!['Content-Encoding'], equals('gzip'));
+      expect(capturedHeaders!['Content-Type'], equals('application/json'));
+
+      expect(capturedBody, isA<List<int>>());
+      final decompressedBytes = gzip.decode(capturedBody as List<int>);
+      final jsonString = utf8.decode(decompressedBytes);
+      final decodedList = jsonDecode(jsonString) as List<dynamic>;
+      expect(decodedList, equals(['gzip_compressed_message']));
+
+      await sink.dispose();
+    });
+
+    test(
+        'does not compress payload or add Content-Encoding header when compress is false',
+        () async {
+      Object? capturedBody;
+      Map<String, String>? capturedHeaders;
+
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((final invocation) async {
+        capturedHeaders =
+            invocation.namedArguments[#headers] as Map<String, String>?;
+        capturedBody = invocation.namedArguments[#body];
+        return http.Response('OK', 200);
+      });
+
+      final sink = HttpSink(
+        url: 'https://example.com/logs',
+        batchSize: 1,
+        compress: false,
+        client: mockClient,
+      );
+
+      await sink.output(
+        createTestDocument(['uncompressed_message']),
+        testEntry,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(capturedHeaders, isNotNull);
+      expect(capturedHeaders!.containsKey('Content-Encoding'), isFalse);
+      expect(capturedHeaders!['Content-Type'], equals('application/json'));
+
+      expect(capturedBody, isA<String>());
+      final decodedList = jsonDecode(capturedBody as String) as List<dynamic>;
+      expect(decodedList, equals(['uncompressed_message']));
+
+      await sink.dispose();
     });
   });
 }
