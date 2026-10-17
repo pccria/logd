@@ -3,9 +3,15 @@
 ## 0.2.0
 
 - **Dynamic Auth Hooks (`headersProvider`)**: Added `headersProvider` callback to `HttpSink` for composing dynamic request headers (OAuth2 bearer token refresh, rotating HMAC signatures) evaluated before each batch POST and re-evaluated during retry backoffs.
-- **Pure Dart Integration Tests**: Converted integration tests to in-process `dart:io` `HttpServer` and `WebSocketTransformer` servers, eliminating external Python environment dependencies.
+- **Circuit Breaker (`CircuitState`)**: Added three-state circuit breaker (`closed`, `open`, `halfOpen`) on `HttpSink` with configurable `failureThreshold` and `recoveryTimeout`. Trips to `open` on repeated backend failures to fast-fail and avoid flooding broken endpoints; automatically enters `halfOpen` probe state to restore service seamlessly.
+- **Failover Endpoints (`failoverUrls`)**: Added multi-endpoint high availability fallback list to `HttpSink`. In-flight batch retries automatically cycle through backup endpoints before dropping logs.
+- **HTTP Backpressure & `Retry-After` Support**: Added pure-Dart parsing for standard HTTP 429 and 503 `Retry-After` headers (supporting both integer seconds and RFC 1123 / RFC 850 / asctime dates) with zero external or `dart:io` platform dependencies. Automatically pauses outbound batch flushes until server cooldown expires.
+- **Batch GZip Compression (`compress`)**: Added optional `compress: true` payload compression on `HttpSink` achieving up to 90%+ bandwidth savings for telemetry ingest. Platform-safe with conditional exports (native GZip on VM/Flutter, fallback passthrough on Web/WASM).
+- **WebSocket Heartbeats & Proactive Reconnect**: Added `heartbeatInterval`, `heartbeatTimeout`, `pingMessage`, and `pongMessage` to `SocketSink` with incoming stream monitoring. Automatically detects silent connection drops or half-open TCP links and initiates exponential backoff reconnects without data loss.
+- **Pure Dart In-Process Test Infrastructure**: Converted integration and showcase tests to in-process `dart:io` `HttpServer` and `WebSocketTransformer` servers, eliminating external Python environment dependencies.
 - **Document Postamble Drain Fix**: Fixed `HttpSink.dispose()` and `SocketSink.dispose()` to ensure document-level postambles are enqueued and drained before connection shutdown.
-- **Expanded Test Coverage**: Added comprehensive unit test coverage for `onDropped` callbacks, transport exception recovery, custom headers, FIFO buffer eviction, and HTTP 404 routing.
+- **Expanded Test Coverage**: 60 unit and integration tests covering all resilience patterns, circuit breaker state transitions, failover rotations, dynamic token refreshes, and compression payloads.
+- **New Working Examples**: Added standalone runnable examples for dynamic auth (`dynamic_auth_example.dart`), circuit breaker & failover (`circuit_breaker_example.dart`), GZip compression (`compression_example.dart`), and WebSocket heartbeats (`heartbeat_example.dart`).
 
 ## 0.1.6
 

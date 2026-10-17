@@ -93,20 +93,36 @@ Logger.configure('app', handlers: [dashboard]);
 
 ---
 
-### 2. `HttpSink` (Batch Shipping & Exponential Retries)
-Accumulates log entries in memory and posts them in batches to remote log aggregators (e.g. Datadog, Loggly, Vector, or custom HTTP ingestion endpoints).
+### 2. `HttpSink` (Batch Shipping, Circuit Breaker & Resilience)
+Accumulates log entries in memory and posts them in batches to remote log aggregators (e.g. Datadog, Loggly, Vector, or custom HTTP ingestion endpoints) with enterprise-grade resilience:
+
+- **Dynamic Auth Hooks (`headersProvider`)**: Evaluated before each batch POST and re-evaluated during retry backoffs for seamless OAuth2 token refreshing.
+- **Circuit Breaker (`CircuitState`)**: Configurable `failureThreshold` and `recoveryTimeout`. Trips to `open` on repeated outages to fail-fast into memory buffers, probe back via `halfOpen`, and close automatically.
+- **Failover Endpoints (`failoverUrls`)**: In-flight retries seamlessly cycle to backup endpoints before dropping logs.
+- **HTTP Backpressure (`Retry-After`)**: Transparently parses and respects server-instructed 429/503 `Retry-After` cooldowns (integer seconds and standard HTTP-date formats).
+- **GZip Batch Compression (`compress: true`)**: Shrinks payload sizes by up to 90%+ over the wire (platform-safe across VM, Flutter, and Web).
 
 ```dart
 final httpHandler = Handler(
   formatter: const JsonFormatter(),
   sink: HttpSink(
-    url: 'https://logs.example.com/api/v1/ingest',
-    headers: const {'X-App-Id': 'mobile'},
-    // Dynamic Auth: evaluated before each batch POST (OAuth2, rotating HMAC)
+    url: 'https://primary.example.com/api/v1/ingest',
+    // Failover Endpoints: seamless fallback if primary endpoint fails
+    failoverUrls: const [
+      'https://backup-1.example.com/api/v1/ingest',
+      'https://backup-2.example.com/api/v1/ingest',
+    ],
+    // Dynamic Auth: evaluated before each batch POST & re-evaluated on retry
     headersProvider: () async {
       final token = await authManager.getFreshAccessToken();
       return {'Authorization': 'Bearer $token'};
     },
+    // GZip Compression: up to 90%+ bandwidth savings for telemetry batches
+    compress: true,
+    // Circuit Breaker: prevents endpoint flooding during prolonged outages
+    failureThreshold: 3,
+    recoveryTimeout: const Duration(seconds: 30),
+    // Batching & Buffer configuration
     batchSize: 50,
     flushInterval: const Duration(seconds: 30),
     maxRetries: 5,
@@ -123,8 +139,11 @@ Logger.configure('app', handlers: [httpHandler]);
 
 ---
 
-### 3. `SocketSink` (Real-Time WebSocket Streaming)
-Streams logs frame-by-frame over WebSockets with automatic reconnection and offline buffering.
+### 3. `SocketSink` (Real-Time WebSocket Streaming & Heartbeats)
+Streams logs frame-by-frame over WebSockets with automatic reconnection, offline buffering, and proactive connection health checks:
+
+- **WebSocket Heartbeats**: Periodically sends ping frames (`heartbeatInterval`). If a pong response is not received within `heartbeatTimeout`, the connection is proactively marked dead and reconnected.
+- **Stream Monitoring**: Listens to the incoming WebSocket channel stream to catch silent drops and remote TCP termination instantly.
 
 > **Platform Note:** Fully compatible across all platforms including Web and WASM via `package:web_socket_channel`. In browser targets, it connects directly using native browser WebSockets (`window.WebSocket`).
 
@@ -135,6 +154,11 @@ final wsHandler = Handler(
   sink: SocketSink(
     url: 'wss://stream.example.com/live-logs',
     reconnectInterval: const Duration(seconds: 5),
+    // WebSocket Heartbeats: proactive dead-link detection
+    heartbeatInterval: const Duration(seconds: 15),
+    heartbeatTimeout: const Duration(seconds: 5),
+    pingMessage: '{"type":"ping"}',
+    pongMessage: '{"type":"pong"}',
   ),
 );
 
@@ -204,6 +228,24 @@ dart run example/showcase/http_sink_showcase.dart
 dart run example/showcase/socket_sink_showcase.dart
 dart run example/showcase/http_server_sink_showcase.dart
 dart run example/showcase/http_dashboard_showcase.dart
+```
+
+### Standalone Resilience & Transport Demos
+
+Run self-contained in-process demonstrations with zero external dependencies:
+
+```bash
+# 1. Dynamic Authentication & Token Rotation Demo
+dart run example/dynamic_auth_example.dart
+
+# 2. Circuit Breaker, Failover & Retry-After Demo
+dart run example/circuit_breaker_example.dart
+
+# 3. GZip Batch Compression Demo (90%+ Bandwidth Savings)
+dart run example/compression_example.dart
+
+# 4. WebSocket Heartbeat & Self-Healing Reconnect Demo
+dart run example/heartbeat_example.dart
 ```
 
 ---
