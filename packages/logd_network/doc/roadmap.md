@@ -1,6 +1,6 @@
 # logd_network Roadmap
 
-Package version at time of writing: **0.1.3**
+Package version at time of writing: **0.2.0**
 
 ---
 
@@ -38,7 +38,7 @@ cadence. A `logd` core minor bump does not automatically trigger a
 ### ✅ v0.2.0 (Minor): Transport Resilience & Enhancements
 
 **Goal**: Deliver a hardened, production-grade HTTP/WebSocket transport upgrade:
-Dynamic Auth Hooks, Circuit Breaker, HTTP Backpressure, and Failover Endpoints.
+Dynamic Auth Hooks, Circuit Breaker, HTTP Backpressure, Failover Endpoints, GZip Compression, and WebSocket Heartbeats.
 
 - [x] Add `FutureOr<Map<String, String>> Function()? headersProvider` to
       `HttpSink`. When provided, it is awaited before each batch POST and its
@@ -61,20 +61,12 @@ Dynamic Auth Hooks, Circuit Breaker, HTTP Backpressure, and Failover Endpoints.
       compresses the JSON batch payload with GZip and sets `Content-Encoding: gzip`.
       Uses conditional imports (`gzip_compressor.dart`) for compile-time safety across
       Web/WASM while leveraging native `dart:io` on VM/Flutter. Achieves >90% bandwidth savings.
+- [x] **WS ping/pong heartbeats & stream monitoring** (`heartbeatInterval`, `heartbeatTimeout`,
+      `pingMessage`, `pongMessage` on `SocketSink`): sends periodic WS ping frames, listens to
+      incoming stream for dead links or remote termination, and reconnects proactively without
+      buffer loss.
 - [x] Provide working examples and interactive showcase in `example/`
       demonstrating live rotation and self-healing recovery.
-
----
-
-### 🔲 WebSocket Heartbeats & Resilience
-
-**Goal**: Harden `SocketSink` against half-open TCP connections.
-
-- [ ] **WS ping/pong heartbeats** (`heartbeatInterval: Duration?` on
-      `SocketSink`): send a periodic WS ping frame and treat a missed pong as
-      a connection failure, triggering the existing reconnect path. Prevents
-      silent drops through mobile network handoffs and aggressive reverse
-      proxies.
 
 ---
 
