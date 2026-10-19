@@ -13,7 +13,6 @@
 - **`HttpDashboardHandler` Lifecycle Fix**: Overrode `dispose()` on `HttpDashboardHandler` to call `await sink.dispose()`, cleanly unbinding the embedded HTTP server and closing active WebSockets upon handler disposal.
 - **Expanded Test Coverage**: 60 unit and integration tests covering all resilience patterns, circuit breaker state transitions, failover rotations, dynamic token refreshes, and compression payloads.
 - **New Working Examples**: Added standalone runnable examples for dynamic auth (`dynamic_auth_example.dart`), circuit breaker & failover (`circuit_breaker_example.dart`), GZip compression (`compression_example.dart`), and WebSocket heartbeats (`heartbeat_example.dart`).
-
 ## 0.1.6
 
 - **Dependency Alignment**: Updated `logd` dependency constraint to `^0.10.0`.
