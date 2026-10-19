@@ -18,7 +18,7 @@ class AuthService {
   }
 }
 
-void main() async {
+Future<void> main() async {
   print('=== logd_network: Dynamic Auth Hook Demonstration ===\n');
 
   // 1. Spin up an in-process HTTP log ingestion server

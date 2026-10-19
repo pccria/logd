@@ -211,14 +211,14 @@ void workerIsolateEntry(SendPort sendPort) {
 
 ## Interactive CLI Examples Gallery
 
-`logd_network` provides an interactive CLI showcase menu in `example/main.dart`:
+`logd_network` provides an interactive CLI showcase menu in `example/showcase_gallery.dart`:
 
 ```bash
 # Run interactive CLI showcase menu
-dart run example/main.dart
+dart run example/showcase_gallery.dart
 
 # Or run non-blocking automated summary
-dart run example/main.dart 5
+dart run example/showcase_gallery.dart all
 ```
 
 Or run individual standalone showcase scripts:

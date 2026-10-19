@@ -6,6 +6,8 @@ import 'package:logd_network/logd_network.dart';
 
 import 'circuit_breaker_example.dart' as circuit_breaker_example;
 import 'compression_example.dart' as compression_example;
+import 'dynamic_auth_example.dart' as dynamic_auth_example;
+import 'heartbeat_example.dart' as heartbeat_example;
 import 'showcase/http_dashboard_showcase.dart' as http_dashboard_showcase;
 import 'showcase/http_server_sink_showcase.dart' as http_server_sink_showcase;
 import 'showcase/http_sink_showcase.dart' as http_sink_showcase;
@@ -42,6 +44,16 @@ void main(final List<String> args) async {
         await compression_example.main();
         return;
       case '7':
+      case 'auth':
+      case 'dynamic-auth':
+        await dynamic_auth_example.main();
+        return;
+      case '8':
+      case 'heartbeat':
+      case 'ping':
+        await heartbeat_example.main();
+        return;
+      case '9':
       case 'all':
         await _runAutomatedSummary();
         return;
@@ -59,10 +71,12 @@ void main(final List<String> args) async {
   print('  [4] HttpDashboardHandler Showcase (Pre-wired DX Preset)');
   print('  [5] Circuit Breaker & Failover Demo (Resilience)');
   print('  [6] GZip Batch Compression Demo (Bandwidth Savings)');
-  print('  [7] Run All Non-Blocking Demos Sequentially');
+  print('  [7] Dynamic Auth Hook Demo (OAuth2 / Token Refresh)');
+  print('  [8] WebSocket Heartbeat Demo (Proactive Ping/Pong)');
+  print('  [9] Run All Non-Blocking Demos Sequentially');
   print('  [0] Exit');
   print('');
-  stdout.write('Enter choice [1-7, 0]: ');
+  stdout.write('Enter choice [1-9, 0]: ');
 
   final input = stdin.readLineSync()?.trim();
   print('');
@@ -87,6 +101,12 @@ void main(final List<String> args) async {
       await compression_example.main();
       break;
     case '7':
+      await dynamic_auth_example.main();
+      break;
+    case '8':
+      await heartbeat_example.main();
+      break;
+    case '9':
       await _runAutomatedSummary();
       break;
     case '0':

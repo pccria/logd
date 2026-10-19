@@ -47,6 +47,12 @@ class HttpDashboardHandler extends Handler {
           decorators: decorators ?? const [],
         );
 
+  @override
+  Future<void> dispose() async {
+    await super.dispose();
+    await sink.dispose();
+  }
+
   /// Creates an asynchronous [HttpDashboardHandler] offloaded to a background
   /// isolate.
   ///
