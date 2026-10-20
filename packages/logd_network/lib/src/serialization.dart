@@ -7,17 +7,27 @@ import 'sink/network_sink.dart';
 ///
 /// If using background isolates with [HttpSink], [SocketSink], or [HttpServerSink],
 /// call this function once in each isolate before calling `Logger.importConfig()`.
+///
+/// **Note**: Dynamic closure callbacks such as [HttpSink.headersProvider] and
+/// [HttpSink.onDropped] are transient and cannot be serialized across isolates.
+/// When deserializing in a worker isolate, these fields default to `null`.
 void registerLogdNetworkSerializers() {
   LoggerSerializationRegistry.registerSink<HttpSink>(
     type: 'HttpSink',
     fromJson: (final json) => HttpSink(
       url: json['url'] as String,
+      failoverUrls: (json['failoverUrls'] as List?)?.cast<String>() ?? const [],
+      failureThreshold: json['failureThreshold'] as int? ?? 5,
+      recoveryTimeout: Duration(
+        milliseconds: json['recoveryTimeoutMs'] as int? ?? 60000,
+      ),
       headers: (json['headers'] as Map?)?.cast<String, String>() ?? const {},
       batchSize: json['batchSize'] as int? ?? 50,
       flushInterval: Duration(
         milliseconds: json['flushIntervalMs'] as int? ?? 60000,
       ),
       maxRetries: json['maxRetries'] as int? ?? 5,
+      compress: json['compress'] as bool? ?? false,
       maxBufferSize: json['maxBufferSize'] as int? ?? 1000,
       dropPolicy: DropPolicy.values.byName(
         json['dropPolicy'] as String? ?? 'discardOldest',
@@ -26,10 +36,14 @@ void registerLogdNetworkSerializers() {
     ),
     toJson: (final val) => <String, dynamic>{
       'url': val.url,
+      'failoverUrls': val.failoverUrls,
+      'failureThreshold': val.failureThreshold,
+      'recoveryTimeoutMs': val.recoveryTimeout.inMilliseconds,
       'headers': val.headers,
       'batchSize': val.batchSize,
       'flushIntervalMs': val.flushInterval.inMilliseconds,
       'maxRetries': val.maxRetries,
+      'compress': val.compress,
       'maxBufferSize': val.maxBufferSize,
       'dropPolicy': val.dropPolicy.name,
       'enabled': val.enabled,
@@ -44,6 +58,14 @@ void registerLogdNetworkSerializers() {
       reconnectInterval: Duration(
         milliseconds: json['reconnectIntervalMs'] as int? ?? 15000,
       ),
+      heartbeatInterval: json['heartbeatIntervalMs'] != null
+          ? Duration(milliseconds: json['heartbeatIntervalMs'] as int)
+          : const Duration(seconds: 30),
+      heartbeatTimeout: Duration(
+        milliseconds: json['heartbeatTimeoutMs'] as int? ?? 10000,
+      ),
+      pingMessage: json['pingMessage'] as String? ?? 'ping',
+      pongMessage: json['pongMessage'] as String? ?? 'pong',
       maxBufferSize: json['maxBufferSize'] as int? ?? 1000,
       dropPolicy: DropPolicy.values.byName(
         json['dropPolicy'] as String? ?? 'discardOldest',
@@ -54,6 +76,11 @@ void registerLogdNetworkSerializers() {
       'url': val.url,
       'headers': val.headers,
       'reconnectIntervalMs': val.reconnectInterval.inMilliseconds,
+      if (val.heartbeatInterval != null)
+        'heartbeatIntervalMs': val.heartbeatInterval!.inMilliseconds,
+      'heartbeatTimeoutMs': val.heartbeatTimeout.inMilliseconds,
+      'pingMessage': val.pingMessage,
+      'pongMessage': val.pongMessage,
       'maxBufferSize': val.maxBufferSize,
       'dropPolicy': val.dropPolicy.name,
       'enabled': val.enabled,

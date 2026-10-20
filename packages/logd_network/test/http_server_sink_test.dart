@@ -135,5 +135,125 @@ void main() {
       await socket.close();
       await sink.dispose();
     });
+
+    test(
+      'should evict oldest logs when bufferCapacity is exceeded',
+      () async {
+        final sink = HttpServerSink(
+          address: 'localhost',
+          port: 0,
+          bufferCapacity: 2,
+          encoder: const PlainTextEncoder(),
+        );
+
+        await sink.ready;
+        final port = sink.boundPort;
+
+        final logger = Logger.get('capacity_logger');
+        Logger.configure(
+          'capacity_logger',
+          handlers: [Handler(formatter: const PlainFormatter(), sink: sink)],
+        );
+
+        logger
+          ..info('Log 1 - should be evicted')
+          ..info('Log 2 - should be retained')
+          ..info('Log 3 - should be retained');
+
+        final wsUrl = 'ws://localhost:$port/ws';
+        final socket = await io.WebSocket.connect(wsUrl);
+
+        final receivedLogs = <String>[];
+        final completer = Completer<void>();
+
+        socket.listen((final data) {
+          receivedLogs.add(data as String);
+          if (receivedLogs.length == 2 && !completer.isCompleted) {
+            completer.complete();
+          }
+        });
+
+        await completer.future.timeout(const Duration(seconds: 5));
+        expect(receivedLogs.length, equals(2));
+
+        expect(receivedLogs[0], contains('Log 2 - should be retained'));
+        expect(receivedLogs[1], contains('Log 3 - should be retained'));
+
+        await socket.close();
+        await sink.dispose();
+      },
+    );
+
+    test(
+      'should broadcast logs to multiple concurrent WebSocket clients',
+      () async {
+        final sink = HttpServerSink(
+          address: 'localhost',
+          port: 0,
+          encoder: const PlainTextEncoder(),
+        );
+
+        await sink.ready;
+        final port = sink.boundPort;
+
+        final wsUrl = 'ws://localhost:$port/ws';
+        final socket1 = await io.WebSocket.connect(wsUrl);
+        final socket2 = await io.WebSocket.connect(wsUrl);
+
+        final completer1 = Completer<String>();
+        final completer2 = Completer<String>();
+
+        socket1.listen((final data) {
+          if (!completer1.isCompleted) {
+            completer1.complete(data as String);
+          }
+        });
+        socket2.listen((final data) {
+          if (!completer2.isCompleted) {
+            completer2.complete(data as String);
+          }
+        });
+
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        final logger = Logger.get('multi_client_logger');
+        Logger.configure(
+          'multi_client_logger',
+          handlers: [Handler(formatter: const PlainFormatter(), sink: sink)],
+        );
+
+        logger.info('Broadcast event');
+
+        final res1 = await completer1.future.timeout(
+          const Duration(seconds: 5),
+        );
+        final res2 = await completer2.future.timeout(
+          const Duration(seconds: 5),
+        );
+
+        expect(res1, contains('Broadcast event'));
+        expect(res2, contains('Broadcast event'));
+
+        await socket1.close();
+        await socket2.close();
+        await sink.dispose();
+      },
+    );
+
+    test('should return 404 for unknown HTTP routes', () async {
+      final sink = HttpServerSink(
+        address: 'localhost',
+        port: 0,
+      );
+
+      await sink.ready;
+      final port = sink.boundPort;
+
+      final res =
+          await http.get(Uri.parse('http://localhost:$port/unknown_route'));
+      expect(res.statusCode, equals(404));
+
+      await sink.dispose();
+    });
   });
 }
