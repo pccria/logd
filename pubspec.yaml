@@ -12,4 +12,5 @@ workspace:
   - packages/logd_markdown
   - packages/logd_html
   - packages/logd_toon
+  - packages/logd_dio
 

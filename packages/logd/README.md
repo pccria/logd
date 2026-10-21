@@ -36,24 +36,39 @@ That's it for most use cases. Everything below is opt-in.
 
 ---
 
-## Why logd?
+## Engineered for Real-World Systems
 
-### The problems it solves
+Most Dart logging libraries treat logging as simple string formatting in a terminal box. 
+**logd treats logging as application infrastructure.**
 
-**Logging across isolates is broken in most libraries.**
-When you offload work to a background isolate, your logger either silently drops entries or forces you to wire up ports manually. logd's `.async()` constructors offload the entire pipeline — formatting, decoration, I/O — to a worker isolate, returning to your code in ~15µs.
+### Why developers choose logd
 
-**Structured context disappears in async code.**
-Attaching a `requestId` to every log entry in a request handler means threading a `Map` through every function signature. logd's zone-based MDC (`LogContext.run`) binds context once and propagates it automatically through every `await`, microtask, and nested call — with zero allocations when no context is present.
+- **Never drop a frame on disk or network I/O**  
+  Logging to disk or remote servers shouldn't hitch your 120Hz Flutter UI or stall your event loop. Add `.async()` to any handler to offload formatting, serialization, and I/O to a background worker isolate in ~15µs.
 
-**Output pipelines are all-or-nothing.**
-Most libraries give you console or file. logd gives you a clean pipeline: Formatter → Decorator → Encoder → Sink. Swap any stage independently. Run the same formatter to a styled ANSI terminal, a JSON file, an HTML report, and a live browser dashboard — simultaneously.
+- **Trace requests across async boundaries — zero boilerplate**  
+  Stop threading `requestId`, `userId`, or `tenantId` through dozens of function signatures. `LogContext.run()` binds ambient context once, automatically propagating it through every nested `await`, microtask, and concurrent branch.
+
+- **Cut LLM prompt token costs by 30–50%**  
+  Traditional JSON logs bloat AI context windows with repetitive keys. With native **TOON** (Tab-Oriented Object Notation from [`package:logd_toon`](https://pub.dev/packages/logd_toon)), log telemetry is emitted with a compact schema header and tab-delimited rows — purpose-built for LLM agent workflows and DuckDB ingestion.
+
+- **Full-lifecycle HTTP inspection & credential redaction**  
+  Capture API requests, monotonic response times, executable cURL commands, and failure diagnostics with automatic SOC2/GDPR credential redaction and ambient trace ID forwarding using [`package:logd_dio`](https://pub.dev/packages/logd_dio).
+
+- **One log call, any destination simultaneously**  
+  Route the same log event to a styled ANSI console, an indexed WAL-mode SQLite database ([`package:logd_sqlite`](https://pub.dev/packages/logd_sqlite)), a self-contained HTML report ([`package:logd_html`](https://pub.dev/packages/logd_html)), or stream it in real time to a live browser dashboard ([`package:logd_network`](https://pub.dev/packages/logd_network)).
+
+- **Surgical noise control with O(1) hierarchy**  
+  Target and quiet chatty subsystems (e.g., `Logger.configurePattern('app.network.*', logLevel: LogLevel.warning)`) with dot-separated inheritance, dynamic glob matching, and zero-allocation fast paths.
+
+- **Zero silent drops with fail-safe fallback**  
+  If a disk fills up or a network sink throws, `logd`'s internal fallback redirects critical logs before they can be lost — without ever crashing your host application.
 
 ---
 
 ## Pre-Wired Handlers
 
-Ready-to-use handlers cover common destinations out of the box (with specialized formats, storage, & telemetry provided by satellite packages like [`logd_toon`](https://pub.dev/packages/logd_toon), [`logd_html`](https://pub.dev/packages/logd_html), [`logd_markdown`](https://pub.dev/packages/logd_markdown), [`logd_sqlite`](https://pub.dev/packages/logd_sqlite), and [`logd_network`](https://pub.dev/packages/logd_network)). No pipeline wiring required:
+Ready-to-use handlers cover common destinations out of the box (with specialized formats, storage, networking, HTTP interception, & telemetry provided by satellite packages like [`logd_dio`](https://pub.dev/packages/logd_dio), [`logd_toon`](https://pub.dev/packages/logd_toon), [`logd_html`](https://pub.dev/packages/logd_html), [`logd_markdown`](https://pub.dev/packages/logd_markdown), [`logd_sqlite`](https://pub.dev/packages/logd_sqlite), and [`logd_network`](https://pub.dev/packages/logd_network)). No pipeline wiring required:
 
 ```dart
 // Styled terminal output (dark or light theme)
@@ -353,6 +368,26 @@ FileSink('logs/app.log', fileRotation: TimeRotation(
 ))
 ```
 
+### HTTP Network Interception (`logd_dio`)
+
+Monitor, sanitize, and debug Dio HTTP traffic with monotonic timing, cURL output, and automatic token redaction using [`package:logd_dio`](https://pub.dev/packages/logd_dio):
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:logd_dio/logd_dio.dart';
+
+final dio = Dio();
+dio.interceptors.add(
+  LogdDioInterceptor(
+    const LogdDioOptions(
+      logCurl: true,              // Executable cURL generation
+      maxBodyLength: 512,         // Safe body truncation to protect memory
+      attachAmbientTraceId: true, // Propagate ambient LogContext requestId
+    ),
+  ),
+);
+```
+
 ### Network Logging (`logd_network`)
 
 Ship logs to remote servers with built-in resilience using [`package:logd_network`](https://pub.dev/packages/logd_network):
@@ -510,89 +545,153 @@ Logger.fallbackHandler = (entry, error, stackTrace) {
 
 ---
 
-## Use Cases
+## Integration Recipes
 
-### Development Console
+### 1. Flutter Mobile (Zero UI Jank & Crash Resilience)
+
+Offload disk I/O to a background worker isolate so 120Hz animations never drop frames, while catching uncaught framework and platform errors:
 
 ```dart
-Logger.configure('global', handlers: [
-  Handler(
-    formatter: const StructuredFormatter(),
-    decorators: const [
-      HierarchyDepthPrefixDecorator(indent: '│ '),
-      BoxDecorator(borderStyle: BorderStyle.rounded),
-      StyleDecorator(DarkTheme()),
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:logd/logd.dart';
+import 'package:path_provider/path_provider.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final dir = await getApplicationSupportDirectory();
+
+  Logger.configure('app',
+    logLevel: kReleaseMode ? LogLevel.info : LogLevel.debug,
+    handlers: [
+      if (kDebugMode) ConsoleHandler(theme: const DarkTheme()),
+      // Background worker isolate — disk writes never hitch the UI thread:
+      JsonFileHandler.async('${dir.path}/app_logs.json'),
     ],
-    sink: const ConsoleSink(lineLength: 80),
-  ),
-]);
+  );
+
+  // Catch framework widget errors and unhandled async microtasks:
+  FlutterError.onError = (details) => Logger.get('app.crash').error(
+    details.exceptionAsString(),
+    error: details.exception,
+    stackTrace: details.stack,
+  );
+  PlatformDispatcher.instance.onError = (error, stack) {
+    Logger.get('app.crash').error('Unhandled error', error: error, stackTrace: stack);
+    return true; // Prevent app crash
+  };
+
+  runApp(const MyApp());
+}
 ```
 
-### Production JSON
+### 2. HTTP Network Inspection (Dio Interceptor)
+
+Capture API requests, monotonic response times, executable cURL commands, and failure diagnostics using the official [`package:logd_dio`](https://pub.dev/packages/logd_dio):
 
 ```dart
-Logger.configure('global', handlers: [
-  Handler(
-    formatter: const JsonFormatter(),
-    sink: FileSink('logs/production.log'),
+import 'package:dio/dio.dart';
+import 'package:logd_dio/logd_dio.dart';
+
+final dio = Dio();
+dio.interceptors.add(
+  LogdDioInterceptor(
+    const LogdDioOptions(
+      logCurl: true,              // Generates copy-pasteable cURL commands
+      maxBodyLength: 512,         // Truncates large payloads to prevent OOM
+      attachAmbientTraceId: true, // Propagates LogContext requestId downstream
+    ),
   ),
-]);
+);
+
+// Automatic SOC2/GDPR token redaction & monotonic timing
+await dio.get('https://api.example.com/users');
 ```
 
-### Microservice — Per-Subsystem Routing
+> [!TIP]
+> Explore [`package:logd_dio`](../logd_dio) and run its interactive gallery (`dart run example/showcase_gallery.dart`) for specialized recipes on SOC2 redaction, distributed tracing, and cancellation resilience.
+
+
+### 3. Backend & Microservices (Ambient Tracing with Shelf)
+
+Bind a `requestId` once at the gateway; every downstream async function and database call inherits it automatically without passing parameters:
+
+```dart
+import 'package:logd/logd.dart';
+import 'package:shelf/shelf.dart';
+
+Middleware requestTracingMiddleware() {
+  return (Handler innerHandler) => (Request request) async {
+    final requestId = request.headers['x-request-id'] ?? 'req-${DateTime.now().microsecondsSinceEpoch}';
+
+    // LogContext.run binds context to all downstream async calls & microtasks
+    return LogContext.run({'requestId': requestId, 'path': request.url.path}, () async {
+      Logger.get('api.http').info('${request.method} ${request.url.path}');
+
+      final response = await innerHandler(request);
+
+      // Echo requestId back in response headers for client-server correlation
+      return response.change(headers: {'x-request-id': requestId});
+    });
+  };
+}
+
+// Deep in your services or database queries — zero boilerplate:
+Future<void> queryDatabase() async {
+  // Automatically tagged with {requestId: ..., path: ...}!
+  Logger.get('api.db').info('SELECT * FROM users');
+}
+```
+
+### 4. Microservice Subsystem Routing (Per-Domain Files & Filters)
+
+Route different application namespaces to separate dedicated files and log levels:
 
 ```dart
 Logger.configure('api', handlers: [
-  Handler(formatter: JsonFormatter(), sink: FileSink('logs/api.log')),
+  Handler(formatter: const JsonFormatter(), sink: FileSink('logs/api.log')),
 ]);
 
 Logger.configure('database', handlers: [
-  Handler(formatter: JsonFormatter(), sink: FileSink('logs/db.log')),
+  Handler(formatter: const JsonFormatter(), sink: FileSink('logs/db.log')),
 ]);
 
 Logger.configure('auth', handlers: [
   Handler(
-    formatter: JsonFormatter(),
+    formatter: const JsonFormatter(),
     sink: FileSink('logs/security.log'),
-    filters: [LevelFilter(LogLevel.warning)],
+    filters: [LevelFilter(LogLevel.warning)], // Warnings and errors only
   ),
 ]);
 ```
 
-### In-Memory Ring Buffer
+### 5. AI Agents & LLM Telemetry (TOON)
 
-For testing, debug panels, or transient error dumps:
-
-```dart
-final memoryHandler = MemoryHandler(capacity: 100);
-Logger.configure('global', handlers: [memoryHandler]);
-
-// Inspect recent entries programmatically
-print(memoryHandler.entries.length);
-```
-
----
-
-## Flutter Integration
+Save **30–50% prompt tokens** vs JSON by logging agent actions in Tab-Oriented Object Notation ([`package:logd_toon`](https://pub.dev/packages/logd_toon)):
 
 ```dart
+import 'package:logd/logd.dart';
+import 'package:logd_toon/logd_toon.dart';
+
 void main() {
-  FlutterError.onError = (details) {
-    Logger.get('app.crash').error(
-      'Flutter error',
-      error: details.exception,
-      stackTrace: details.stack,
-    );
-  };
+  Logger.configure('agent', handlers: [
+    ToonFileHandler('logs/agent_session.toon'),
+  ]);
 
-  runZonedGuarded(
-    () => runApp(MyApp()),
-    (error, stack) => Logger.get('app.crash').error(
-      'Uncaught error', error: error, stackTrace: stack,
-    ),
-  );
+  final logger = Logger.get('agent');
+  logger.info('Tool executed', context: {
+    'tool': 'web_search',
+    'query': 'Dart 3.6',
+    'durationMs': 142,
+  });
+
+  // Emits a compact column schema once, followed by tab-delimited rows.
+  // Ideal for sliding-window LLM prompts and DuckDB log analysis!
 }
 ```
+
+> [!TIP]
+> Looking for offline SQLite diagnostics, live WebSocket dashboards, or CI Markdown reports? Check out the full [**Production Cookbook**](doc/cookbook.md).
 
 ---
 
@@ -623,6 +722,7 @@ test('logs warning on failure', () async {
 
 | Package | Purpose |
 |---|---|
+| [`logd_dio`](https://pub.dev/packages/logd_dio) | Production-grade Dio HTTP logging interceptor with cURL generation & redaction |
 | [`logd_toon`](https://pub.dev/packages/logd_toon) | Tab-Oriented Object Notation (TOON) formatter, encoder & file handler (30–50% LLM token reduction) |
 | [`logd_html`](https://pub.dev/packages/logd_html) | Self-contained HTML report encoder, stylesheets & file handler |
 | [`logd_markdown`](https://pub.dev/packages/logd_markdown) | GitHub-Flavored Markdown formatter & file handler for CI summaries |
@@ -636,10 +736,13 @@ test('logs warning on failure', () async {
 
 | Document | Description |
 |---|---|
+| [API Reference](https://github.com/pooriaaskarim/logd/blob/master/doc/api_reference.md) | Complete catalog of public classes, methods, and configurations |
+| [Production Cookbook](https://github.com/pooriaaskarim/logd/blob/master/doc/cookbook.md) | Copy-paste recipes for Flutter, Dio, Shelf, SQLite & AI |
 | [Logger Philosophy](https://github.com/pooriaaskarim/logd/blob/master/doc/logger/philosophy.md) | 13 design principles with rationale |
 | [Handler Architecture](https://github.com/pooriaaskarim/logd/blob/master/doc/handler/architecture.md) | Pipeline internals |
 | [Execution Engines Guide](https://github.com/pooriaaskarim/logd/blob/master/doc/handler/engines.md) | Standard, Arena, Native |
 | [TOON Specification](https://github.com/pooriaaskarim/logd/blob/master/packages/logd_toon/doc/toon_spec.md) | Format spec + DuckDB ingestion |
+| [Dio Interceptor Guide](https://github.com/pooriaaskarim/logd/blob/master/packages/logd_dio/README.md) | Full-featured HTTP interceptor, cURL generation & redaction |
 | [Isolates Guide](https://github.com/pooriaaskarim/logd/blob/master/doc/logger/isolates.md) | Cross-isolate configuration |
 | [Migration Guide](https://github.com/pooriaaskarim/logd/blob/master/doc/migration.md) | Upgrading from legacy components |
 | [Architecture Decisions](https://github.com/pooriaaskarim/logd/blob/master/doc/decisions/README.md) | ADR-001 through ADR-008 |

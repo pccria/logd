@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.1: Documentation & Developer Experience Refresh
+
+- **Production Cookbook**: Introduced comprehensive production integration cookbook (`doc/cookbook.md`) with copy-paste recipes for Flutter zero-jank offloading, Dio HTTP inspection, Shelf microservice tracing, SQLite WAL persistence, live WebSocket dashboards, and TOON LLM agent telemetry.
+- **Comprehensive API Reference**: Added catalog (`doc/api_reference.md`) documenting all public handlers, formatters, decorators, rotation policies, and satellite package APIs.
+- **`package:logd_dio` First-Class Integration**: Documented the official Dio HTTP interceptor satellite package across core recipes, advanced features, and satellite package indexes.
+- **README Restructuring**: Relocated pre-wired handlers to the top of the README for faster onboarding, updated Flutter recipes to modern `FlutterError.onError` and `PlatformDispatcher.instance.onError` patterns, and added architectural guidance for enterprise deployments.
+- **Documentation Automation**: Added Melos `docs` task for unified `dart doc` generation across the monorepo workspace.
+
 ## 0.10.0: Pure Semantic Engine & Hard Deprecation Removal
 
 This major milestone release completes the architectural transition of `logd` into a pure semantic logging engine. All soft-deprecated network sinks and legacy format shims have been permanently removed, eliminating all external network dependencies from the core package and establishing a zero-network-dependency core.
