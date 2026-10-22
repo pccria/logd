@@ -2,6 +2,8 @@
 
 This directory contains detailed documentation regarding the design, architecture, and roadmap of the `logd` library.
 
+- [**API Reference**](api_reference.md): Public classes, methods, configurations, and satellite APIs catalog.
+- [**Production Cookbook**](cookbook.md): Battle-tested copy-paste recipes for Flutter, Dio, Shelf, SQLite, live WebSockets, and AI agent telemetry.
 - [**Migration Guide**](migration.md): Upgrading from legacy versions, satellite migrations, and Flutter SDK decoupling details.
 - [**Architecture Decision Records (ADRs)**](decisions/README.md): Formal design decisions from ADR-001 to ADR-008.
 - [**Cross-Isolate Coordination Guide**](logger/isolates.md): Configuration snapshots, serialization registry, and satellite package hooks.
@@ -28,6 +30,7 @@ Responsible for the processing pipeline of log entries.
 - [Roadmap](handler/roadmap.md)
 
 ### Satellite Packages Documentation
+- [**logd_dio**](../packages/logd_dio/doc/architecture.md) - Dio HTTP interceptor with cURL generation and redaction
 - [**logd_toon**](../packages/logd_toon/doc/toon_spec.md) - TOON specification, dialects, and architecture
 - [**logd_html**](../packages/logd_html/doc/architecture.md) - HTML architecture, custom stylesheets, and migration
 - [**logd_markdown**](../packages/logd_markdown/doc/architecture.md) - Markdown architecture, GFM tables, and migration

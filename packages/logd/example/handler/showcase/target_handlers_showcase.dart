@@ -119,7 +119,8 @@ void main() async {
 
     _section('SHOWCASE COMPLETE');
     print('Core pre-wired TargetHandlers executed & verified successfully!');
-    print('Available satellite handlers:');
+    print('Available satellite handlers & interceptors:');
+    print('  - LogdDioInterceptor: package:logd_dio');
     print('  - SqliteHandler: package:logd_sqlite');
     print('  - HttpDashboardHandler: package:logd_network');
     print('  - HtmlFileHandler: package:logd_html');

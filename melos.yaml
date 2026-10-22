@@ -10,3 +10,7 @@ scripts:
   get:
     run: melos exec -- "dart pub get"
     description: Run pub get in all packages.
+
+  docs:
+    run: melos exec --dir-exists=lib -- "dart doc ."
+    description: Generate HTML API documentation for all packages in the workspace.
