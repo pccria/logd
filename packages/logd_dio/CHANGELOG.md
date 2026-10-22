@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- **Dependency Constraints**: Raised minimum `dio` dependency constraint to `^5.2.0` for compatibility with `DioException` and `DioExceptionType`.
+
 ## 0.1.0: Initial Release
 
 - **`LogdDioInterceptor`**: First-class HTTP request and response logging interceptor for Dio.

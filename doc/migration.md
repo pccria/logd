@@ -36,7 +36,7 @@
 ### 4. HTTP Client Interception (`package:logd_dio`)
 * **Overview**: Dedicated satellite package providing `LogdDioInterceptor` with monotonic timing, automatic SOC2/GDPR credential redaction, cURL generation, and ambient `LogContext` distributed trace ID propagation.
 * **Usage**:
-  - Add `logd_dio: ^0.1.0` to `pubspec.yaml` and import `package:logd_dio/logd_dio.dart`.
+  - Add `logd_dio: ^0.1.1` to `pubspec.yaml` and import `package:logd_dio/logd_dio.dart`.
   - See [`packages/logd_dio/README.md`](../packages/logd_dio/README.md) for configuration options and the interactive example runner.
 
 ---
