@@ -12,6 +12,7 @@
   - Added `sensitiveBodyKeys` to `LogdDioOptions` (with default redaction for passwords, tokens, API keys, secrets, credit cards, CVVs, SSNs).
   - Added `LogdSanitizer.sanitizeBody` for recursive redaction across nested maps, lists, and raw JSON strings.
   - Integrated body redaction into `LogdSanitizer.safeBodyPreview`, `LogdCurlGenerator.generate`, and request/response/error logging.
+- **Dependency Alignment**: Updated minimum `logd` dependency constraint to `^0.10.2`.
 
 ## 0.1.1
 

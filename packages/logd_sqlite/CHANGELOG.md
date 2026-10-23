@@ -15,6 +15,7 @@
 - **Serialization & Error Resilience**:
   - Added safe JSON serialization with `toEncodable: (o) => o.toString()` for `LogEntry.context`, preventing crashes from non-primitive or cyclic objects.
   - Made disposal idempotent with `_ensureNotDisposed()` guarding state and preventing use-after-free exceptions.
+- **Dependency Alignment**: Updated minimum `logd` dependency constraint to `^0.10.2`.
 
 ## 0.1.6
 

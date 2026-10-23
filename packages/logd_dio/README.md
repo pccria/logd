@@ -23,8 +23,8 @@ A production-grade [Dio](https://pub.dev/packages/dio) HTTP logging interceptor 
 ```yaml
 dependencies:
   dio: ^5.2.0
-  logd: ^0.10.0
-  logd_dio: ^0.1.1
+  logd: ^0.10.2
+  logd_dio: ^0.1.2
 ```
 
 ```dart

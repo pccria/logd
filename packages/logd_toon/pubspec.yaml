@@ -26,7 +26,7 @@ platforms:
 resolution: workspace
 
 dependencies:
-  logd: ^0.10.0
+  logd: ^0.10.2
   meta: ^1.18.0
 
 dev_dependencies:

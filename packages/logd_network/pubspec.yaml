@@ -28,7 +28,7 @@ platforms:
 resolution: workspace
 
 dependencies:
-  logd: ^0.10.0
+  logd: ^0.10.2
   http: ^1.2.0
   meta: ^1.18.0
   web_socket_channel: ^3.0.0

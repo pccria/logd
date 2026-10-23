@@ -2,6 +2,7 @@
 
 - **CSS Grid Span Protection**:
   - Clamped `colSpan` and `rowSpan` in `TableCellNode` to `>= 1` to ensure generated inline CSS grid styles (`grid-column: span ...`) always output valid, non-zero spans.
+- **Dependency Alignment**: Updated minimum `logd` dependency constraint to `^0.10.2`.
 
 ## 0.1.2
 

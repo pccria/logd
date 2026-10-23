@@ -29,7 +29,7 @@ resolution: workspace
 
 dependencies:
   dio: ^5.2.0
-  logd: ^0.10.0
+  logd: ^0.10.2
   meta: ^1.18.0
 
 dev_dependencies:

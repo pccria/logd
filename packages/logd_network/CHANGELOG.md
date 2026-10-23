@@ -14,6 +14,7 @@
   - Added bound port reporting from worker isolate back to main isolate in `HttpDashboardIsolateHandler`, enabling `port: 0` ephemeral binding with asynchronous background dashboard handlers.
   - Enhanced worker error propagation to complete `ready.future` with `completeError()` on socket binding failure rather than hanging.
   - Exposed `boundPort` getter on `HttpDashboardHandler` and `HttpDashboardIsolateHandler`.
+- **Dependency Alignment**: Updated minimum `logd` dependency constraint to `^0.10.2`.
 
 ## 0.2.0
 

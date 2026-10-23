@@ -5,6 +5,7 @@
 - **Normalization & Validation**:
   - Added Windows CRLF line ending normalization (`\r\n` and `\r` to `\n`) in `ToonFormatter` and `ToonPrettyFormatter` before line splitting, preventing trailing carriage returns from corrupting TOON row values.
   - Added strict validation for `delimiter` (rejecting empty or newline characters) and `maxDepth` (`>= 1`).
+- **Dependency Alignment**: Updated minimum `logd` dependency constraint to `^0.10.2`.
 
 ## 0.1.2
 

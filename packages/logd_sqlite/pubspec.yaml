@@ -27,7 +27,7 @@ platforms:
 resolution: workspace
 
 dependencies:
-  logd: ^0.10.0
+  logd: ^0.10.2
   meta: ^1.18.0
   sqlite3: ^3.0.0
 
