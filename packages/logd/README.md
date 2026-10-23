@@ -41,6 +41,10 @@ That's it for most use cases. Everything below is opt-in.
 Most Dart logging libraries treat logging as simple string formatting in a terminal box. 
 **logd treats logging as application infrastructure.**
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_core_demo.gif" alt="logd Terminal Hierarchy & Tables" width="750" />
+</p>
+
 ### Why developers choose logd
 
 - **Never drop a frame on disk or network I/O**  

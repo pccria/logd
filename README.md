@@ -16,6 +16,10 @@
 - **Surgical noise control**: Silence or debug specific subsystems dynamically with O(1) hierarchical inheritance and glob pattern matching.
 - **Zero silent drops**: Fail-safe fallback prevents data loss if a disk fills or a network sink throws — without ever crashing the host application.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_dio_demo.gif" alt="logd_dio Interceptor Showcase" width="760" />
+</p>
+
 ---
 
 ## Project Structure
