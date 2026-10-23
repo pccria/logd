@@ -67,6 +67,8 @@ class LogdDioInterceptor extends Interceptor {
         ? LogdSanitizer.safeBodyPreview(
             options.data,
             maxBodyLength: this.options.maxBodyLength,
+            sensitiveKeys: this.options.sensitiveBodyKeys,
+            placeholder: this.options.redactedPlaceholder,
           )
         : null;
 
@@ -75,6 +77,8 @@ class LogdDioInterceptor extends Interceptor {
             options,
             sensitiveHeaders: this.options.sensitiveHeaders,
             placeholder: this.options.redactedPlaceholder,
+            sensitiveQueryParams: this.options.sensitiveQueryParams,
+            sensitiveBodyKeys: this.options.sensitiveBodyKeys,
           )
         : null;
 
@@ -87,7 +91,12 @@ class LogdDioInterceptor extends Interceptor {
       if (curl != null) 'curl': curl,
     };
 
-    final message = '--> ${options.method.toUpperCase()} ${options.uri}';
+    final sanitizedUri = LogdSanitizer.sanitizeUri(
+      options.uri,
+      this.options.sensitiveQueryParams,
+      this.options.redactedPlaceholder,
+    );
+    final message = '--> ${options.method.toUpperCase()} $sanitizedUri';
     _dispatchLog(this.options.requestLevel, message, context: context);
 
     super.onRequest(options, handler);
@@ -115,6 +124,8 @@ class LogdDioInterceptor extends Interceptor {
         ? LogdSanitizer.safeBodyPreview(
             response.data,
             maxBodyLength: options.maxBodyLength,
+            sensitiveKeys: options.sensitiveBodyKeys,
+            placeholder: options.redactedPlaceholder,
           )
         : null;
 
@@ -126,8 +137,13 @@ class LogdDioInterceptor extends Interceptor {
       if (bodyPreview != null) 'body': bodyPreview,
     };
 
+    final sanitizedUri = LogdSanitizer.sanitizeUri(
+      response.requestOptions.uri,
+      options.sensitiveQueryParams,
+      options.redactedPlaceholder,
+    );
     final message =
-        '<-- $statusCode ${response.requestOptions.method.toUpperCase()} ${response.requestOptions.uri} (${durationMs}ms)';
+        '<-- $statusCode ${response.requestOptions.method.toUpperCase()} $sanitizedUri (${durationMs}ms)';
 
     _dispatchLog(options.responseLevel, message, context: context);
 
@@ -143,10 +159,15 @@ class LogdDioInterceptor extends Interceptor {
     sw?.stop();
     final durationMs = sw?.elapsedMilliseconds ?? 0;
     final isCancel = err.type == DioExceptionType.cancel;
+    final sanitizedUri = LogdSanitizer.sanitizeUri(
+      err.requestOptions.uri,
+      options.sensitiveQueryParams,
+      options.redactedPlaceholder,
+    );
 
     if (isCancel) {
       final message =
-          '<-- CANCELLED ${err.requestOptions.method.toUpperCase()} ${err.requestOptions.uri} (${durationMs}ms)';
+          '<-- CANCELLED ${err.requestOptions.method.toUpperCase()} $sanitizedUri (${durationMs}ms)';
       final context = <String, dynamic>{
         'durationMs': durationMs,
         if (err.response?.statusCode != null)
@@ -158,12 +179,14 @@ class LogdDioInterceptor extends Interceptor {
       final statusCode = err.response?.statusCode;
       final statusPrefix = statusCode != null ? '$statusCode ' : '';
       final message =
-          '<-- FAILED $statusPrefix${err.requestOptions.method.toUpperCase()} ${err.requestOptions.uri} (${durationMs}ms)';
+          '<-- FAILED $statusPrefix${err.requestOptions.method.toUpperCase()} $sanitizedUri (${durationMs}ms)';
 
       final errorBody = options.logResponseBody
           ? LogdSanitizer.safeBodyPreview(
               err.response?.data,
               maxBodyLength: options.maxBodyLength,
+              sensitiveKeys: options.sensitiveBodyKeys,
+              placeholder: options.redactedPlaceholder,
             )
           : null;
 

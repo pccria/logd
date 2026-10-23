@@ -69,6 +69,71 @@ void main() {
         equals('[Binary data: 5 bytes]'),
       );
     });
+
+    test('sanitizeUri redacts sensitive query parameters in Uri', () {
+      final uri = Uri.parse(
+        'https://api.example.com/v1/auth?token=secret-token&api_key=my-key&filter=active',
+      );
+      final sanitized = LogdSanitizer.sanitizeUri(
+        uri,
+        {'token', 'api_key'},
+        '[REDACTED]',
+      );
+
+      expect(sanitized.queryParameters['token'], equals('[REDACTED]'));
+      expect(sanitized.queryParameters['api_key'], equals('[REDACTED]'));
+      expect(sanitized.queryParameters['filter'], equals('active'));
+    });
+
+    test(
+        'sanitizeBody recursively redacts sensitive keys in maps, lists, and json',
+        () {
+      final nestedData = {
+        'user': {
+          'name': 'Alice',
+          'password': 'super-secret-password',
+          'nested': {
+            'credit_card': '1234-5678-9012-3456',
+            'token': 'bearer-jwt',
+          },
+        },
+        'items': [
+          {'id': 1, 'api_key': 'key-1'},
+          {'id': 2, 'safe': 'value'},
+        ],
+      };
+
+      final sanitized = LogdSanitizer.sanitizeBody(
+        nestedData,
+        {'password', 'credit_card', 'token', 'api_key'},
+        '***REDACTED***',
+      ) as Map<String, Object?>;
+
+      final user = sanitized['user'] as Map<String, Object?>;
+      expect(user['name'], equals('Alice'));
+      expect(user['password'], equals('***REDACTED***'));
+      final nested = user['nested'] as Map<String, Object?>;
+      expect(nested['credit_card'], equals('***REDACTED***'));
+      expect(nested['token'], equals('***REDACTED***'));
+
+      final items = sanitized['items'] as List<Object?>;
+      final item1 = items[0] as Map<String, Object?>;
+      expect(item1['api_key'], equals('***REDACTED***'));
+    });
+
+    test('safeBodyPreview redacts sensitive keys in JSON string bodies', () {
+      const jsonBody = '{"user": "bob", "password": "plaintext-password"}';
+      final preview = LogdSanitizer.safeBodyPreview(
+        jsonBody,
+        maxBodyLength: 200,
+        sensitiveKeys: {'password'},
+        placeholder: '***REDACTED***',
+      );
+
+      expect(preview, isA<String>());
+      expect((preview! as String).contains('plaintext-password'), isFalse);
+      expect((preview as String).contains('***REDACTED***'), isTrue);
+    });
   });
 
   group('LogdCurlGenerator', () {
@@ -107,6 +172,86 @@ void main() {
       expect(curl, contains('curl -X POST'));
       expect(curl, contains("-H 'Authorization: ***REDACTED***'"));
       expect(curl, contains('--data-raw \'{"username":"test"}\''));
+    });
+
+    test(
+        'escapes single quotes and newlines in URI to prevent command injection',
+        () {
+      final maliciousUri =
+          "https://api.example.com/search?q=test'; rm -rf /; echo 'owned\n\r";
+      final options = RequestOptions(
+        path: maliciousUri,
+        method: 'GET',
+      );
+
+      final curl = LogdCurlGenerator.generate(
+        options,
+        sensitiveHeaders: const {},
+        placeholder: '***REDACTED***',
+      );
+
+      // Verify no unescaped single quote breakout and newlines stripped
+      expect(curl.contains('\n'), isFalse);
+      expect(curl.contains('\r'), isFalse);
+      expect(curl, contains(r"test'\''"));
+    });
+
+    test('escapes single quotes and newlines in header keys and values', () {
+      final options = RequestOptions(
+        path: 'https://api.example.com',
+        method: 'GET',
+        headers: {
+          "X-Custom-Header'; evil_cmd;": "val'ue\nwith\rnewlines",
+        },
+      );
+
+      final curl = LogdCurlGenerator.generate(
+        options,
+        sensitiveHeaders: const {},
+        placeholder: '***REDACTED***',
+      );
+
+      expect(curl.contains('\n'), isFalse);
+      expect(curl.contains('\r'), isFalse);
+      expect(curl, contains(r"X-Custom-Header'\''"));
+      expect(curl, contains(r"val'\''ue"));
+    });
+
+    test('sanitizes malicious HTTP method to fallback safe method', () {
+      final options = RequestOptions(
+        path: 'https://api.example.com',
+        method: "POST'; evil_cmd; '",
+      );
+
+      final curl = LogdCurlGenerator.generate(
+        options,
+        sensitiveHeaders: const {},
+        placeholder: '***REDACTED***',
+      );
+
+      expect(curl, contains('curl -X GET'));
+    });
+
+    test('redacts query params and body keys in curl output', () {
+      final options = RequestOptions(
+        path: 'https://api.example.com/login?token=super-secret-token',
+        method: 'POST',
+        data: {'password': 'user-password-123', 'email': 'user@example.com'},
+      );
+
+      final curl = LogdCurlGenerator.generate(
+        options,
+        sensitiveHeaders: const {},
+        placeholder: '***REDACTED***',
+        sensitiveQueryParams: {'token'},
+        sensitiveBodyKeys: {'password'},
+      );
+
+      expect(curl.contains('super-secret-token'), isFalse);
+      expect(curl.contains('user-password-123'), isFalse);
+      expect(curl, contains('token='));
+      expect(curl, contains('REDACTED'));
+      expect(curl, contains('"password":"***REDACTED***"'));
     });
   });
 
@@ -350,6 +495,64 @@ void main() {
         returnsNormally,
       );
       expect(handler.forwardedError, equals(err));
+    });
+
+    test('redacts sensitive query parameters in logged URI message and curl',
+        () async {
+      final options = RequestOptions(
+        path: 'https://api.example.com/search?token=secret-token-123&user=john',
+        method: 'GET',
+      );
+
+      final handler = RequestInterceptorHandler();
+      interceptor.onRequest(options, handler);
+      await Future<void>.value();
+
+      final loggedUri = testLogger.logs.first.message;
+      expect(loggedUri.contains('secret-token-123'), isFalse);
+      expect(
+          loggedUri, contains('--> GET https://api.example.com/search?token='));
+      expect(loggedUri, contains('REDACTED'));
+      expect(loggedUri, contains('user=john'));
+    });
+
+    test('redacts sensitive keys in request and response body', () async {
+      final req = RequestOptions(
+        path: 'https://api.example.com/auth/login',
+        method: 'POST',
+        data: {
+          'email': 'user@example.com',
+          'password': 'super-secret-password',
+        },
+      );
+
+      interceptor.onRequest(req, RequestInterceptorHandler());
+
+      final res = Response(
+        requestOptions: req,
+        statusCode: 200,
+        data: {
+          'user': {'email': 'user@example.com'},
+          'token': 'jwt-access-token-999',
+        },
+      );
+
+      interceptor.onResponse(res, ResponseInterceptorHandler());
+      await Future<void>.value();
+
+      final requestEntry = testLogger.logs.firstWhere(
+        (final r) => r.message.contains('--> POST'),
+      );
+      final bodyContext = requestEntry.context?['body'] as String?;
+      expect(bodyContext?.contains('super-secret-password'), isFalse);
+      expect(bodyContext?.contains('***REDACTED***'), isTrue);
+
+      final responseEntry = testLogger.logs.firstWhere(
+        (final r) => r.message.contains('<-- 200 POST'),
+      );
+      final resBodyContext = responseEntry.context?['body'] as String?;
+      expect(resBodyContext?.contains('jwt-access-token-999'), isFalse);
+      expect(resBodyContext?.contains('***REDACTED***'), isTrue);
     });
   });
 
