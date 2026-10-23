@@ -130,6 +130,8 @@ class Arena implements LogPipelineFactory {
   void reclaimInFlightBuffers() {}
 
   int get poolSize => 0;
+  @internal
+  int get totalAllocatedBytes => 0;
 
   void clear() {}
   void disposeNative() {}

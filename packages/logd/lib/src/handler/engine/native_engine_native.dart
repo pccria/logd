@@ -181,6 +181,7 @@ void spawnNativeWorker(final List<dynamic> args) {
         final String output = encoder.encode(
           message.pointer,
           terminalWidth: message.terminalWidth,
+          length: message.length,
         );
 
         // 2. Encode to UTF-8 bytes

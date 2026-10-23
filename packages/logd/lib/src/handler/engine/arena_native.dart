@@ -103,6 +103,10 @@ class Arena implements LogPipelineFactory {
 
   int _totalAllocatedBytes = 0;
 
+  /// The total native memory currently allocated by the arena pool (in bytes).
+  @internal
+  int get totalAllocatedBytes => _totalAllocatedBytes;
+
   /// The maximum number of native packets allowed to be in-flight before
   /// the main thread blocks (backpressure).
   static const int maxInFlightPackets = 200;
@@ -236,10 +240,28 @@ class Arena implements LogPipelineFactory {
     final alignedSize = (size + 7) & ~7;
 
     var buffer = document._currentBuffer;
-    if (buffer == null || buffer.offset + alignedSize > buffer.size) {
+    if (buffer == null) {
       buffer = _checkoutNewBuffer(max(_defaultPacketSize, alignedSize));
       document._buffers.add(buffer);
       document._currentBuffer = buffer;
+    } else if (buffer.offset + alignedSize > buffer.size) {
+      // Must grow contiguous buffer to prevent multi-buffer fragmentation
+      // and out-of-bounds heap reads in BinaryAnsiEncoder.
+      final newCapacity = max(buffer.size * 2, buffer.offset + alignedSize);
+      final newBuffer = _checkoutNewBuffer(newCapacity);
+      if (buffer.offset > 0) {
+        newBuffer.pointer.asTypedList(buffer.offset).setAll(
+              0,
+              buffer.pointer.asTypedList(buffer.offset),
+            );
+        newBuffer.offset = buffer.offset;
+      }
+      buffer.offset = 0;
+      _freeNativeBuffers.add(buffer);
+      document._buffers.remove(buffer);
+      document._buffers.add(newBuffer);
+      document._currentBuffer = newBuffer;
+      buffer = newBuffer;
     }
 
     final ptr = buffer.pointer + buffer.offset;
@@ -255,7 +277,15 @@ class Arena implements LogPipelineFactory {
       }
     }
 
-    // 2. Allocate fresh
+    // 2. Free unused buffers from pool if nearing maxNativeMemory
+    while (_freeNativeBuffers.isNotEmpty &&
+        _totalAllocatedBytes + size > maxNativeMemory) {
+      final b = _freeNativeBuffers.removeLast();
+      pkg_ffi.malloc.free(b.pointer);
+      _totalAllocatedBytes -= b.size;
+    }
+
+    // 3. Allocate fresh
     if (_totalAllocatedBytes + size > maxNativeMemory) {
       throw const OutOfMemoryError();
     }
@@ -354,6 +384,7 @@ class Arena implements LogPipelineFactory {
       pkg_ffi.malloc.free(buffer.pointer);
     }
     _freeNativeBuffers.clear();
+    _totalAllocatedBytes = 0;
   }
 
   /// Checks out a [HeaderNode] from the pool, or allocates a fresh one.
@@ -741,6 +772,7 @@ class Arena implements LogPipelineFactory {
       pkg_ffi.malloc.free(buffer.pointer);
     }
     _inFlightNativeBuffers.clear();
+    _totalAllocatedBytes = 0;
   }
 }
 
@@ -775,6 +807,15 @@ class ArenaDocument extends StandardDocument {
   /// Returns whether this document is currently in streaming mode.
   bool get isStreaming => _isStreaming;
 
+  /// Returns the base pointer of the current active native buffer,
+  /// or null if unallocated.
+  @internal
+  ffi.Pointer<ffi.Uint8>? get nativeBufferPointer => _currentBuffer?.pointer;
+
+  /// Returns the byte offset of the current active native buffer.
+  @internal
+  int get nativeBufferOffset => _currentBuffer?.offset ?? 0;
+
   /// Enables high-performance streaming mode.
   void enableStreaming() {
     _isStreaming = true;
@@ -786,6 +827,7 @@ class ArenaDocument extends StandardDocument {
   @override
   void reset() {
     super.reset();
+    writer.reset();
     if (_buffers.isNotEmpty) {
       arena.resetNative(this);
     }

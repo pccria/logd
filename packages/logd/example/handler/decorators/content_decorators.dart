@@ -102,7 +102,11 @@ void main() {
     sink: ConsoleSink(lineLength: 60),
   );
 
-  Logger.configure('dashboard', handlers: [dashboardHandler]);
+  Logger.configure(
+    'dashboard',
+    handlers: [dashboardHandler],
+    stackMethodCount: {LogLevel.warning: 0},
+  );
   print('--- 6. Dashboard Rail (Complex Composition) ---');
   Logger.get('dashboard').info('Telemetry stream initialized.');
   Logger.get('dashboard').warning('Latency spike detected in region-us-east.');
