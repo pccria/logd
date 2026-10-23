@@ -5,6 +5,10 @@
 
 A production-grade [Dio](https://pub.dev/packages/dio) HTTP logging interceptor powered by the [`logd`](https://pub.dev/packages/logd) logging engine.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_dio_demo.gif" alt="logd_dio Terminal Showcase" width="780" />
+</p>
+
 ---
 
 ## Features
