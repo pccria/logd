@@ -1,3 +1,22 @@
+## 0.1.7
+
+- **Security & SQL Injection Prevention**:
+  - Enforced strict table name validation using regex `^[a-zA-Z_][a-zA-Z0-9_]*$`, preventing SQL identifier injection via untrusted table names across DDL, index creation, DML, and query statements.
+- **Memory Safety & Backpressure Protection**:
+  - Introduced configurable `maxBufferSize` (defaulting to 10,000 entries) in `SqliteSink` and `SqliteHandler`. Evicts oldest buffered log entries when write backpressure or disk latency saturates memory, preventing OutOfMemory errors during crash storms.
+  - Added positive validation checks for `maxEntries` and `maxBufferSize`.
+- **Concurrency & Reentrancy Hardening**:
+  - Replaced unawaited microtask `flush()` invocations across synchronous query and utility APIs (`queryLogs()`, `fetchLevelCounts()`, `fetchDistinctLoggerNames()`, `count()`, `vacuum()`) with synchronous FFI transaction execution (`_flushSync()`), guaranteeing zero race conditions and eliminating stale query reads.
+  - Added `_inTransaction` reentrancy lock preventing transaction collisions (`cannot start a transaction within a transaction`) during concurrent flushes.
+  - Added `PRAGMA busy_timeout = 5000;` on database initialization to gracefully wait out transient SQLite locks.
+- **Isolate Lifecycle & Startup Queue**:
+  - Implemented an internal startup buffer in `SqliteIsolateHandler` so entries logged while the worker isolate is spawning are preserved and drained cleanly, resolving a critical issue where early logs were dropped upon disposal.
+  - Implemented handshake protocol and startup error propagation between worker isolate and parent isolate, preventing infinite hangs on worker spawn failure.
+- **Serialization & Error Resilience**:
+  - Added safe JSON serialization with `toEncodable: (o) => o.toString()` for `LogEntry.context`, preventing crashes from non-primitive or cyclic objects.
+  - Made disposal idempotent with `_ensureNotDisposed()` guarding state and preventing use-after-free exceptions.
+- **Dependency Alignment**: Updated minimum `logd` dependency constraint to `^0.10.2`.
+
 ## 0.1.6
 
 - **Dependency Alignment**: Updated `logd` dependency constraint to `^0.10.0`.

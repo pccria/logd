@@ -445,7 +445,7 @@ class TerminalLayout {
           tags: LogTag.border,
         ),
         StyledText(' ', style: node.style, tags: LogTag.none),
-        ...line.segments,
+        ..._expandTabs(line.segments, 2),
         StyledText('$padding ', style: node.style, tags: LogTag.none),
         StyledText(
           sideChar,
@@ -487,6 +487,46 @@ class TerminalLayout {
         ),
       );
     }
+  }
+
+  List<StyledText> _expandTabs(
+    final List<StyledText> segments,
+    final int startX,
+  ) {
+    bool hasTab = false;
+    for (final seg in segments) {
+      if (seg.text.contains('\t')) {
+        hasTab = true;
+        break;
+      }
+    }
+    if (!hasTab) {
+      return segments;
+    }
+
+    final result = <StyledText>[];
+    var currentPos = startX;
+    for (final seg in segments) {
+      if (!seg.text.contains('\t')) {
+        result.add(seg);
+        currentPos += _getVisibleLength(seg.text, currentPos);
+        continue;
+      }
+      final buf = StringBuffer();
+      for (final char in seg.text.characters) {
+        if (char == '\t') {
+          final advance = 8 - (currentPos % 8);
+          buf.write(' ' * advance);
+          currentPos += advance;
+        } else {
+          buf.write(char);
+          final advance = isWide(char) ? 2 : 1;
+          currentPos += advance;
+        }
+      }
+      result.add(StyledText(buf.toString(), style: seg.style, tags: seg.tags));
+    }
+    return result;
   }
 
   PhysicalLine _renderBorderLine(

@@ -23,6 +23,7 @@ class SqliteHandler extends Handler {
     final Duration flushInterval = const Duration(seconds: 2),
     final int? maxEntries,
     final Duration? maxAge,
+    final int maxBufferSize = 10000,
     final LogFormatter? formatter,
     final List<LogDecorator>? decorators,
     super.filters = const [],
@@ -37,6 +38,7 @@ class SqliteHandler extends Handler {
             flushInterval: flushInterval,
             maxEntries: maxEntries ?? 10000,
             maxAge: maxAge,
+            maxBufferSize: maxBufferSize,
           ),
           decorators: decorators ?? const [],
         );
@@ -48,6 +50,7 @@ class SqliteHandler extends Handler {
     final Duration flushInterval = const Duration(seconds: 2),
     final int? maxEntries,
     final Duration? maxAge,
+    final int maxBufferSize = 10000,
     final LogFormatter? formatter,
     final List<LogDecorator>? decorators,
     super.filters = const [],
@@ -62,6 +65,7 @@ class SqliteHandler extends Handler {
             flushInterval: flushInterval,
             maxEntries: maxEntries ?? 10000,
             maxAge: maxAge,
+            maxBufferSize: maxBufferSize,
           ),
           decorators: decorators ?? const [],
         );
@@ -74,6 +78,7 @@ class SqliteHandler extends Handler {
     final Duration flushInterval = const Duration(seconds: 2),
     final int? maxEntries,
     final Duration? maxAge,
+    final int maxBufferSize = 10000,
     final LogFormatter? formatter,
     final List<LogDecorator>? decorators,
     super.filters = const [],
@@ -88,6 +93,7 @@ class SqliteHandler extends Handler {
             flushInterval: flushInterval,
             maxEntries: maxEntries ?? 10000,
             maxAge: maxAge,
+            maxBufferSize: maxBufferSize,
           ),
           decorators: decorators ?? const [],
         );

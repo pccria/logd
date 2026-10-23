@@ -14,6 +14,8 @@ base class HttpServerSink extends EncodingSink {
     final int? lineLength,
     super.enabled = true,
     this.bufferCapacity = 100,
+    this.maxConnections = 32,
+    this.allowedOrigins = const {},
   }) : super(preferredWidth: lineLength ?? 120, delegate: _unsupported) {
     throw UnsupportedError(
       'HttpServerSink is not supported on web platforms. '
@@ -29,6 +31,12 @@ base class HttpServerSink extends EncodingSink {
 
   /// Maximum number of historical log entries to buffer (unsupported on web).
   final int bufferCapacity;
+
+  /// Maximum number of concurrent WebSocket dashboard connections permitted.
+  final int maxConnections;
+
+  /// Allowed origins for incoming WebSocket upgrade requests.
+  final Set<String> allowedOrigins;
 
   /// The actual bound port (unsupported on web).
   int get boundPort => port;

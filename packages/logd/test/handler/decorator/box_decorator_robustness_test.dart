@@ -82,5 +82,51 @@ void main() {
         doc.releaseRecursive(Arena.instance);
       }
     });
+
+    test(
+      'BoxDecorator expands tabs so all lines have identical width without '
+      'raw tabs',
+      () {
+        const formatter = PlainFormatter(metadata: {});
+        const box = BoxDecorator(borderStyle: BorderStyle.sharp);
+
+        final entry = LogEntry(
+          loggerName: 'test',
+          origin: 'main.dart',
+          level: LogLevel.info,
+          message: '\tFirst Tab\nNoTab\tTab\n\t\tDouble Tab',
+          timestamp: '2025-01-01',
+        );
+
+        final doc = formatDoc(formatter, entry);
+        try {
+          box.decorate(doc, entry, Arena.instance);
+
+          final layout = TerminalLayout(width: 40, factory: Arena.instance);
+          final physical = layout.layout(doc, LogLevel.info);
+          final boxedLines = physical.lines;
+
+          final topWidth = boxedLines[0].visibleLength;
+          expect(topWidth, equals(40));
+
+          for (int i = 0; i < boxedLines.length; i++) {
+            final line = boxedLines[i];
+            final rawText = line.segments.map((final s) => s.text).join();
+            expect(
+              rawText.contains('\t'),
+              isFalse,
+              reason: 'Line $i still contains raw tab',
+            );
+            expect(
+              line.visibleLength,
+              equals(40),
+              reason: 'Line $i has inconsistent width: ${line.visibleLength}',
+            );
+          }
+        } finally {
+          doc.releaseRecursive(Arena.instance);
+        }
+      },
+    );
   });
 }

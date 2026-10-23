@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.1
+
+- **Stored Cross-Site Scripting (XSS) Prevention (`dashboard_html.dart`)**:
+  - Implemented client-side HTML entity escaping (`escapeHtml()`) for all dynamic variables rendered into dashboard DOM: error messages, stack traces, context objects, logger names, log levels, and tabular tags.
+  - Hardened HTML encoder recognition by transmitting explicit `isHtml: boolean` flags from `HttpServerSink`, preventing plain text logs starting with `<div` from bypassing sanitization.
+- **Cross-Site WebSocket Hijacking (CSWSH) & Security Response Headers**:
+  - Added `allowedOrigins` origin verification on `/ws` upgrades in `HttpServerSink`. Rejects untrusted cross-origin browser WebSocket requests with HTTP `403 Forbidden` while allowing localhost/loopback and configured dashboard domains.
+  - Attached standard security response headers on HTTP dashboard requests: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Content-Security-Policy`.
+- **DoS & Connection Cap Protection (`maxConnections`)**:
+  - Added configurable `maxConnections` safeguard (default: 32) to `HttpServerSink` and `HttpDashboardHandler`. Returns HTTP `503 Service Unavailable` with `Retry-After: 5` when the connection limit is reached.
+- **Isolate Handshake Hardening & Dynamic Port 0 Support**:
+  - Added bound port reporting from worker isolate back to main isolate in `HttpDashboardIsolateHandler`, enabling `port: 0` ephemeral binding with asynchronous background dashboard handlers.
+  - Enhanced worker error propagation to complete `ready.future` with `completeError()` on socket binding failure rather than hanging.
+  - Exposed `boundPort` getter on `HttpDashboardHandler` and `HttpDashboardIsolateHandler`.
+- **Dependency Alignment**: Updated minimum `logd` dependency constraint to `^0.10.2`.
+
 ## 0.2.0
 
 - **Dynamic Auth Hooks (`headersProvider`)**: Added `headersProvider` callback to `HttpSink` for composing dynamic request headers (OAuth2 bearer token refresh, rotating HMAC signatures) evaluated before each batch POST and re-evaluated during retry backoffs.

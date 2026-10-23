@@ -7,7 +7,7 @@ void main() async {
 
   // 1. Asynchronous real-time HTTP & WebSocket browser dashboard on background isolate
   final dashboard = HttpDashboardHandler.async(
-    port: 8080,
+    port: 0,
     title: 'Production Telemetry Stream',
     bufferCapacity: 200,
   );

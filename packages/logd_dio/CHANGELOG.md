@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.2
+
+- **Security & Command Injection Fix (`LogdCurlGenerator`)**:
+  - Posix shell escape single quotes (`'\''`) in generated cURL targets and headers.
+  - Strip control characters and newlines (`\r\n`) from header keys, header values, and target URIs to prevent terminal command execution breakouts when pasting generated commands.
+  - Validate and fallback HTTP method names against shell breakout characters.
+- **URI Query Parameter Redaction**:
+  - Added `LogdSanitizer.sanitizeUri` to automatically sanitize sensitive query parameters (e.g., `token`, `api_key`, `secret`, `password`) in logged request/response messages and generated cURL command URLs.
+- **Payload & Body Key Redaction**:
+  - Added `sensitiveBodyKeys` to `LogdDioOptions` (with default redaction for passwords, tokens, API keys, secrets, credit cards, CVVs, SSNs).
+  - Added `LogdSanitizer.sanitizeBody` for recursive redaction across nested maps, lists, and raw JSON strings.
+  - Integrated body redaction into `LogdSanitizer.safeBodyPreview`, `LogdCurlGenerator.generate`, and request/response/error logging.
+- **Dependency Alignment**: Updated minimum `logd` dependency constraint to `^0.10.2`.
+
 ## 0.1.1
 
 - **Dependency Constraints**: Raised minimum `dio` dependency constraint to `^5.2.0` for compatibility with `DioException` and `DioExceptionType`.

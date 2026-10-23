@@ -106,6 +106,7 @@ base class SqliteIsolateHandler extends Handler {
   final ReceivePort _errorPort = ReceivePort();
   final Completer<void> _ready = Completer<void>();
   final _IsolateState _state = _IsolateState();
+  final List<LogEntry> _pendingQueue = [];
 
   static final Finalizer<ReceivePort> _finalizer =
       Finalizer<ReceivePort>((final port) {
@@ -133,14 +134,39 @@ base class SqliteIsolateHandler extends Handler {
         io.stderr.writeln(
           '[logd] SqliteIsolateHandler worker error: $message',
         );
+        if (!_ready.isCompleted) {
+          _ready.completeError(
+            StateError('SqliteIsolateHandler worker failed to start: $message'),
+          );
+        }
       });
 
       final firstMsg = await _receivePort.first;
-      if (firstMsg is SendPort) {
+      if (firstMsg is List && firstMsg.isNotEmpty && firstMsg[0] == true) {
+        _state.commandPort = firstMsg[1] as SendPort;
+        for (final item in _pendingQueue) {
+          _state.commandPort?.send(item);
+        }
+        _pendingQueue.clear();
+        if (!_ready.isCompleted) {
+          _ready.complete();
+        }
+      } else if (firstMsg is List &&
+          firstMsg.isNotEmpty &&
+          firstMsg[0] == false) {
+        throw StateError(
+          'SqliteIsolateHandler worker failed during initialization: '
+          '${firstMsg[1]}',
+        );
+      } else if (firstMsg is SendPort) {
         _state.commandPort = firstMsg;
-      }
-      if (!_ready.isCompleted) {
-        _ready.complete();
+        for (final item in _pendingQueue) {
+          _state.commandPort?.send(item);
+        }
+        _pendingQueue.clear();
+        if (!_ready.isCompleted) {
+          _ready.complete();
+        }
       }
     } catch (e, s) {
       _errorPort.close();
@@ -158,13 +184,12 @@ base class SqliteIsolateHandler extends Handler {
 
     if (filters.any((final f) => !f.shouldLog(entry))) return;
 
-    if (!_ready.isCompleted) {
-      await _ready.future;
+    final port = _state.commandPort;
+    if (port != null && _ready.isCompleted) {
+      port.send(entry);
+    } else {
+      _pendingQueue.add(entry);
     }
-
-    if (_state.isDisposed) return;
-
-    _state.commandPort?.send(entry);
   }
 
   @override
@@ -181,6 +206,12 @@ base class SqliteIsolateHandler extends Handler {
 
     final port = _state.commandPort;
     if (port != null) {
+      if (_pendingQueue.isNotEmpty) {
+        for (final item in _pendingQueue) {
+          port.send(item);
+        }
+        _pendingQueue.clear();
+      }
       final reply = ReceivePort();
       try {
         port.send(_StopCommand(reply.sendPort));
@@ -191,6 +222,7 @@ base class SqliteIsolateHandler extends Handler {
         reply.close();
       }
     } else {
+      _pendingQueue.clear();
       _state.isolate?.kill(priority: Isolate.immediate);
     }
 
@@ -207,29 +239,34 @@ base class SqliteIsolateHandler extends Handler {
     final sendPort = args[0] as SendPort;
     final config = args[1] as _SqliteWorkerConfig;
 
+    SqliteSink sink;
+    try {
+      sink = SqliteSink(
+        dbPath: config.path,
+        tableName: config.tableName,
+        maxEntries: config.maxEntries,
+        maxAge: config.maxAge,
+        batchSize: config.batchSize,
+        flushInterval: config.flushIntervalMs != null
+            ? Duration(milliseconds: config.flushIntervalMs!)
+            : null,
+        walMode: config.walMode,
+      );
+    } catch (e, s) {
+      sendPort.send([false, e.toString(), s.toString()]);
+      return;
+    }
+
     final formatter = config.formatter;
     final decorators = config.decorators;
     final timeout = config.timeoutMs != null
         ? Duration(milliseconds: config.timeoutMs!)
         : null;
 
-    // Construct the sink fresh inside the isolate — no isolate transfer needed.
-    final sink = SqliteSink(
-      dbPath: config.path,
-      tableName: config.tableName,
-      maxEntries: config.maxEntries,
-      maxAge: config.maxAge,
-      batchSize: config.batchSize,
-      flushInterval: config.flushIntervalMs != null
-          ? Duration(milliseconds: config.flushIntervalMs!)
-          : null,
-      walMode: config.walMode,
-    );
-
     const engine = StandardEngine();
 
     final receivePort = ReceivePort();
-    sendPort.send(receivePort.sendPort);
+    sendPort.send([true, receivePort.sendPort]);
 
     await for (final message in receivePort) {
       if (message is LogEntry) {

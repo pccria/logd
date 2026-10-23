@@ -16,6 +16,8 @@ class _HttpWorkerConfig {
     required this.port,
     required this.bufferCapacity,
     this.lineLength,
+    this.maxConnections = 32,
+    this.allowedOrigins = const {},
     required this.formatter,
     required this.decorators,
     this.timeoutMs,
@@ -25,6 +27,8 @@ class _HttpWorkerConfig {
   final int port;
   final int bufferCapacity;
   final int? lineLength;
+  final int maxConnections;
+  final Set<String> allowedOrigins;
   final LogFormatter formatter;
   final List<LogDecorator> decorators;
   final int? timeoutMs;
@@ -40,6 +44,7 @@ class _StopCommand {
 class _IsolateState {
   Isolate? isolate;
   SendPort? commandPort;
+  int? boundPort;
   bool isDisposed = false;
 }
 
@@ -62,6 +67,8 @@ base class HttpDashboardIsolateHandler extends Handler {
     final int port = 8080,
     final int bufferCapacity = 100,
     final int? lineLength,
+    final int maxConnections = 32,
+    final Set<String> allowedOrigins = const {},
     super.formatter = const StructuredFormatter(),
     super.decorators,
     super.filters,
@@ -71,6 +78,8 @@ base class HttpDashboardIsolateHandler extends Handler {
           port: port,
           bufferCapacity: bufferCapacity,
           lineLength: lineLength,
+          maxConnections: maxConnections,
+          allowedOrigins: allowedOrigins,
           formatter: formatter,
           decorators: decorators,
           timeoutMs: timeout?.inMilliseconds,
@@ -88,6 +97,9 @@ base class HttpDashboardIsolateHandler extends Handler {
   final ReceivePort _errorPort = ReceivePort();
   final Completer<void> _ready = Completer<void>();
   final _IsolateState _state = _IsolateState();
+
+  /// The actual bound port of the running HTTP server inside the worker isolate.
+  int get boundPort => _state.boundPort ?? _config.port;
 
   static final Finalizer<ReceivePort> _finalizer =
       Finalizer<ReceivePort>((final port) {
@@ -112,17 +124,40 @@ base class HttpDashboardIsolateHandler extends Handler {
       );
 
       _errorPort.listen((final message) {
+        if (!_ready.isCompleted) {
+          _ready.completeError(
+            StateError('HttpDashboardIsolateHandler worker error: $message'),
+          );
+        }
         io.stderr.writeln(
           '[logd] HttpDashboardIsolateHandler worker error: $message',
         );
       });
 
       final firstMsg = await _receivePort.first;
-      if (firstMsg is SendPort) {
+      if (firstMsg is List && firstMsg.isNotEmpty) {
+        final success = firstMsg[0] as bool;
+        if (success) {
+          _state.commandPort = firstMsg[1] as SendPort;
+          _state.boundPort = firstMsg[2] as int;
+          if (!_ready.isCompleted) {
+            _ready.complete();
+          }
+        } else {
+          final error = firstMsg[1] as String;
+          if (!_ready.isCompleted) {
+            _ready.completeError(
+              StateError(
+                'HttpDashboardIsolateHandler worker failed to initialize: $error',
+              ),
+            );
+          }
+        }
+      } else if (firstMsg is SendPort) {
         _state.commandPort = firstMsg;
-      }
-      if (!_ready.isCompleted) {
-        _ready.complete();
+        if (!_ready.isCompleted) {
+          _ready.complete();
+        }
       }
     } catch (e, s) {
       _errorPort.close();
@@ -196,17 +231,26 @@ base class HttpDashboardIsolateHandler extends Handler {
         : null;
 
     // Construct sink fresh inside the isolate — HTTP server binds here.
-    final sink = HttpServerSink(
-      address: config.address,
-      port: config.port,
-      bufferCapacity: config.bufferCapacity,
-      lineLength: config.lineLength,
-    );
+    final HttpServerSink sink;
+    try {
+      sink = HttpServerSink(
+        address: config.address,
+        port: config.port,
+        bufferCapacity: config.bufferCapacity,
+        lineLength: config.lineLength,
+        maxConnections: config.maxConnections,
+        allowedOrigins: config.allowedOrigins,
+      );
+      await sink.ready;
+    } catch (e, s) {
+      sendPort.send([false, e.toString(), s.toString()]);
+      return;
+    }
 
     const engine = StandardEngine();
 
     final receivePort = ReceivePort();
-    sendPort.send(receivePort.sendPort);
+    sendPort.send([true, receivePort.sendPort, sink.boundPort]);
 
     await for (final message in receivePort) {
       if (message is LogEntry) {

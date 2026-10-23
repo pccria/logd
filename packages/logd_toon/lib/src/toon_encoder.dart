@@ -80,7 +80,11 @@ class ToonEncoder implements LogEncoder {
     if (bytes.isEmpty) {
       return null;
     }
-    final str = convert.utf8.decode(bytes, allowMalformed: true);
+    // Limit decoding window to first 8KB to avoid massive memory allocations
+    // on large multi-megabyte log files.
+    final scanLength = bytes.length > 8192 ? 8192 : bytes.length;
+    final scanBytes = Uint8List.sublistView(bytes, 0, scanLength);
+    final str = convert.utf8.decode(scanBytes, allowMalformed: true);
     final endMarker = str.indexOf('}:\n');
     if (endMarker != -1) {
       return str.substring(0, endMarker + 3);

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.10.2: Native Engine Memory Safety & Layout Stabilization
+
+This patch release hardens memory safety and pointer boundaries in `NativeEngine` and `Arena`, and resolves box border tab alignment inconsistencies across terminal viewers.
+
+- ### Native & FFI Memory Safety (`Arena` & `BinaryIR`)
+  - **Bounded Binary IR Traversal**: Added length header field (`totalLength` at header index 3) in `BinaryIRWriter`. Enforced strict buffer bounds checking on all opcodes in `BinaryAnsiEncoder` and `BinaryToonEncoder`, preventing heap out-of-bounds over-read on malformed or truncated byte streams.
+  - **Dynamic Buffer Growth for Large Payloads**: In-place contiguous slab expansion in `Arena.allocateNative` ensures memory blocks remain unified when a document exceeds the initial 64 KB capacity, eliminating disjoint slab fragmentation and preserving pointer offset validity.
+  - **Monotonic Allocation Counter Reset**: Wired `_totalAllocatedBytes = 0` to `Arena.clear()` and `disposeNative()`. Added pool eviction when free slabs approach `maxNativeMemory` (128 MB), preventing false `OutOfMemoryError` failures during high-throughput churn.
+
+- ### Terminal Layout & Border Parity
+  - **Box Decorator Tab Alignment**: Resolved border misalignment in `BoxDecorator` when log messages contain tab (`\t`) characters. `TerminalLayout` now expands tabs to their calculated 8-column tab stops within boxed content, ensuring consistent, flush right borders across all terminal emulators, IDE consoles, and markdown renderers.
+  - **Native Engine Parity**: Synchronized tab expansion and bounds tracking in `BinaryAnsiEncoder` to maintain 100% character-level parity with `StandardEngine`.
+
 ## 0.10.1: Documentation & Developer Experience Refresh
 
 - **Production Cookbook**: Introduced comprehensive production integration cookbook (`doc/cookbook.md`) with copy-paste recipes for Flutter zero-jank offloading, Dio HTTP inspection, Shelf microservice tracing, SQLite WAL persistence, live WebSocket dashboards, and TOON LLM agent telemetry.

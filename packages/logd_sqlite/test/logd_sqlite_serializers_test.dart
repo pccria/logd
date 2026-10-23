@@ -32,6 +32,7 @@ void main() {
         const Duration(seconds: 5).inMilliseconds,
       );
       expect(config['walMode'], isTrue);
+      expect(config['maxBufferSize'], 10000);
 
       final deserialized = LoggerSerializationRegistry.deserializeSink(json);
       expect(deserialized, isA<SqliteSink>());
@@ -43,6 +44,7 @@ void main() {
       expect(sink.batchSize, 20);
       expect(sink.flushInterval, const Duration(seconds: 5));
       expect(sink.walMode, isTrue);
+      expect(sink.maxBufferSize, 10000);
 
       await sink.dispose();
       await original.dispose();

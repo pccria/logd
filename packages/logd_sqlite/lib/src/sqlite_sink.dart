@@ -41,6 +41,19 @@ class _PendingSqliteLog {
 /// fidelity (origin, error, stackTrace, context), retention pruning, and a rich
 /// query engine.
 base class SqliteSink extends LogSink<LogDocument> {
+  static final RegExp _validIdentifier = RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$');
+
+  static void _validateTableName(final String name) {
+    if (!_validIdentifier.hasMatch(name)) {
+      throw ArgumentError.value(
+        name,
+        'tableName',
+        'Table name must be a valid SQLite identifier (letters, digits, '
+            'underscores, starting with a letter or underscore).',
+      );
+    }
+  }
+
   /// Creates a [SqliteSink].
   ///
   /// - [dbPath]: SQLite database filepath (or `:memory:` for testing).
@@ -50,13 +63,12 @@ base class SqliteSink extends LogSink<LogDocument> {
   /// - [maxAge]: Maximum age of log records retained.
   /// - [batchSize]: Number of log entries to buffer before committing to
   ///   disk.
-
   /// - [flushInterval]: Periodic timer interval to flush pending log
   ///   entries.
-
   /// - [walMode]: Whether to enable Write-Ahead Logging for high write
   ///   throughput.
-
+  /// - [maxBufferSize]: Maximum capacity for the in-memory batch buffer to
+  ///   prevent memory exhaustion under write backpressure.
   SqliteSink({
     this.dbPath = 'logs.db',
     final Database? database,
@@ -66,9 +78,25 @@ base class SqliteSink extends LogSink<LogDocument> {
     this.batchSize = 50,
     this.flushInterval = const Duration(seconds: 2),
     this.walMode = true,
+    this.maxBufferSize = 10000,
     super.enabled = true,
   })  : _db = database ?? sqlite3.open(dbPath),
         _batch = [] {
+    _validateTableName(tableName);
+    if (maxEntries != null && maxEntries! <= 0) {
+      throw ArgumentError.value(
+        maxEntries,
+        'maxEntries',
+        'maxEntries must be positive if specified.',
+      );
+    }
+    if (maxBufferSize <= 0) {
+      throw ArgumentError.value(
+        maxBufferSize,
+        'maxBufferSize',
+        'maxBufferSize must be positive.',
+      );
+    }
     _initDatabase();
     _startFlushTimer();
   }
@@ -94,19 +122,25 @@ base class SqliteSink extends LogSink<LogDocument> {
   /// Whether Write-Ahead Logging (WAL) is enabled.
   final bool walMode;
 
+  /// Maximum capacity for in-memory buffer before evicting oldest logs.
+  final int maxBufferSize;
+
   final Database _db;
   final List<_PendingSqliteLog> _batch;
   Timer? _flushTimer;
+  bool _isDisposed = false;
+  bool _inTransaction = false;
 
-  late final PreparedStatement _insertStmt;
-  late final PreparedStatement? _pruneAgeStmt;
-  late final PreparedStatement? _pruneCountStmt;
+  PreparedStatement? _insertStmt;
+  PreparedStatement? _pruneAgeStmt;
+  PreparedStatement? _pruneCountStmt;
 
   void _initDatabase() {
     if (walMode && dbPath != ':memory:') {
       _db
         ..execute('PRAGMA journal_mode = WAL;')
-        ..execute('PRAGMA synchronous = NORMAL;');
+        ..execute('PRAGMA synchronous = NORMAL;')
+        ..execute('PRAGMA busy_timeout = 5000;');
     }
 
     _db
@@ -149,7 +183,7 @@ base class SqliteSink extends LogSink<LogDocument> {
         ? _db.prepare('DELETE FROM $tableName WHERE created_at < ?;')
         : null;
 
-    _pruneCountStmt = maxEntries != null ? _db.prepare('''
+    _pruneCountStmt = (maxEntries != null && maxEntries! > 0) ? _db.prepare('''
             DELETE FROM $tableName WHERE id NOT IN (
               SELECT id FROM $tableName ORDER BY id DESC LIMIT ?
             );
@@ -159,7 +193,7 @@ base class SqliteSink extends LogSink<LogDocument> {
   void _startFlushTimer() {
     if (flushInterval != null && flushInterval! > Duration.zero) {
       _flushTimer = Timer.periodic(flushInterval!, (final _) {
-        flush();
+        _flushSync();
       });
     }
   }
@@ -171,14 +205,22 @@ base class SqliteSink extends LogSink<LogDocument> {
     final LogLevel level,
     final LogPipelineFactory factory,
   ) async {
-    if (!enabled) {
+    if (!enabled || _isDisposed) {
       return;
     }
 
     final now = DateTime.now();
-    final contextJson = (entry.context != null && entry.context!.isNotEmpty)
-        ? convert.jsonEncode(entry.context)
-        : null;
+    String? contextJson;
+    if (entry.context != null && entry.context!.isNotEmpty) {
+      try {
+        contextJson = convert.jsonEncode(
+          entry.context,
+          toEncodable: (final Object? nonEncodable) => nonEncodable.toString(),
+        );
+      } catch (_) {
+        contextJson = convert.jsonEncode({'error': 'Unserializable context'});
+      }
+    }
 
     final pending = _PendingSqliteLog(
       timestamp: now.toIso8601String(),
@@ -193,45 +235,59 @@ base class SqliteSink extends LogSink<LogDocument> {
       createdAt: now.millisecondsSinceEpoch,
     );
 
+    if (_batch.length >= maxBufferSize) {
+      _batch.removeAt(0);
+    }
     _batch.add(pending);
 
     if (_batch.length >= batchSize) {
-      await flush();
+      _flushSync();
+    }
+  }
+
+  void _flushSync() {
+    if (_isDisposed || _batch.isEmpty || _inTransaction) {
+      return;
+    }
+
+    _inTransaction = true;
+    final itemsToFlush = List<_PendingSqliteLog>.from(_batch);
+    _batch.clear();
+
+    try {
+      _db.execute('BEGIN TRANSACTION;');
+      final insertStmt = _insertStmt;
+      if (insertStmt != null) {
+        for (final item in itemsToFlush) {
+          insertStmt.execute([
+            item.timestamp,
+            item.level,
+            item.levelName,
+            item.loggerName,
+            item.origin,
+            item.message,
+            item.error,
+            item.stackTrace,
+            item.contextJson,
+            item.createdAt,
+          ]);
+        }
+      }
+      _pruneLogs();
+      _db.execute('COMMIT;');
+    } catch (_) {
+      try {
+        _db.execute('ROLLBACK;');
+      } catch (_) {}
+      rethrow;
+    } finally {
+      _inTransaction = false;
     }
   }
 
   /// Flushes all pending in-memory log entries to disk in a single transaction.
   Future<void> flush() async {
-    if (_batch.isEmpty) {
-      return;
-    }
-
-    final itemsToFlush = List<_PendingSqliteLog>.from(_batch);
-    _batch.clear();
-
-    _db.execute('BEGIN TRANSACTION;');
-    try {
-      for (final item in itemsToFlush) {
-        _insertStmt.execute([
-          item.timestamp,
-          item.level,
-          item.levelName,
-          item.loggerName,
-          item.origin,
-          item.message,
-          item.error,
-          item.stackTrace,
-          item.contextJson,
-          item.createdAt,
-        ]);
-      }
-      _db.execute('COMMIT;');
-    } catch (_) {
-      _db.execute('ROLLBACK;');
-      rethrow;
-    }
-
-    _pruneLogs();
+    _flushSync();
   }
 
   void _pruneLogs() {
@@ -243,8 +299,14 @@ base class SqliteSink extends LogSink<LogDocument> {
     }
 
     final pruneCount = _pruneCountStmt;
-    if (pruneCount != null && maxEntries != null) {
+    if (pruneCount != null && maxEntries != null && maxEntries! > 0) {
       pruneCount.execute([maxEntries]);
+    }
+  }
+
+  void _ensureNotDisposed() {
+    if (_isDisposed) {
+      throw StateError('Cannot operate on a disposed SqliteSink.');
     }
   }
 
@@ -258,10 +320,10 @@ base class SqliteSink extends LogSink<LogDocument> {
     final int limit = 100,
     final int offset = 0,
   }) {
-    // Ensure any buffered logs are written before querying
-    if (_batch.isNotEmpty) {
-      flush();
-    }
+    _ensureNotDisposed();
+
+    // Ensure any buffered logs are written synchronously before querying
+    _flushSync();
 
     final whereClauses = <String>[];
     final params = <Object?>[];
@@ -299,6 +361,9 @@ base class SqliteSink extends LogSink<LogDocument> {
       params.add(end.millisecondsSinceEpoch);
     }
 
+    final safeLimit = limit < 1 ? 1 : (limit > 10000 ? 10000 : limit);
+    final safeOffset = offset < 0 ? 0 : offset;
+
     final whereSql =
         whereClauses.isNotEmpty ? 'WHERE ${whereClauses.join(' AND ')}' : '';
     final sql = '''
@@ -309,8 +374,8 @@ base class SqliteSink extends LogSink<LogDocument> {
     ''';
 
     params
-      ..add(limit)
-      ..add(offset);
+      ..add(safeLimit)
+      ..add(safeOffset);
 
     final ResultSet results = _db.select(sql, params);
     return results.map((final row) => Map<String, dynamic>.from(row)).toList();
@@ -322,9 +387,8 @@ base class SqliteSink extends LogSink<LogDocument> {
 
   /// Returns a summary breakdown of stored log record counts per [LogLevel].
   Map<LogLevel, int> fetchLevelCounts() {
-    if (_batch.isNotEmpty) {
-      flush();
-    }
+    _ensureNotDisposed();
+    _flushSync();
     final ResultSet results = _db.select('''
       SELECT level, COUNT(*) as cnt
       FROM $tableName
@@ -342,9 +406,8 @@ base class SqliteSink extends LogSink<LogDocument> {
 
   /// Returns distinct logger names stored in the database with record counts.
   List<Map<String, dynamic>> fetchDistinctLoggerNames() {
-    if (_batch.isNotEmpty) {
-      flush();
-    }
+    _ensureNotDisposed();
+    _flushSync();
     final ResultSet results = _db.select('''
       SELECT logger_name, COUNT(*) as record_count
       FROM $tableName
@@ -356,9 +419,8 @@ base class SqliteSink extends LogSink<LogDocument> {
 
   /// Returns total count of log records currently stored in the database.
   int count() {
-    if (_batch.isNotEmpty) {
-      flush();
-    }
+    _ensureNotDisposed();
+    _flushSync();
     final ResultSet results =
         _db.select('SELECT COUNT(*) as cnt FROM $tableName;');
     return results.first['cnt'] as int;
@@ -366,24 +428,28 @@ base class SqliteSink extends LogSink<LogDocument> {
 
   /// Deletes all log records stored in the database table.
   void clear() {
+    _ensureNotDisposed();
     _batch.clear();
     _db.execute('DELETE FROM $tableName;');
   }
 
   /// Compacts the database storage file.
   void vacuum() {
-    if (_batch.isNotEmpty) {
-      flush();
-    }
+    _ensureNotDisposed();
+    _flushSync();
     _db.execute('VACUUM;');
   }
 
   @override
   Future<void> dispose() async {
-    _flushTimer?.cancel();
-    await flush();
+    if (_isDisposed) return;
+    _isDisposed = true;
 
-    _insertStmt.close();
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    _flushSync();
+
+    _insertStmt?.close();
     _pruneAgeStmt?.close();
     _pruneCountStmt?.close();
     _db.close();

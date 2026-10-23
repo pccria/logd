@@ -329,5 +329,31 @@ void main() {
     test('wrappingStrategy returns WrappingStrategy.none', () {
       expect(encoder.wrappingStrategy, equals(WrappingStrategy.none));
     });
+
+    test('dynamically expands code fence when content contains backticks', () {
+      final entry = LogEntry(
+        level: LogLevel.info,
+        message: 'Snippet with backticks',
+        loggerName: 'test.fence',
+        timestamp: '2026-10-23T12:00:00.000Z',
+        origin: 'fence_test.dart:1',
+      );
+
+      final document = factory.checkoutDocument();
+      document.writeNode(
+        MapNode({
+          'payload': '```bash\necho "hello"\n```',
+        }),
+      );
+
+      final context = HandlerContext();
+      encoder.encode(entry, document, LogLevel.info, context, factory);
+      final output = const Utf8Decoder().convert(context.takeBytes());
+
+      // Should use 4 backticks (````json ... ````) to encapsulate the 3 backticks
+      expect(output, contains('````json'));
+      expect(output, contains('```bash'));
+      expect(output, contains('````\n'));
+    });
   });
 }
