@@ -19,40 +19,54 @@ Future<void> main() async {
     ),
   ]);
 
-  final appLogger = Logger.get('auth');
+  final authLogger = Logger.get('auth');
 
   final dio = Dio();
-  dio.httpClientAdapter = _MockAdapter();
+  dio.httpClientAdapter = _MockOAuthAdapter();
   dio.interceptors.add(
     LogdDioInterceptor(
       const LogdDioOptions(
         logCurl: true,
         redactedPlaceholder: '[***REDACTED***]',
+        sensitiveBodyKeys: {
+          ...LogdDioOptions.defaultSensitiveBodyKeys,
+          'client_secret',
+        },
       ),
     ),
   );
 
-  await LogContext.run({'traceId': 'trace-49a8', 'tenant': 'us-east-1'},
-      () async {
-    appLogger.info('Verifying secure session token...');
+  await LogContext.run(
+    {'traceId': 'trace-49a8', 'tenant': 'us-east-prod'},
+    () async {
+      authLogger.info(
+        'Initiating OAuth2 token exchange with identity provider...',
+      );
 
-    await dio.get<Map<String, dynamic>>(
-      'https://api.acme.com/v1/auth/session',
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.s3cr3t',
-          'x-api-key': 'live_sk_94820194812039',
-          'Accept': 'application/json',
+      await dio.post<Map<String, dynamic>>(
+        'https://auth.acme.com/oauth/v2/token',
+        data: {
+          'grant_type': 'client_credentials',
+          'client_id': 'app-worker-07',
+          'client_secret': 'vault-secret-94820194812039',
         },
-      ),
-    );
+        options: Options(
+          headers: {
+            'Authorization': 'Basic dXNlcjpwYXNzd29yZA==',
+            'x-api-key': 'live_sk_83921938102938',
+            'Accept': 'application/json',
+          },
+        ),
+      );
 
-    appLogger
-        .info('Session validated. User [pooria] authenticated successfully.');
-  });
+      authLogger.info(
+        'Token acquired. Auth worker [worker-07] initialized successfully.',
+      );
+    },
+  );
 }
 
-class _MockAdapter implements HttpClientAdapter {
+class _MockOAuthAdapter implements HttpClientAdapter {
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -60,7 +74,7 @@ class _MockAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     return ResponseBody.fromString(
-      '{"status": "active", "userId": "usr_9921", "role": "admin"}',
+      '{"token_type": "Bearer", "expires_in": 3600, "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secret"}',
       200,
       headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
