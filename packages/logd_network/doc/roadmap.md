@@ -1,6 +1,6 @@
 # logd_network Roadmap
 
-Package version at time of writing: **0.2.0**
+Package version at time of writing: **0.2.1**
 
 ---
 
@@ -67,6 +67,30 @@ Dynamic Auth Hooks, Circuit Breaker, HTTP Backpressure, Failover Endpoints, GZip
       buffer loss.
 - [x] Provide working examples and interactive showcase in `example/`
       demonstrating live rotation and self-healing recovery.
+
+### ✅ v0.2.1: Security, DoS & Handshake Hardening
+**Goal**: Patch security vulnerabilities in embedded HTTP/WebSocket server, harden isolate lifecycle, and align core dependencies.
+**Result**: Released v0.2.1 with stored XSS mitigation, origin validation against CSWSH, HTTP security headers, max connection DoS caps, isolate bound port reporting, and 65/65 passing tests.
+- [x] **Stored Cross-Site Scripting (XSS) Prevention**:
+      Client-side HTML entity escaping (`escapeHtml()`) across all dynamic variables rendered into dashboard DOM: error messages, stack traces, context objects, logger names, log levels, and tabular tags.
+- [x] **Cross-Site WebSocket Hijacking (CSWSH) Protection**:
+      Added `allowedOrigins` origin verification on `/ws` upgrades in `HttpServerSink`. Rejects untrusted cross-origin browser WebSocket requests with HTTP `403 Forbidden` while allowing localhost/loopback and configured dashboard domains.
+- [x] **Security Response Headers**:
+      Attached standard security response headers on HTTP dashboard requests: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Content-Security-Policy`.
+- [x] **DoS & Connection Cap Protection (`maxConnections`)**:
+      Added configurable `maxConnections` safeguard (default: 32) to `HttpServerSink` and `HttpDashboardHandler`. Returns HTTP `503 Service Unavailable` with `Retry-After: 5` when the connection limit is reached.
+- [x] **Isolate Handshake Hardening & Dynamic Port 0 Support**:
+      Added bound port reporting from worker isolate back to main isolate in `HttpDashboardIsolateHandler`, enabling `port: 0` ephemeral binding with asynchronous background dashboard handlers.
+      Enhanced worker error propagation to complete `ready.future` with `completeError()` on socket binding failure rather than hanging.
+      Exposed `boundPort` getter on `HttpDashboardHandler` and `HttpDashboardIsolateHandler`.
+- [x] **Dependency Alignment**:
+      Updated minimum `logd` dependency constraint to `^0.10.2`.
+
+---
+
+### 🔲 High-Throughput Stream Compression Track (v0.3.0)
+- [ ] **Transparent Stream Compression**: Support high-throughput `zstd` (Zstandard) stream compression wrappers for sustained high-volume network telemetry sinks, with native FFI bindings and WebAssembly fallback.
+- [ ] **Streaming Chunked Ingestion**: Add HTTP chunked transfer streaming mode to `HttpSink` for sustained low-latency streaming without discrete batch boundaries.
 
 ---
 

@@ -3,14 +3,60 @@
 ## Next Milestones
 
 ### 🔲 v0.11.0: Ecosystem Maturation & Advanced Satellite Telemetry
-**Goal**: Expand capabilities across satellite packages (`logd_sqlite`, `logd_network`, `logd_html`), refine performance profiling hooks, and stabilize APIs toward v1.0.0.
-- [ ] Implement query builder extensions and pagination in `logd_sqlite`.
-- [ ] Add compression support (gzip/zstd stream wrappers) in `logd_network` sinks.
-- [ ] Introduce interactive log search and level filtering in `logd_html` standalone reports.
+**Goal**: Expand capabilities across satellite packages (`logd_sqlite`, `logd_network`, `logd_html`, `logd_dio`), refine performance profiling hooks, and stabilize APIs toward v1.0.0.
+- [ ] **`logd_sqlite`**: Implement type-safe query builder extensions, cursor pagination, and Full-Text Search (FTS5) integration for searching structured logs.
+- [ ] **`logd_network`**: Add transparent high-throughput stream compression (`zstd` / stream wrappers) for high-volume network sinks.
+- [ ] **`logd_html`**: Introduce standalone interactive client-side log search, regex query bar, and real-time level filtering in generated HTML reports.
+- [ ] **`logd_dio`**: Add W3C TraceContext (`traceparent`, `tracestate`) distributed tracing auto-injection from `LogContext`.
+
+---
+
+### 🔲 v0.12.0: Native Engine Phase 2 (C/FFI Optimization & Zero-Copy Layout)
+**Goal**: Enhance the C/FFI native offload engine (`BinaryIRWriter` / `BinaryAnsiEncoder`) with SIMD-accelerated formatting, zero-copy cross-isolate transfer, and deeper native layout primitives.
+- [ ] Implement SIMD-accelerated ANSI colorization for high-throughput console output.
+- [ ] Vectorize character width scanning and tab-stop calculations in C/Native code.
+- [ ] Support zero-copy direct pointer handoff to background worker threads, eliminating intermediate Dart object allocations.
+
+---
+
+### 🔲 Monorepo CI/CD & Pipeline Automation Hardening
+**Goal**: Implement comprehensive GitHub Actions workflow infrastructure ensuring zero regressions and publication safety on every pull request.
+- [ ] Create `.github/workflows/ci.yml` matrix running `dart analyze`, `dart test` across all 7 packages, `packages/logd_linters`, and `packages/benchmarks`.
+- [ ] Add Native Assets build and FFI interop tests across Linux, macOS, and Windows runners.
+- [ ] Add automated `dart pub publish --dry-run` validation step to catch uncommitted modifications or packaging warnings before merge.
+- [ ] Establish automated benchmark regression checks against throughput baselines (>25,000 ops/sec).
 
 ---
 
 ## Completed
+
+### ✅ v0.10.2: Native Engine Memory Safety & Layout Stabilization
+**Goal**: Harden memory safety, pointer bounds, and slab allocations in `NativeEngine` and `Arena`, resolve box border tab alignment across terminal viewers, and patch vulnerabilities across satellite packages.
+**Result**: Released `logd` v0.10.2 along with synchronized satellite releases (`logd_dio` v0.1.2, `logd_network` v0.2.1, `logd_sqlite` v0.1.7, `logd_toon` v0.1.3, `logd_markdown` v0.1.3, `logd_html` v0.1.3), passing 2,194/2,194 tests with 0 publish warnings.
+- [x] **Bounded Binary IR Parsing**: Added `totalLength` header check and enforced strict buffer bounds checking across all opcodes in `BinaryAnsiEncoder` and `BinaryToonEncoder`, eliminating heap over-read on truncated byte streams.
+- [x] **Dynamic Arena Slab Expansion**: Added in-place contiguous slab expansion for payloads exceeding initial 64 KB capacity, eliminating disjoint fragmentation.
+- [x] **Monotonic Memory Allocation Counter Reset**: Wired `_totalAllocatedBytes = 0` to `Arena.clear()` and `disposeNative()`. Added pool eviction when free slabs approach `maxNativeMemory` (128 MB), preventing false `OutOfMemoryError` failures during high churn.
+- [x] **Box Decorator Tab Alignment**: `TerminalLayout` now expands tabs to calculated 8-column tab stops within boxed content, ensuring consistent, flush right borders across all terminal emulators. Synchronized `BinaryAnsiEncoder` for 100% parity.
+- [x] **Satellite Security & Safety Hardening**:
+  - `logd_dio`: Patched cURL command injection (`'\''` escaping and control character stripping), added URI query param redaction and recursive JSON body key redaction.
+  - `logd_network`: Stored XSS entity escaping (`escapeHtml()`) in dashboard, CSWSH origin verification on `/ws`, security response headers, `maxConnections` DoS cap, and isolate dynamic port reporting.
+  - `logd_sqlite`: Table name SQL injection validation, synchronous FFI transaction batching (`_flushSync()`), isolate startup queue, and buffer backpressure cap (`maxBufferSize`).
+  - `logd_toon`: Memory-safe windowed preamble extraction (8KB `sublistView`) and Windows CRLF normalization.
+  - `logd_markdown`: Dynamic CommonMark code fence scaling (`_writeFencedBlock`) against triple backtick payload breakouts.
+  - `logd_html`: CSS Grid table column/row span clamping (`>= 1`).
+- [x] **Dependency Constraint Alignment**: Aligned minimum `logd` dependency constraint to `^0.10.2` across all 6 satellite packages.
+
+---
+
+### ✅ v0.10.1: Production Cookbook, API Reference & logd_dio v0.1.0 Launch
+**Goal**: Launch dedicated `logd_dio` satellite package and provide end-to-end production documentation for Flutter, backend, and enterprise deployments.
+**Result**: Published `logd_dio` v0.1.0 (with interactive showcase gallery), added `doc/cookbook.md` (7 production recipes), added `doc/api_reference.md` (complete public API catalog), restructured core README with pre-wired handlers at top, and added unified Melos `docs` task.
+- [x] Launch `packages/logd_dio` with monotonic `Stopwatch` latency timing, header/query redaction, cURL generation, and ambient `LogContext` trace forwarding.
+- [x] Authored production cookbook (`doc/cookbook.md`) covering Flutter zero-jank offloading, Shelf microservices, SQLite WAL, live WebSocket dashboards, and TOON LLM agent telemetry.
+- [x] Authored complete public API reference (`doc/api_reference.md`).
+- [x] Modernized core README and Flutter error handling recipes (`FlutterError.onError`, `PlatformDispatcher.instance.onError`).
+
+---
 
 ### ✅ v0.10.0: Pure Semantic Engine & Hard Deprecation Removal
 **Goal**: Permanently remove all soft-deprecated satellite shims and external dependencies from `packages/logd`, achieving a zero-network-dependency core logging engine focused on semantic IR dispatch.
