@@ -288,8 +288,9 @@ ${stylesheet.buildJs()}
         }
         context.writeString('</div>\n');
       case TableCellNode():
-        final style =
-            'grid-column: span ${node.colSpan}; grid-row: span ${node.rowSpan}';
+        final colSpan = node.colSpan < 1 ? 1 : node.colSpan;
+        final rowSpan = node.rowSpan < 1 ? 1 : node.rowSpan;
+        final style = 'grid-column: span $colSpan; grid-row: span $rowSpan';
         context.writeString('<div class="log-table-cell" style="$style">');
         for (final child in node.children) {
           _renderNode(context, child, document, level);

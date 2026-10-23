@@ -1,3 +1,8 @@
+## 0.1.3
+
+- **Code Block Escaping & CommonMark Immunity**:
+  - Implemented dynamic code fence sizing (`_writeFencedBlock`) for fenced code blocks (`MapNode`, `LogTag.stackFrame`, collapsible sections), dynamically sizing the backtick fence (e.g. ```` ```` ````) whenever content contains triple backticks to prevent premature fence closing and markdown syntax breakout.
+
 ## 0.1.2
 
 - **Dependency Resolution**: Tightened `logd` dependency constraint to `^0.10.0` to prevent ambiguous import collisions during dependency resolution.

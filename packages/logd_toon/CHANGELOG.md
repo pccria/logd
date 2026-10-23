@@ -1,3 +1,11 @@
+## 0.1.3
+
+- **Memory Safety & Buffer Optimization**:
+  - Optimized `ToonEncoder.extractPreamble` to scan an initial 8KB window (`sublistView`) rather than allocating and decoding multi-megabyte/gigabyte byte buffers in full into UTF-16 memory.
+- **Normalization & Validation**:
+  - Added Windows CRLF line ending normalization (`\r\n` and `\r` to `\n`) in `ToonFormatter` and `ToonPrettyFormatter` before line splitting, preventing trailing carriage returns from corrupting TOON row values.
+  - Added strict validation for `delimiter` (rejecting empty or newline characters) and `maxDepth` (`>= 1`).
+
 ## 0.1.2
 
 - **Dependency Resolution**: Tightened `logd` dependency constraint to `^0.10.0` to prevent ambiguous import collisions during dependency resolution.
