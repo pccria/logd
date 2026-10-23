@@ -30,6 +30,8 @@ class HttpDashboardHandler extends Handler {
     final String? title,
     final int bufferCapacity = 100,
     final int? lineLength,
+    final int maxConnections = 32,
+    final Set<String> allowedOrigins = const {},
     final LogFormatter? formatter,
     final List<LogDecorator>? decorators,
     super.filters = const [],
@@ -43,9 +45,20 @@ class HttpDashboardHandler extends Handler {
             encoder: const AutoTextEncoder(),
             bufferCapacity: bufferCapacity,
             lineLength: lineLength,
+            maxConnections: maxConnections,
+            allowedOrigins: allowedOrigins,
           ),
           decorators: decorators ?? const [],
         );
+
+  /// The actual bound port of the running dashboard server.
+  int get boundPort {
+    final currentSink = sink;
+    if (currentSink is HttpServerSink) {
+      return currentSink.boundPort;
+    }
+    return 0;
+  }
 
   @override
   Future<void> dispose() async {
@@ -73,6 +86,8 @@ class HttpDashboardHandler extends Handler {
     final String? title,
     final int bufferCapacity = 100,
     final int? lineLength,
+    final int maxConnections = 32,
+    final Set<String> allowedOrigins = const {},
     final LogFormatter? formatter,
     final List<LogDecorator>? decorators,
     final List<LogFilter> filters = const [],
@@ -83,6 +98,8 @@ class HttpDashboardHandler extends Handler {
         port: port,
         bufferCapacity: bufferCapacity,
         lineLength: lineLength,
+        maxConnections: maxConnections,
+        allowedOrigins: allowedOrigins,
         formatter: formatter ?? const StructuredFormatter(),
         decorators: decorators ?? const [],
         filters: filters,
