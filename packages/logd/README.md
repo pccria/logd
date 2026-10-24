@@ -6,7 +6,7 @@
   <a href="https://opensource.org/licenses/BSD-3-Clause"><img src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg" alt="BSD-3-Clause"></a>
 </h1>
 
-![logd Hero](https://raw.githubusercontent.com/pooriaaskarim/logd/refs/heads/master/assets/img/logd_hero.webp)
+![logd Hero](../../assets/img/logd_hero.webp)
 
 **A structured, hierarchical logging engine for Dart and Flutter.**
 
@@ -42,7 +42,7 @@ Most Dart logging libraries treat logging as simple string formatting in a termi
 **logd treats logging as application infrastructure.**
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_core_demo.gif" alt="logd Terminal Hierarchy & Tables" width="750" />
+  <img src="../../assets/img/logd_architecture_flowmap.webp" alt="logd Architecture Flow Map" width="780" />
 </p>
 
 ### Why developers choose logd
@@ -218,6 +218,10 @@ Future<void> chargePaymentGateway() async {
 
 Token-Oriented Object Notation emits the column schema once, then tab-delimited rows — **30–50% fewer tokens than JSON** for the same data (provided by [`package:logd_toon`](https://pub.dev/packages/logd_toon)):
 
+<p align="center">
+  <img src="../../assets/img/logd_toon_token_comparison.webp" alt="TOON vs JSON Token Reduction" width="760" />
+</p>
+
 ```dart
 import 'package:logd/logd.dart';
 import 'package:logd_toon/logd_toon.dart';
@@ -251,6 +255,14 @@ final prompt = '$schema\n${window.join('\n')}';
 ---
 
 ## Advanced Features
+
+### Intelligent Stack Trace Demangling
+
+Noisy 60-line framework stack traces are automatically sanitized, collapsed, and formatted into clean, actionable application lines:
+
+<p align="center">
+  <img src="../../assets/img/logd_stack_trace_demangling.webp" alt="logd Stack Trace Demangling" width="780" />
+</p>
 
 ### Custom Pipeline Handlers
 
@@ -450,6 +462,10 @@ final counts = sqliteHandler.fetchLevelCounts();
 
 ## Performance
 
+<p align="center">
+  <img src="../../assets/img/logd_pipeline_architecture.webp" alt="logd Pipeline Architecture" width="780" />
+</p>
+
 ### Hot-Path Dispatch Bypass
 
 Capturing caller origin (file, line, method) requires a `StackTrace.current` VM call on every log entry. When you don't need it, turn it off:
@@ -588,6 +604,10 @@ void main() async {
   runApp(const MyApp());
 }
 ```
+
+<p align="center">
+  <img src="../../assets/img/logd_architecture_zero_jank.webp" alt="logd Zero Jank Timeline" width="780" />
+</p>
 
 ### 2. HTTP Network Inspection (Dio Interceptor)
 

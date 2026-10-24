@@ -4,6 +4,8 @@
 [![pub points](https://img.shields.io/pub/points/logd_toon.svg)](https://pub.dev/packages/logd_toon/score)
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
+![logd_toon Hero](../../assets/img/logd_toon_hero.webp)
+
 Tab-Oriented Object Notation (**TOON**) formatter, encoder, and file handler satellite package for [logd](https://pub.dev/packages/logd).
 
 TOON is a compact, token-efficient tabular text format specifically optimized for streaming structured logs into Large Language Models (LLMs), machine query engines (e.g. DuckDB, Vector), or automated log aggregators with **30–50% fewer tokens than JSON**.
@@ -11,6 +13,10 @@ TOON is a compact, token-efficient tabular text format specifically optimized fo
 ---
 
 ## Features
+
+<p align="center">
+  <img src="../../assets/img/logd_toon_token_comparison.webp" alt="TOON vs JSON Token Reduction Comparison" width="780" />
+</p>
 
 - **`ToonFormatter`**: Converts structured log entries into header schemas and delimited data rows.
 - **`ToonEncoder`**: Encodes semantic log documents into token-optimized text streams.
