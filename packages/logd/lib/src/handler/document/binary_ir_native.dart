@@ -153,7 +153,7 @@ final class BinaryIRWriter {
   final ArenaDocument _document;
   Arena get _arena => _document.arena;
   int _nodeCount = 0;
-  ffi.Pointer<ffi.Uint8>? _header;
+  bool _isStarted = false;
 
   /// Starts a new Binary IR session.
   void start() {
@@ -161,21 +161,29 @@ final class BinaryIRWriter {
     _nodeCount = 0;
 
     // Write Header (16 bytes)
-    _header = _arena.allocateNative(BinaryIR.headerSize, _document);
-    _header!.cast<ffi.Uint32>()[0] = BinaryIR.magic;
-    _header!.cast<ffi.Uint16>()[2] = BinaryIR.version;
-    _header!.cast<ffi.Uint16>()[3] = 0; // Reserved
+    final header = _arena.allocateNative(BinaryIR.headerSize, _document);
+    header.cast<ffi.Uint32>()[0] = BinaryIR.magic;
+    header.cast<ffi.Uint16>()[2] = BinaryIR.version;
+    header.cast<ffi.Uint16>()[3] = 0; // Reserved
+    _isStarted = true;
+  }
+
+  /// Resets writer state without finalizing.
+  void reset() {
+    _isStarted = false;
+    _nodeCount = 0;
   }
 
   /// Finalizes the session and returns the head pointer.
   ffi.Pointer<ffi.Uint8> finalize() {
-    if (_header == null) {
+    final header = _document.nativeBufferPointer;
+    if (!_isStarted || header == null) {
       throw StateError('BinaryIRWriter not started');
     }
-    _header!.cast<ffi.Uint32>()[2] = _nodeCount;
-    final result = _header!;
-    _header = null;
-    return result;
+    header.cast<ffi.Uint32>()[2] = _nodeCount;
+    header.cast<ffi.Uint32>()[3] = _document.nativeBufferOffset;
+    _isStarted = false;
+    return header;
   }
 
   /// Linearizes [document] into a native buffer and returns the head pointer.
@@ -687,6 +695,7 @@ final class BinaryAnsiEncoder {
     final ffi.Pointer<ffi.Uint8> irPtr, {
     required final int terminalWidth,
     final LogLevel level = LogLevel.info,
+    final int? length,
   }) {
     final buffer = StringBuffer();
 
@@ -697,6 +706,7 @@ final class BinaryAnsiEncoder {
     }
 
     final nodeCount = irPtr.cast<ffi.Uint32>()[2];
+    final totalLength = length ?? irPtr.cast<ffi.Uint32>()[3];
     int currentOffset = BinaryIR.headerSize;
 
     // 2. Rendering State
@@ -795,6 +805,25 @@ final class BinaryAnsiEncoder {
         }
       }
       return length;
+    }
+
+    void writeContentText(final String str) {
+      final boxCount = indentStack.whereType<_BoxIndent>().length;
+      if (boxCount == 0 || !str.contains('\t')) {
+        buffer.write(str);
+        return;
+      }
+      int pos = currentLineWidth;
+      for (final char in str.characters) {
+        if (char == '\t') {
+          final advance = 8 - (pos % 8);
+          buffer.write(' ' * advance);
+          pos += advance;
+        } else {
+          buffer.write(char);
+          pos += isWide(char) ? 2 : 1;
+        }
+      }
     }
 
     void ensureIndent() {
@@ -1151,25 +1180,44 @@ final class BinaryAnsiEncoder {
     // 3. Process Instructions
     int i = 0;
     while (i < nodeCount) {
+      if (totalLength > 0 && currentOffset + 8 > totalLength) {
+        break;
+      }
       final opPtr = irPtr + currentOffset;
       final op = opPtr[0];
 
       switch (op) {
         case BinaryIR.opGlobalMetadata:
+          if (totalLength > 0 && currentOffset + 16 > totalLength) {
+            break;
+          }
           final pairCount = opPtr.cast<ffi.Uint32>()[2];
           currentOffset += 16;
           for (int j = 0; j < pairCount; j++) {
+            if (totalLength > 0 && currentOffset + 8 > totalLength) {
+              break;
+            }
             final entryPtr = irPtr + currentOffset;
             final keyLen = (entryPtr + 2).cast<ffi.Uint16>()[0];
             final valLen = (entryPtr + 4).cast<ffi.Uint32>()[0];
-            currentOffset += (8 + keyLen + valLen + 7) & ~7;
+            final advance = (8 + keyLen + valLen + 7) & ~7;
+            if (totalLength > 0 && currentOffset + advance > totalLength) {
+              break;
+            }
+            currentOffset += advance;
           }
           break;
 
         case BinaryIR.opText:
+          if (totalLength > 0 && currentOffset + 16 > totalLength) {
+            break;
+          }
           final tags = opPtr.cast<ffi.Uint32>()[1];
           final styleBitmask = opPtr.cast<ffi.Uint32>()[2];
           final len = opPtr.cast<ffi.Uint32>()[3];
+          if (totalLength > 0 && currentOffset + 16 + len > totalLength) {
+            break;
+          }
           final dataPtr = opPtr + 16;
 
           if ((tags & LogTag.preview) != 0) {
@@ -1209,7 +1257,7 @@ final class BinaryAnsiEncoder {
               final lineText = lines[l];
               if (lineText.isNotEmpty) {
                 openStyle();
-                buffer.write(lineText);
+                writeContentText(lineText);
                 currentLineWidth += getVisualLength(lineText, currentLineWidth);
               }
             }
@@ -1227,7 +1275,7 @@ final class BinaryAnsiEncoder {
               final trimmed = line.replaceFirst(RegExp(r' +$'), '');
               if (trimmed.isNotEmpty) {
                 openStyle();
-                buffer.write(trimmed);
+                writeContentText(trimmed);
                 currentLineWidth += getVisualLength(trimmed, currentLineWidth);
               }
               closeLine();
@@ -1236,7 +1284,7 @@ final class BinaryAnsiEncoder {
             if (wrapped.activeLine.isNotEmpty) {
               ensureIndent();
               openStyle();
-              buffer.write(wrapped.activeLine);
+              writeContentText(wrapped.activeLine);
               currentLineWidth +=
                   getVisualLength(wrapped.activeLine, currentLineWidth);
             }
@@ -1311,9 +1359,15 @@ final class BinaryAnsiEncoder {
           break;
 
         case BinaryIR.opIndentStart:
+          if (totalLength > 0 && currentOffset + 16 > totalLength) {
+            break;
+          }
           // ignore: unused_local_variable
           final tags = opPtr.cast<ffi.Uint32>()[1];
           final len = opPtr.cast<ffi.Uint32>()[3];
+          if (totalLength > 0 && currentOffset + 16 + len > totalLength) {
+            break;
+          }
           final dataPtr = opPtr + 16;
           final indent = convert.utf8.decode(dataPtr.asTypedList(len));
           indentStack.add(_StringIndent(indent));
@@ -1351,6 +1405,9 @@ final class BinaryAnsiEncoder {
           break;
 
         case BinaryIR.opDecoratedStart:
+          if (totalLength > 0 && currentOffset + 24 > totalLength) {
+            break;
+          }
           final leadingWidth = opPtr[1];
           final trailingWidth = opPtr[2];
           final flags = opPtr[3];
@@ -1380,12 +1437,19 @@ final class BinaryAnsiEncoder {
           final initialWidth = currentLineWidth;
 
           for (int j = 0; j < leadingCount; j++) {
+            if (totalLength > 0 && currentOffset + 16 > totalLength) {
+              break;
+            }
             final segPtr = irPtr + currentOffset;
             final segOp = segPtr[0];
             if (segOp == BinaryIR.opText) {
               final segTags = segPtr.cast<ffi.Uint32>()[1];
               final segStyleBitmask = segPtr.cast<ffi.Uint32>()[2];
               final segLen = segPtr.cast<ffi.Uint32>()[3];
+              if (totalLength > 0 &&
+                  currentOffset + 16 + segLen > totalLength) {
+                break;
+              }
               final segDataPtr = segPtr + 16;
               final segText =
                   convert.utf8.decode(segDataPtr.asTypedList(segLen));
@@ -1409,12 +1473,19 @@ final class BinaryAnsiEncoder {
 
           final trailingSegments = <StyledText>[];
           for (int j = 0; j < trailingCount; j++) {
+            if (totalLength > 0 && currentOffset + 16 > totalLength) {
+              break;
+            }
             final segPtr = irPtr + currentOffset;
             final segOp = segPtr[0];
             if (segOp == BinaryIR.opText) {
               final segTags = segPtr.cast<ffi.Uint32>()[1];
               final segStyleBitmask = segPtr.cast<ffi.Uint32>()[2];
               final segLen = segPtr.cast<ffi.Uint32>()[3];
+              if (totalLength > 0 &&
+                  currentOffset + 16 + segLen > totalLength) {
+                break;
+              }
               final segDataPtr = segPtr + 16;
               final segText =
                   convert.utf8.decode(segDataPtr.asTypedList(segLen));
@@ -1606,7 +1677,14 @@ final class BinaryAnsiEncoder {
           break;
 
         case BinaryIR.opTableStart:
+          if (totalLength > 0 && currentOffset + 16 > totalLength) {
+            break;
+          }
           final colCount = opPtr[1];
+          final advance = (16 + colCount * 2 + 7) & ~7;
+          if (totalLength > 0 && currentOffset + advance > totalLength) {
+            break;
+          }
           // ignore: unused_local_variable
           final tags = opPtr.cast<ffi.Uint32>()[1];
           final widthsPtr = opPtr.cast<ffi.Uint16>() + 8;
@@ -1615,7 +1693,7 @@ final class BinaryAnsiEncoder {
             widths.add(widthsPtr[j]);
           }
           tableStack.add(_TableState(widths));
-          currentOffset += (16 + colCount * 2 + 7) & ~7;
+          currentOffset += advance;
           break;
 
         case BinaryIR.opTableEnd:
@@ -1685,22 +1763,32 @@ final class BinaryAnsiEncoder {
           break;
 
         case BinaryIR.opMetadata:
+          if (totalLength > 0 && currentOffset + 16 > totalLength) {
+            break;
+          }
           // ignore: unused_local_variable
           final tags = opPtr.cast<ffi.Uint32>()[1];
           final pairCount = opPtr.cast<ffi.Uint32>()[2];
           final map = <String, String>{};
           currentOffset += 16;
           for (int j = 0; j < pairCount; j++) {
+            if (totalLength > 0 && currentOffset + 8 > totalLength) {
+              break;
+            }
             final entryPtr = irPtr + currentOffset;
             final keyLen = (entryPtr + 2).cast<ffi.Uint16>()[0];
             final valLen = (entryPtr + 4).cast<ffi.Uint32>()[0];
+            final advance = (8 + keyLen + valLen + 7) & ~7;
+            if (totalLength > 0 && currentOffset + advance > totalLength) {
+              break;
+            }
 
             final key = convert.utf8.decode((entryPtr + 8).asTypedList(keyLen));
             final val = convert.utf8
                 .decode((entryPtr + 8 + keyLen).asTypedList(valLen));
             map[key] = val;
 
-            currentOffset += (8 + keyLen + valLen + 7) & ~7;
+            currentOffset += advance;
           }
 
           renderJsonWrapped(map, tags);
@@ -1895,8 +1983,9 @@ final class BinaryToonEncoder {
 
   /// Renders the [BinaryIR] buffer into TOON format.
   String encode(
-    final ffi.Pointer<ffi.Uint8> irPtr,
-  ) {
+    final ffi.Pointer<ffi.Uint8> irPtr, {
+    final int? length,
+  }) {
     final buffer = StringBuffer();
 
     // 1. Read Header
@@ -1906,6 +1995,7 @@ final class BinaryToonEncoder {
     }
 
     final nodeCount = irPtr.cast<ffi.Uint32>()[2];
+    final totalLength = length ?? irPtr.cast<ffi.Uint32>()[3];
     int currentOffset = BinaryIR.headerSize;
 
     // 2. State
@@ -1914,31 +2004,57 @@ final class BinaryToonEncoder {
 
     // 3. Process Instructions
     for (int i = 0; i < nodeCount; i++) {
+      if (totalLength > 0 && currentOffset + 8 > totalLength) {
+        break;
+      }
       final opPtr = irPtr + currentOffset;
       final op = opPtr[0];
 
       switch (op) {
         case BinaryIR.opGlobalMetadata:
+          if (totalLength > 0 && currentOffset + 8 > totalLength) {
+            break;
+          }
           final count = opPtr.cast<ffi.Uint32>()[1];
           currentOffset += 8;
           for (int j = 0; j < count; j++) {
+            if (totalLength > 0 && currentOffset + 8 > totalLength) {
+              break;
+            }
             final entry = _readMetadataEntry(irPtr + currentOffset);
+            if (totalLength > 0 &&
+                currentOffset + entry.totalSize > totalLength) {
+              break;
+            }
             globalMetadata[entry.key] = entry.value;
             currentOffset += entry.totalSize;
           }
 
         case BinaryIR.opMetadata:
+          if (totalLength > 0 && currentOffset + 8 > totalLength) {
+            break;
+          }
           final count = opPtr.cast<ffi.Uint32>()[1];
           currentOffset += 8;
           final map = <String, Object?>{};
           for (int j = 0; j < count; j++) {
+            if (totalLength > 0 && currentOffset + 8 > totalLength) {
+              break;
+            }
             final entry = _readMetadataEntry(irPtr + currentOffset);
+            if (totalLength > 0 &&
+                currentOffset + entry.totalSize > totalLength) {
+              break;
+            }
             map[entry.key] = entry.value;
             currentOffset += entry.totalSize;
           }
           rows.add(map);
 
         case BinaryIR.opText:
+          if (totalLength > 0 && currentOffset + 16 > totalLength) {
+            break;
+          }
           final len = opPtr.cast<ffi.Uint32>()[3];
           currentOffset += 16 + len;
         case BinaryIR.opNewline:
@@ -1947,6 +2063,9 @@ final class BinaryToonEncoder {
         case BinaryIR.opBoxEnd:
           currentOffset += 8;
         case BinaryIR.opIndentStart:
+          if (totalLength > 0 && currentOffset + 16 > totalLength) {
+            break;
+          }
           final len = opPtr.cast<ffi.Uint32>()[3];
           currentOffset += 16 + len;
         case BinaryIR.opIndentEnd:
@@ -1954,15 +2073,24 @@ final class BinaryToonEncoder {
         case BinaryIR.opFiller:
           currentOffset += 20;
         case BinaryIR.opDecoratedStart:
+          if (totalLength > 0 && currentOffset + 24 > totalLength) {
+            break;
+          }
           final leadingCount = opPtr.cast<ffi.Uint32>()[3];
           final trailingCount = opPtr.cast<ffi.Uint32>()[4];
           currentOffset += 24;
           for (int j = 0; j < leadingCount; j++) {
+            if (totalLength > 0 && currentOffset + 16 > totalLength) {
+              break;
+            }
             final segPtr = irPtr + currentOffset;
             final segLen = segPtr.cast<ffi.Uint32>()[3];
             currentOffset += (16 + segLen + 7) & ~7;
           }
           for (int j = 0; j < trailingCount; j++) {
+            if (totalLength > 0 && currentOffset + 16 > totalLength) {
+              break;
+            }
             final segPtr = irPtr + currentOffset;
             final segLen = segPtr.cast<ffi.Uint32>()[3];
             currentOffset += (16 + segLen + 7) & ~7;

@@ -805,6 +805,16 @@ const String dashboardHtml = '''
       }
     });
 
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     function ansiToHtml(text) {
       if (!text) return '';
       let html = text
@@ -886,12 +896,12 @@ const String dashboardHtml = '''
         const headerBar = document.createElement('div');
         headerBar.id = 'toonHeaderBar';
         headerBar.className = 'toon-sticky-header';
-        const colPills = payload.toon.columns ? payload.toon.columns.map(c => `<span class="toon-col-pill">\${c}</span>`).join('') : '';
-        headerBar.innerHTML = `<span class="toon-header-tag">\${payload.toon.array}[]</span><div class="toon-header-cols">\${colPills}</div>`;
+        const colPills = payload.toon.columns ? payload.toon.columns.map(c => `<span class="toon-col-pill">\${escapeHtml(c)}</span>`).join('') : '';
+        headerBar.innerHTML = `<span class="toon-header-tag">\${escapeHtml(payload.toon.array)}[]</span><div class="toon-header-cols">\${colPills}</div>`;
         consoleOutput.insertBefore(headerBar, consoleOutput.firstChild);
       }
 
-      const isHtml = payload.formatted && payload.formatted.trim().startsWith('<div');
+      const isHtml = !!payload.isHtml;
       const isToon = !!payload.toon || (payload.formatted && payload.formatted.includes('log-toon'));
 
       if (isHtml) {
@@ -919,8 +929,9 @@ const String dashboardHtml = '''
         return;
       }
 
+      const safeLevel = escapeHtml(payload.entry.level);
       const row = document.createElement('div');
-      row.className = `log-row level-\${payload.entry.level}\${isToon ? ' toon-mode' : ''}`;
+      row.className = `log-row level-\${safeLevel}\${isToon ? ' toon-mode' : ''}`;
       row.dataset.level = payload.entry.level;
       row.dataset.message = payload.entry.message;
       row.dataset.logger = payload.entry.loggerName;
@@ -932,7 +943,8 @@ const String dashboardHtml = '''
       if (!isToon) {
         const meta = document.createElement('div');
         meta.className = 'log-meta-info';
-        meta.innerHTML = `<span>\${payload.entry.timestamp}</span><span class="level-\${payload.entry.level}">[&nbsp;\${payload.entry.level.toUpperCase()}&nbsp;]</span><span>\${payload.entry.loggerName}</span>`;
+        const safeUpperLevel = escapeHtml(payload.entry.level ? payload.entry.level.toUpperCase() : '');
+        meta.innerHTML = `<span>\${escapeHtml(payload.entry.timestamp)}</span><span class="level-\${safeLevel}">[&nbsp;\${safeUpperLevel}&nbsp;]</span><span>\${escapeHtml(payload.entry.loggerName)}</span>`;
         main.appendChild(meta);
       }
 
@@ -953,13 +965,13 @@ const String dashboardHtml = '''
         details.className = 'log-details';
 
         if (hasError) {
-          details.innerHTML += `<div class="details-section"><span class="details-label">Error</span><span class="details-val">\${payload.entry.error}</span></div>`;
+          details.innerHTML += `<div class="details-section"><span class="details-label">Error</span><span class="details-val">\${escapeHtml(payload.entry.error)}</span></div>`;
         }
         if (hasContext) {
-          details.innerHTML += `<div class="details-section"><span class="details-label">Context</span><span class="details-val context">\${JSON.stringify(payload.entry.context, null, 2)}</span></div>`;
+          details.innerHTML += `<div class="details-section"><span class="details-label">Context</span><span class="details-val context">\${escapeHtml(JSON.stringify(payload.entry.context, null, 2))}</span></div>`;
         }
         if (hasStack) {
-          details.innerHTML += `<div class="details-section"><span class="details-label">Stack Trace</span><span class="details-val stack">\${payload.entry.stackTrace}</span></div>`;
+          details.innerHTML += `<div class="details-section"><span class="details-label">Stack Trace</span><span class="details-val stack">\${escapeHtml(payload.entry.stackTrace)}</span></div>`;
         }
 
         row.appendChild(details);

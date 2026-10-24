@@ -94,6 +94,9 @@ void registerLogdNetworkSerializers() {
       port: json['port'] as int? ?? 8080,
       bufferCapacity: json['bufferCapacity'] as int? ?? 100,
       lineLength: json['lineLength'] as int?,
+      maxConnections: json['maxConnections'] as int? ?? 32,
+      allowedOrigins:
+          (json['allowedOrigins'] as List?)?.cast<String>().toSet() ?? const {},
       enabled: json['enabled'] as bool? ?? true,
     ),
     toJson: (final val) => <String, dynamic>{
@@ -101,6 +104,8 @@ void registerLogdNetworkSerializers() {
       'port': val.port,
       'bufferCapacity': val.bufferCapacity,
       'lineLength': val.preferredWidth,
+      'maxConnections': val.maxConnections,
+      'allowedOrigins': val.allowedOrigins.toList(),
       'enabled': val.enabled,
     },
   );

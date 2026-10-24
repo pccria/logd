@@ -22,6 +22,7 @@ class LogdDioOptions {
     this.redactedPlaceholder = '***REDACTED***',
     this.sensitiveHeaders = defaultSensitiveHeaders,
     this.sensitiveQueryParams = defaultSensitiveQueryParams,
+    this.sensitiveBodyKeys = defaultSensitiveBodyKeys,
   });
 
   /// Default headers to redact for security and compliance (SOC2 / GDPR).
@@ -44,6 +45,28 @@ class LogdDioOptions {
     'secret',
     'password',
     'auth',
+  };
+
+  /// Default JSON request and response body keys to redact.
+  static const Set<String> defaultSensitiveBodyKeys = {
+    'password',
+    'password_confirmation',
+    'new_password',
+    'old_password',
+    'secret',
+    'api_key',
+    'apikey',
+    'token',
+    'access_token',
+    'refresh_token',
+    'auth_token',
+    'credit_card',
+    'creditcard',
+    'card_number',
+    'cvv',
+    'cvc',
+    'pin',
+    'ssn',
   };
 
   /// Explicit logger instance to use. If null, defaults to `Logger.get('http')`.
@@ -94,4 +117,7 @@ class LogdDioOptions {
 
   /// Case-insensitive set of query parameter keys whose values will be redacted.
   final Set<String> sensitiveQueryParams;
+
+  /// Case-insensitive set of JSON request/response body keys whose values will be redacted.
+  final Set<String> sensitiveBodyKeys;
 }

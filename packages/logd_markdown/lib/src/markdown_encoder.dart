@@ -238,12 +238,9 @@ class MarkdownEncoder implements LogEncoder {
               .map((final col) => node.map[col]?.toString() ?? '')
               .join(delimiter);
 
-          context
-            ..writeString('\n```text\n')
-            ..writeString('$row\n')
-            ..writeString('```\n');
+          _writeFencedBlock(context, row, 'text');
         } else {
-          context.writeString('\n```json\n$node\n```\n');
+          _writeFencedBlock(context, node.toString(), 'json');
         }
       case ListNode():
         _renderList(context, node);
@@ -350,10 +347,7 @@ class MarkdownEncoder implements LogEncoder {
 
     if (node is ContentNode) {
       if ((node.tags & LogTag.stackFrame) != 0) {
-        context
-          ..writeString('```\n')
-          ..writeString('${_renderContent(node)}\n')
-          ..writeString('```\n');
+        _writeFencedBlock(context, _renderContent(node));
       } else {
         context.writeString('${_renderContent(node)}\n');
       }
@@ -368,13 +362,25 @@ class MarkdownEncoder implements LogEncoder {
 
   void _renderFooter(final HandlerContext context, final FooterNode node) {
     if ((node.tags & LogTag.stackFrame) != 0) {
-      context
-        ..writeString('\n```\n')
-        ..writeString('${_renderContent(node)}\n')
-        ..writeString('```\n');
+      _writeFencedBlock(context, _renderContent(node));
     } else {
       context.writeString('${_renderContent(node)}\n');
     }
+  }
+
+  void _writeFencedBlock(
+    final HandlerContext context,
+    final String content, [
+    final String lang = '',
+  ]) {
+    var fence = '```';
+    while (content.contains(fence)) {
+      fence += '`';
+    }
+    context
+      ..writeString('\n$fence$lang\n')
+      ..writeString(content)
+      ..writeString('\n$fence\n');
   }
 
   String _renderContent(final ContentNode node) =>

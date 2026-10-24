@@ -24,6 +24,8 @@ base class HttpServerSink extends EncodingSink {
     final int? lineLength,
     super.enabled = true,
     this.bufferCapacity = 100,
+    this.maxConnections = 32,
+    this.allowedOrigins = const {},
   }) : super(preferredWidth: lineLength ?? 120, delegate: _staticWrite) {
     _startServer();
   }
@@ -37,6 +39,16 @@ base class HttpServerSink extends EncodingSink {
   /// Maximum number of historical log entries to buffer and replay to new
   /// WebSocket dashboard connections.
   final int bufferCapacity;
+
+  /// Maximum number of concurrent WebSocket dashboard connections permitted.
+  final int maxConnections;
+
+  /// Allowed origins for incoming WebSocket upgrade requests.
+  ///
+  /// By default, loopback origins (`localhost`, `127.0.0.1`, `::1`, and matching `Host` header)
+  /// and non-browser clients (null origin) are allowed to prevent Cross-Site WebSocket
+  /// Hijacking (CSWSH). Add any custom remote dashboard domains here if applicable.
+  final Set<String> allowedOrigins;
 
   /// Completer to track server readiness.
   final Completer<void> _ready = Completer<void>();
@@ -66,6 +78,12 @@ base class HttpServerSink extends EncodingSink {
       server.listen((final request) async {
         if (request.uri.path == '/') {
           request.response.headers.contentType = io.ContentType.html;
+          request.response.headers.set('X-Content-Type-Options', 'nosniff');
+          request.response.headers.set('X-Frame-Options', 'DENY');
+          request.response.headers.set(
+            'Content-Security-Policy',
+            "default-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' ws: wss:;",
+          );
           var html = dashboardHtml;
           final Object currentEncoder = encoder;
           if (currentEncoder.runtimeType.toString() == 'HtmlEncoder') {
@@ -76,6 +94,29 @@ base class HttpServerSink extends EncodingSink {
           request.response.write(html);
           await request.response.close();
         } else if (request.uri.path == '/ws') {
+          // 1. Connection limit check
+          if (_sockets.length >= maxConnections) {
+            request.response.statusCode = io.HttpStatus.serviceUnavailable;
+            request.response.headers.set('Retry-After', '5');
+            request.response.write(
+              'Maximum concurrent dashboard connections reached ($maxConnections).',
+            );
+            await request.response.close();
+            return;
+          }
+
+          // 2. CSWSH Origin validation
+          final origin = request.headers.value('origin');
+          if (origin != null &&
+              origin.isNotEmpty &&
+              !_isOriginAllowed(origin, request.headers.host)) {
+            request.response.statusCode = io.HttpStatus.forbidden;
+            request.response
+                .write('Cross-origin WebSocket connection forbidden.');
+            await request.response.close();
+            return;
+          }
+
           try {
             final socket = await io.WebSocketTransformer.upgrade(request);
             _sockets.add(socket);
@@ -116,6 +157,33 @@ base class HttpServerSink extends EncodingSink {
     }
   }
 
+  bool _isOriginAllowed(final String origin, final String? hostHeader) {
+    if (allowedOrigins.contains(origin)) {
+      return true;
+    }
+    try {
+      final originUri = Uri.parse(origin);
+      final originHost = originUri.host.toLowerCase();
+
+      // Allow loopback / localhost origins by default
+      if (originHost == 'localhost' ||
+          originHost == '127.0.0.1' ||
+          originHost == '::1') {
+        return true;
+      }
+
+      // Allow if origin host matches the incoming HTTP Host header
+      if (hostHeader != null) {
+        final hostOnly = hostHeader.split(':').first.toLowerCase();
+        if (originHost == hostOnly) {
+          return true;
+        }
+      }
+    } catch (_) {}
+
+    return false;
+  }
+
   @override
   Future<void> output(
     final LogDocument document,
@@ -142,6 +210,7 @@ base class HttpServerSink extends EncodingSink {
 
       final payload = {
         'formatted': formattedString,
+        'isHtml': encoder.runtimeType.toString() == 'HtmlEncoder',
         'entry': {
           'loggerName': entry.loggerName,
           'origin': entry.origin,

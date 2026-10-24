@@ -36,6 +36,7 @@ void registerLogdSqliteSerializers() {
           ? Duration(milliseconds: json['flushInterval'] as int)
           : const Duration(seconds: 2),
       walMode: json['walMode'] as bool? ?? true,
+      maxBufferSize: json['maxBufferSize'] as int? ?? 10000,
     ),
     toJson: (final sink) => <String, dynamic>{
       'dbPath': sink.dbPath,
@@ -45,6 +46,7 @@ void registerLogdSqliteSerializers() {
       'batchSize': sink.batchSize,
       'flushInterval': sink.flushInterval?.inMilliseconds,
       'walMode': sink.walMode,
+      'maxBufferSize': sink.maxBufferSize,
     },
   );
 }

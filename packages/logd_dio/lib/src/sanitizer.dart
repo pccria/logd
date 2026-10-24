@@ -41,10 +41,86 @@ abstract final class LogdSanitizer {
     });
   }
 
-  /// Produces a safe, bounded preview of request or response bodies.
+  /// Returns a copy of [uri] with sensitive query parameter values replaced with [placeholder].
+  static Uri sanitizeUri(
+    final Uri uri,
+    final Set<String> sensitiveKeys,
+    final String placeholder,
+  ) {
+    if (!uri.hasQuery || sensitiveKeys.isEmpty) return uri;
+
+    final normalizedSensitive =
+        sensitiveKeys.map((final k) => k.toLowerCase()).toSet();
+
+    final newQueryParameters = <String, dynamic>{};
+    for (final entry in uri.queryParametersAll.entries) {
+      if (normalizedSensitive.contains(entry.key.toLowerCase())) {
+        newQueryParameters[entry.key] =
+            entry.value.map((final _) => placeholder).toList();
+      } else {
+        newQueryParameters[entry.key] = entry.value;
+      }
+    }
+
+    return uri.replace(queryParameters: newQueryParameters);
+  }
+
+  /// Recursively redacts sensitive keys from a JSON-like object (Map, List, or JSON String).
+  static Object? sanitizeBody(
+    final Object? data,
+    final Set<String> sensitiveKeys,
+    final String placeholder,
+  ) {
+    if (data == null || sensitiveKeys.isEmpty) return data;
+
+    final normalizedSensitive =
+        sensitiveKeys.map((final k) => k.toLowerCase()).toSet();
+
+    Object? sanitizeRecursive(final Object? node) {
+      if (node is Map) {
+        final result = <String, Object?>{};
+        for (final entry in node.entries) {
+          final keyStr = entry.key.toString();
+          if (normalizedSensitive.contains(keyStr.toLowerCase())) {
+            result[keyStr] = placeholder;
+          } else {
+            result[keyStr] = sanitizeRecursive(entry.value);
+          }
+        }
+        return result;
+      } else if (node is List) {
+        return node.map(sanitizeRecursive).toList();
+      }
+      return node;
+    }
+
+    if (data is Map || data is List) {
+      return sanitizeRecursive(data);
+    }
+
+    if (data is String) {
+      final trimmed = data.trim();
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+          (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        try {
+          final decoded = jsonDecode(data);
+          final sanitized = sanitizeRecursive(decoded);
+          return jsonEncode(sanitized);
+        } catch (_) {
+          return data;
+        }
+      }
+    }
+
+    return data;
+  }
+
+  /// Produces a safe, bounded preview of request or response bodies with sensitive keys redacted.
   static Object? safeBodyPreview(
     final Object? data, {
     required final int maxBodyLength,
+    final Set<String> sensitiveKeys = const {},
+    final String placeholder = '***REDACTED***',
   }) {
     if (data == null) return null;
 
@@ -62,15 +138,17 @@ abstract final class LogdSanitizer {
       return '[Stream: ${data.runtimeType}]';
     }
 
+    final sanitized = sanitizeBody(data, sensitiveKeys, placeholder);
+
     String text;
     try {
-      if (data is String) {
-        text = data;
+      if (sanitized is String) {
+        text = sanitized;
       } else {
-        text = jsonEncode(data);
+        text = jsonEncode(sanitized);
       }
     } catch (_) {
-      text = data.toString();
+      text = sanitized.toString();
     }
 
     if (maxBodyLength > 0 && text.length > maxBodyLength) {

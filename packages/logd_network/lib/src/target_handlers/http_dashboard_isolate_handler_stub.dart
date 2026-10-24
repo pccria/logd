@@ -13,6 +13,8 @@ base class HttpDashboardIsolateHandler extends Handler {
     final int port = 8080,
     final int bufferCapacity = 100,
     final int? lineLength,
+    final int maxConnections = 32,
+    final Set<String> allowedOrigins = const {},
     super.formatter = const StructuredFormatter(),
     super.decorators,
     super.filters,
@@ -26,6 +28,9 @@ base class HttpDashboardIsolateHandler extends Handler {
       'Please use ConsoleSink, HttpSink, or standard output delegation.',
     );
   }
+
+  /// The actual bound port (unsupported on web stub).
+  int get boundPort => 0;
 
   /// A future that completes immediately on Web as background isolates are unsupported.
   Future<void> get ready => Future<void>.value();

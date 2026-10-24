@@ -1,6 +1,7 @@
 // ignore_for_file: experimental_member_use
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:logd/logd.dart';
 import 'package:logd_toon/logd_toon.dart';
@@ -159,6 +160,65 @@ void main() {
       expect(utf8.decode(ctx1.takeBytes()),
           contains('"https://example.com:8080/path"'));
       doc3.releaseRecursive(Arena.instance);
+    });
+
+    test('normalizes CRLF Windows line endings in messages', () {
+      final entry = LogEntry(
+        loggerName: 'test',
+        level: LogLevel.info,
+        message: 'Line 1\r\nLine 2\rLine 3\nLine 4',
+        timestamp: '2026-01-01',
+        origin: 'main.dart',
+      );
+
+      const formatter = ToonFormatter();
+      final doc = formatDoc(formatter, entry);
+
+      expect(doc.nodes.length, equals(4));
+      final mapNode0 = doc.nodes[0] as MapNode;
+      expect(mapNode0.map['message'], equals('Line 1'));
+      final mapNode1 = doc.nodes[1] as MapNode;
+      expect(mapNode1.map['message'], equals('Line 2'));
+      final mapNode2 = doc.nodes[2] as MapNode;
+      expect(mapNode2.map['message'], equals('Line 3'));
+      final mapNode3 = doc.nodes[3] as MapNode;
+      expect(mapNode3.map['message'], equals('Line 4'));
+
+      doc.releaseRecursive(Arena.instance);
+    });
+
+    test('validates delimiter rejects empty or newlines', () {
+      final entry = LogEntry(
+        loggerName: 'test',
+        level: LogLevel.info,
+        message: 'msg',
+        timestamp: '2026-01-01',
+        origin: 'main.dart',
+      );
+
+      const emptyDelimFormatter = ToonFormatter(delimiter: '');
+      expect(
+        () => formatDoc(emptyDelimFormatter, entry),
+        throwsArgumentError,
+      );
+
+      const newlineDelimFormatter = ToonFormatter(delimiter: '\n');
+      expect(
+        () => formatDoc(newlineDelimFormatter, entry),
+        throwsArgumentError,
+      );
+    });
+
+    test(
+        'extractPreamble extracts correctly on large buffers without full scan',
+        () {
+      const header = 'logs[]{timestamp,logger,origin,level,message}:\n';
+      final headerBytes = utf8.encode(header);
+      final largeBuffer = Uint8List(20000);
+      largeBuffer.setRange(0, headerBytes.length, headerBytes);
+
+      final extracted = ToonEncoder.extractPreamble(largeBuffer);
+      expect(extracted, equals(header));
     });
   });
 }

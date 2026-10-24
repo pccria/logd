@@ -32,7 +32,7 @@ final class ToonFormatter implements LogFormatter {
     this.sortKeys = false,
     this.maxDepth = 5,
     this.dialect = ToonDialect.compact,
-  });
+  }) : assert(maxDepth >= 1, 'maxDepth must be >= 1');
 
   /// Whether to include an explicit schema definition in the header.
   final bool explicitSchema;
@@ -62,9 +62,21 @@ final class ToonFormatter implements LogFormatter {
     final LogDocument document,
     final LogPipelineFactory factory,
   ) {
+    if (delimiter.isEmpty ||
+        delimiter.contains('\n') ||
+        delimiter.contains('\r')) {
+      throw ArgumentError.value(
+        delimiter,
+        'delimiter',
+        'Delimiter cannot be empty or contain newline characters.',
+      );
+    }
+
     final columns = <String>[];
     final schema = <String, ToonType>{};
-    final messageLines = entry.message.split('\n');
+    final normalized =
+        entry.message.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final messageLines = normalized.split('\n');
     var isFirst = true;
 
     for (final line in messageLines) {
@@ -199,10 +211,22 @@ final class ToonPrettyFormatter implements LogFormatter {
     final LogDocument document,
     final LogPipelineFactory factory,
   ) {
+    if (delimiter.isEmpty ||
+        delimiter.contains('\n') ||
+        delimiter.contains('\r')) {
+      throw ArgumentError.value(
+        delimiter,
+        'delimiter',
+        'Delimiter cannot be empty or contain newline characters.',
+      );
+    }
+
     final columns = <String>[];
     final tags = <String, int>{};
     final schema = <String, ToonType>{};
-    final messageLines = entry.message.split('\n');
+    final normalized =
+        entry.message.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final messageLines = normalized.split('\n');
     var isFirst = true;
 
     for (final line in messageLines) {

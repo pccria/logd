@@ -8,10 +8,11 @@ import 'package:logd_dio/logd_dio.dart';
 ///
 /// Features highlighted:
 /// 1. Case-insensitive sensitive header redaction (Authorization, Cookies, API keys).
-/// 2. Query parameter redaction (api_key, token, secrets).
-/// 3. Custom redacted placeholders (e.g. `[CONFIDENTIAL]`).
-/// 4. Payload truncation (`maxBodyLength`) preventing log memory exhaustion.
-/// 5. Safe previewing of multipart [FormData] and binary buffers ([List<int>]).
+/// 2. Query parameter redaction (api_key, token, secrets) in logs and cURL.
+/// 3. Sensitive JSON body key redaction (passwords, tokens, credit cards).
+/// 4. Custom redacted placeholders (e.g. `[CONFIDENTIAL]`).
+/// 5. Payload truncation (`maxBodyLength`) preventing log memory exhaustion.
+/// 6. Safe previewing of multipart [FormData] and binary buffers ([List<int>]).
 Future<void> main() async {
   // 1. Configure logd console output
   Logger.configure('global', handlers: [
@@ -97,6 +98,17 @@ Future<void> main() async {
   await dio.post<void>(
     'https://api.example.com/v1/upload',
     data: formData,
+  );
+
+  // Scenario D: Sensitive Body Key Redaction (passwords, tokens, cards)
+  logger.info('--- Scenario D: Sensitive Body Key Redaction ---');
+  await dio.post<void>(
+    'https://api.example.com/v1/auth/login',
+    data: {
+      'email': 'alice@example.com',
+      'password': 'super-secret-user-password',
+      'auth_token': 'jwt-raw-session-token',
+    },
   );
 
   logger.info('Security & Sanitization Demo completed successfully.');

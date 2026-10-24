@@ -9,11 +9,15 @@ abstract final class LogdCurlGenerator {
     final RequestOptions options, {
     required final Set<String> sensitiveHeaders,
     required final String placeholder,
+    final Set<String> sensitiveQueryParams = const {},
+    final Set<String> sensitiveBodyKeys = const {},
   }) {
     final buffer = StringBuffer('curl');
 
     // Method
-    final method = options.method.toUpperCase();
+    final rawMethod = options.method.trim().toUpperCase();
+    final method =
+        RegExp(r'^[A-Z0-9_-]+$').hasMatch(rawMethod) ? rawMethod : 'GET';
     buffer.write(' -X $method');
 
     // Headers
@@ -24,10 +28,14 @@ abstract final class LogdCurlGenerator {
     );
 
     for (final entry in sanitizedHeaders.entries) {
-      final key = entry.key;
+      final key =
+          entry.key.replaceAll("'", r"'\''").replaceAll(RegExp(r'[\r\n]'), '');
       final value = entry.value;
       if (value != null) {
-        final escaped = value.toString().replaceAll("'", r"'\''");
+        final escaped = value
+            .toString()
+            .replaceAll("'", r"'\''")
+            .replaceAll(RegExp(r'[\r\n]'), '');
         buffer.write(" -H '$key: $escaped'");
       }
     }
@@ -40,11 +48,18 @@ abstract final class LogdCurlGenerator {
       } else if (data is List<int>) {
         buffer.write(" --data '[Binary data]'");
       } else {
+        final sanitizedData = LogdSanitizer.sanitizeBody(
+          data,
+          sensitiveBodyKeys,
+          placeholder,
+        );
         String bodyString;
         try {
-          bodyString = data is String ? data : jsonEncode(data);
+          bodyString = sanitizedData is String
+              ? sanitizedData
+              : jsonEncode(sanitizedData);
         } catch (_) {
-          bodyString = data.toString();
+          bodyString = sanitizedData.toString();
         }
         final escapedBody = bodyString.replaceAll("'", r"'\''");
         buffer.write(" --data-raw '$escapedBody'");
@@ -52,7 +67,16 @@ abstract final class LogdCurlGenerator {
     }
 
     // URL
-    buffer.write(" '${options.uri}'");
+    final sanitizedUri = LogdSanitizer.sanitizeUri(
+      options.uri,
+      sensitiveQueryParams,
+      placeholder,
+    );
+    final escapedUri = sanitizedUri
+        .toString()
+        .replaceAll("'", r"'\''")
+        .replaceAll(RegExp(r'[\r\n]'), '');
+    buffer.write(" '$escapedUri'");
 
     return buffer.toString();
   }
