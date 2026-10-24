@@ -3,7 +3,7 @@
 [![pub version](https://img.shields.io/pub/v/logd_dio.svg)](https://pub.dev/packages/logd_dio)
 [![License: BSD 3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
-![logd_dio Hero](../../assets/img/logd_dio_hero.webp)
+![logd_dio Hero](https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_dio_hero.webp)
 
 A production-grade [Dio](https://pub.dev/packages/dio) HTTP logging interceptor powered by the [`logd`](https://pub.dev/packages/logd) logging engine.
 
@@ -50,7 +50,7 @@ void main() async {
 ```
 
 <p align="center">
-  <img src="../../assets/img/logd_dio_code_to_result.webp" alt="logd_dio Code to Terminal Result" width="780" />
+  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_dio_code_to_result.webp" alt="logd_dio Code to Terminal Result" width="780" />
 </p>
 
 ---

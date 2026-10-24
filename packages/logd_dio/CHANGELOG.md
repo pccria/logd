@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- **Documentation**: Use absolute raw asset URLs for README visual diagrams to ensure proper rendering on pub.dev.
+
 ## 0.1.3
 
 - **Documentation**: Added official high-DPI hero branding and static code-to-terminal result showcase.

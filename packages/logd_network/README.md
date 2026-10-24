@@ -3,7 +3,7 @@
 [![pub package](https://img.shields.io/pub/v/logd_network.svg)](https://pub.dev/packages/logd_network)
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
-![logd_network Hero](../../assets/img/logd_network_hero.webp)
+![logd_network Hero](https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_network_hero.webp)
 
 Network-based sinks and live observability handlers for [`logd`](https://pub.dev/packages/logd).
 
@@ -94,7 +94,7 @@ Logger.configure('app', handlers: [dashboard]);
 ```
 
 <p align="center">
-  <img src="../../assets/img/logd_network_dashboard_preview.webp" alt="logd_network Embedded Dashboard Preview" width="780" />
+  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_network_dashboard_preview.webp" alt="logd_network Embedded Dashboard Preview" width="780" />
 </p>
 
 ---

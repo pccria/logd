@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.4
+
+- **Documentation**: Use absolute raw asset URLs for all README visual diagrams to ensure proper rendering on pub.dev.
+
 ## 0.10.3: Documentation & Visual Architecture Refresh
 
 - **Documentation Architecture & Visual Flow**:
