@@ -406,6 +406,9 @@ Resolved by switch to `parse()` — configured parser is always used.
 | Satellite Extraction (`logd_network`) | v0.9.5 | Extracted network sinks and dashboard; authored ADR-007 |
 | Serialization Diagnostics & Finalizer | v0.9.6 | Actionable registry errors, `verify*` helpers, and `AsyncHandler` leak safety |
 | Satellite Maturation & ADR-008 | v0.9.7 | Extracted TOON, HTML, Markdown; direct isolate transfer; ADR-008 |
+| Pure Semantic Engine | v0.10.0 | Deleted soft-deprecated core shims and network dependencies |
+| Production Cookbook & API Reference | v0.10.1 | Comprehensive recipes, API catalog, and `logd_dio` launch |
+| Native Engine Memory Safety & Tab Alignment | v0.10.2 | Arena dynamic slab expansion, bounded binary IR, and tab stop layout parity |
 
 ---
 
