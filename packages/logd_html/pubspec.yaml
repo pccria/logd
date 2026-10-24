@@ -1,6 +1,6 @@
 name: logd_html
 description: Modern HTML5 log rendering, dynamic dark/light stylesheet, and file handler satellite package for logd.
-version: 0.1.3
+version: 0.1.4
 repository: https://github.com/pooriaaskarim/logd
 homepage: https://github.com/pooriaaskarim/logd
 documentation: https://github.com/pooriaaskarim/logd

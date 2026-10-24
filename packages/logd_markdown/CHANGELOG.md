@@ -1,3 +1,7 @@
+## 0.1.4
+
+- **Documentation**: Added official high-DPI hero branding.
+
 ## 0.1.3
 
 - **Code Block Escaping & CommonMark Immunity**:

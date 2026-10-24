@@ -1,6 +1,6 @@
 name: logd_dio
 description: Seamless Dio HTTP logging interceptor for logd with cURL generation, security redaction, and ambient distributed tracing.
-version: 0.1.2
+version: 0.1.3
 repository: https://github.com/pooriaaskarim/logd
 homepage: https://github.com/pooriaaskarim/logd
 documentation: https://github.com/pooriaaskarim/logd

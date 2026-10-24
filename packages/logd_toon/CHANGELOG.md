@@ -1,3 +1,7 @@
+## 0.1.4
+
+- **Documentation**: Added official high-DPI hero branding and TOON vs JSON token reduction comparison diagram.
+
 ## 0.1.3
 
 - **Memory Safety & Buffer Optimization**:
