@@ -1,3 +1,7 @@
+## 0.1.5
+
+- **Documentation**: Use absolute raw asset URLs for README visual diagrams to ensure proper rendering on pub.dev.
+
 ## 0.1.4
 
 - **Documentation**: Added official high-DPI hero branding and TOON vs JSON token reduction comparison diagram.
