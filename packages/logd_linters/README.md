@@ -1,5 +1,10 @@
 # logd_linters
 
+[![pub version](https://img.shields.io/pub/v/logd_linters.svg)](https://pub.dev/packages/logd_linters)
+[![License: BSD 3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+
+![logd_linters Hero](../../assets/img/logd_linters_hero.webp)
+
 Custom lint rules and quick-fixes for the `logd` logging library.
 
 Surfaces `logd` API contracts, arena lifecycle constraints, and formatting purity constraints as compile-time analyzer squiggles directly in your IDE.

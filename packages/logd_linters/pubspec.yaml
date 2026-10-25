@@ -3,7 +3,7 @@ description: >
   Custom lint rules for the logd logging library. Surfaces arena lifecycle
   constraints, formatter/decorator purity invariants, and consumer usage
   best-practices as static analysis warnings with IDE quick-fixes.
-version: 0.1.3
+version: 0.1.4
 repository: https://github.com/pooriaaskarim/logd
 homepage: https://github.com/pooriaaskarim/logd
 documentation: https://github.com/pooriaaskarim/logd

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.3: Documentation & Visual Architecture Refresh
+
+- **Documentation Architecture & Visual Flow**:
+  - Modernized visual structure across README with high-DPI subway architecture flow map, TOON token comparison, actionable stack trace demangling, and 120Hz Flutter isolate timeline diagrams.
+  - Streamlined quick start and pre-wired handler onboarding.
+
 ## 0.10.2: Native Engine Memory Safety & Layout Stabilization
 
 This patch release hardens memory safety and pointer boundaries in `NativeEngine` and `Arena`, and resolves box border tab alignment inconsistencies across terminal viewers.

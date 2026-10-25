@@ -1,3 +1,7 @@
+## 0.1.4
+
+- **Documentation**: Added official high-DPI hero branding and self-contained interactive HTML report preview asset.
+
 ## 0.1.3
 
 - **CSS Grid Span Protection**:

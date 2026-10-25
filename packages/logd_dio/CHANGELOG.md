@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- **Documentation**: Added official high-DPI hero branding and static code-to-terminal result showcase.
+
 ## 0.1.2
 
 - **Security & Command Injection Fix (`LogdCurlGenerator`)**:

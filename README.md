@@ -1,7 +1,7 @@
 <h1 style="margin-bottom: 20px; text-align: left;font-weight: bold; width:" > logd Monorepo <img src="https://img.shields.io/pub/v/logd?logo=dart" alt="Pub Version" title="Pub Version"> <img src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg" alt="License: BSD 3-Clause" title="License: BSD 3-Clause"> <img src="https://img.shields.io/badge/maintained%20with-melos-f7bf7f.svg" alt="Maintained with Melos" title="Maintained with Melos"> </h1>
 
 
-![logd Hero](https://raw.githubusercontent.com/pooriaaskarim/logd/refs/heads/master/assets/img/logd_hero.webp)
+![logd Hero](assets/img/logd_hero.webp)
 
 
 <p style="width: 100%; margin-bottom: 25px; text-align: left; font-weight: normal; font-size: 18px;"><b>logd</b> is a high-performance, structured hierarchical logging engine for Dart and Flutter. Engineered for zero-jank background isolate offloading, ambient async context propagation (MDC), and LLM token-optimized formats.</p>
@@ -15,10 +15,6 @@
 - **One log call, any destination**: Route logs simultaneously to styled ANSI consoles, queryable WAL SQLite ([`packages/logd_sqlite`](packages/logd_sqlite)), interactive HTML session files ([`packages/logd_html`](packages/logd_html)), or live WebSocket dashboards ([`packages/logd_network`](packages/logd_network)).
 - **Surgical noise control**: Silence or debug specific subsystems dynamically with O(1) hierarchical inheritance and glob pattern matching.
 - **Zero silent drops**: Fail-safe fallback prevents data loss if a disk fills or a network sink throws — without ever crashing the host application.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_dio_demo.gif" alt="logd_dio Interceptor Showcase" width="760" />
-</p>
 
 ---
 
@@ -37,6 +33,10 @@ This project is organized as a **Native Dart Workspace** managed with [Melos](ht
 - **[packages/benchmarks](packages/benchmarks)**: Performance, throughput, and memory churn benchmark suite.
 - **[doc/](doc)**: Deep-dive technical documentation (Philosophy, Architecture, Roadmaps).
 - **[scripts/](scripts)**: Infrastructure for testing and network logging simulations.
+
+<p align="center">
+  <img src="assets/img/logd_architecture_flowmap.webp" alt="logd Architecture Flow Map" width="780" />
+</p>
 
 ## Development Guide
 

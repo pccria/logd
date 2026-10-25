@@ -1,5 +1,10 @@
 # logd_markdown
 
+[![pub version](https://img.shields.io/pub/v/logd_markdown.svg)](https://pub.dev/packages/logd_markdown)
+[![License: BSD 3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+
+![logd_markdown Hero](../../assets/img/logd_markdown_hero.webp)
+
 GitHub-Flavored Markdown (GFM) encoder, formatter, and file handler satellite package for `logd`.
 
 ## Features

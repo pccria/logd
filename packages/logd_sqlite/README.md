@@ -3,6 +3,8 @@
 [![pub package](https://img.shields.io/pub/v/logd_sqlite.svg)](https://pub.dev/packages/logd_sqlite)
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
+![logd_sqlite Hero](../../assets/img/logd_sqlite_hero.webp)
+
 A high-performance SQLite persistence log sink and handler for [`logd`](https://pub.dev/packages/logd).
 
 Features pre-compiled prepared statements, Write-Ahead Logging (WAL mode), atomic transaction batching, full log field fidelity (`origin`, `error`, `stackTrace`, `context`), auto-pruning retention policies (`maxEntries`, `maxAge`), and a rich query engine.
@@ -100,6 +102,10 @@ final sharedHandler = SqliteHandler.database(
 ## Advanced Query Engine & Inspection
 
 `SqliteSink` provides a built-in search and filter engine along with metadata discovery helpers:
+
+<p align="center">
+  <img src="../../assets/img/logd_sqlite_query_showcase.webp" alt="logd_sqlite Query Showcase" width="780" />
+</p>
 
 ```dart
 final sink = sqliteHandler.sqliteSink;

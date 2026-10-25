@@ -1,3 +1,7 @@
+## 0.1.8
+
+- **Documentation**: Added official high-DPI hero branding and SQLite WAL query showcase asset.
+
 ## 0.1.7
 
 - **Security & SQL Injection Prevention**:

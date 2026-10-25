@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- **Documentation**: Added official high-DPI hero branding and embedded browser dashboard preview asset.
+
 ## 0.2.1
 
 - **Stored Cross-Site Scripting (XSS) Prevention (`dashboard_html.dart`)**:

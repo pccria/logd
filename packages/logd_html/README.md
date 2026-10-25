@@ -1,5 +1,10 @@
 # logd_html
 
+[![pub version](https://img.shields.io/pub/v/logd_html.svg)](https://pub.dev/packages/logd_html)
+[![License: BSD 3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+
+![logd_html Hero](../../assets/img/logd_html_hero.webp)
+
 Modern HTML5 log rendering, dynamic dark/light stylesheet, and file handler satellite package for `logd`.
 
 ## Features
@@ -56,6 +61,10 @@ void main() async {
   await handler.dispose();
 }
 ```
+
+<p align="center">
+  <img src="../../assets/img/logd_html_report_preview.webp" alt="logd_html Report Preview" width="780" />
+</p>
 
 ## Custom Stylesheets
 

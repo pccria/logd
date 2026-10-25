@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- **Documentation**: Added official high-DPI hero branding.
+
 ## 0.1.3: Handler Missing Dispose Rule & Quick-Fix
 
 This release introduces static analysis rule C6 (`logd_handler_missing_dispose`) with an automated IDE quick-fix to detect un-disposed `AsyncHandler` instances.
