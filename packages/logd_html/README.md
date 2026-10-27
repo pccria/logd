@@ -3,7 +3,7 @@
 [![pub version](https://img.shields.io/pub/v/logd_html.svg)](https://pub.dev/packages/logd_html)
 [![License: BSD 3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
-![logd_html Hero](https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_html_hero.webp)
+![logd_html Hero](https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_html_hero.webp)
 
 Modern HTML5 log rendering, dynamic dark/light stylesheet, and file handler satellite package for `logd`.
 
@@ -63,7 +63,7 @@ void main() async {
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_html_report_preview.webp" alt="logd_html Report Preview" width="780" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_html_report_preview.webp" alt="logd_html Report Preview" width="780" />
 </p>
 
 ## Custom Stylesheets

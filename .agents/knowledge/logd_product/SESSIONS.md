@@ -72,7 +72,7 @@
   - `http`, `web_socket_channel`, and `ffi` are to be extracted from core in Phase 3 as a **breaking change** requiring a major version bump. They stay in core through v1.0 with explicit deprecation notices.
   - "Gradual stabilization" was criticized as too vague. Phase 1 requires concrete deliverables: symbol annotation audit (`@stable`/`@experimental`/`@internal`), semver contract document, DX quality pass, extension point freeze.
 - **Released**: `logd` v0.8.9 and `logd_linters` v0.1.2 published to pub.dev.
-- **PR**: [#52](https://github.com/pooriaaskarim/logd/pull/52) opened dev → master.
+- **PR**: [#52](https://github.com/pccria/logd/pull/52) opened dev → master.
 
 ---
 

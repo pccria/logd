@@ -6,7 +6,7 @@
   <a href="https://opensource.org/licenses/BSD-3-Clause"><img src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg" alt="BSD-3-Clause"></a>
 </h1>
 
-![logd Hero](https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_hero.webp)
+![logd Hero](https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_hero.webp)
 
 **A structured, hierarchical logging engine for Dart and Flutter.**
 
@@ -42,7 +42,7 @@ Most Dart logging libraries treat logging as simple string formatting in a termi
 **logd treats logging as application infrastructure.**
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_architecture_flowmap.webp" alt="logd Architecture Flow Map" width="780" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_architecture_flowmap.webp" alt="logd Architecture Flow Map" width="780" />
 </p>
 
 ### Why developers choose logd
@@ -219,7 +219,7 @@ Future<void> chargePaymentGateway() async {
 Token-Oriented Object Notation emits the column schema once, then tab-delimited rows — **30–50% fewer tokens than JSON** for the same data (provided by [`package:logd_toon`](https://pub.dev/packages/logd_toon)):
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_toon_token_comparison.webp" alt="TOON vs JSON Token Reduction" width="760" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_toon_token_comparison.webp" alt="TOON vs JSON Token Reduction" width="760" />
 </p>
 
 ```dart
@@ -261,7 +261,7 @@ final prompt = '$schema\n${window.join('\n')}';
 Noisy 60-line framework stack traces are automatically sanitized, collapsed, and formatted into clean, actionable application lines:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_stack_trace_demangling.webp" alt="logd Stack Trace Demangling" width="780" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_stack_trace_demangling.webp" alt="logd Stack Trace Demangling" width="780" />
 </p>
 
 ### Custom Pipeline Handlers
@@ -463,7 +463,7 @@ final counts = sqliteHandler.fetchLevelCounts();
 ## Performance
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_pipeline_architecture.webp" alt="logd Pipeline Architecture" width="780" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_pipeline_architecture.webp" alt="logd Pipeline Architecture" width="780" />
 </p>
 
 ### Hot-Path Dispatch Bypass
@@ -606,7 +606,7 @@ void main() async {
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_architecture_zero_jank.webp" alt="logd Zero Jank Timeline" width="780" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_architecture_zero_jank.webp" alt="logd Zero Jank Timeline" width="780" />
 </p>
 
 ### 2. HTTP Network Inspection (Dio Interceptor)
@@ -760,26 +760,26 @@ test('logs warning on failure', () async {
 
 | Document | Description |
 |---|---|
-| [API Reference](https://github.com/pooriaaskarim/logd/blob/master/doc/api_reference.md) | Complete catalog of public classes, methods, and configurations |
-| [Production Cookbook](https://github.com/pooriaaskarim/logd/blob/master/doc/cookbook.md) | Copy-paste recipes for Flutter, Dio, Shelf, SQLite & AI |
-| [Logger Philosophy](https://github.com/pooriaaskarim/logd/blob/master/doc/logger/philosophy.md) | 13 design principles with rationale |
-| [Handler Architecture](https://github.com/pooriaaskarim/logd/blob/master/doc/handler/architecture.md) | Pipeline internals |
-| [Execution Engines Guide](https://github.com/pooriaaskarim/logd/blob/master/doc/handler/engines.md) | Standard, Arena, Native |
-| [TOON Specification](https://github.com/pooriaaskarim/logd/blob/master/packages/logd_toon/doc/toon_spec.md) | Format spec + DuckDB ingestion |
-| [Dio Interceptor Guide](https://github.com/pooriaaskarim/logd/blob/master/packages/logd_dio/README.md) | Full-featured HTTP interceptor, cURL generation & redaction |
-| [Isolates Guide](https://github.com/pooriaaskarim/logd/blob/master/doc/logger/isolates.md) | Cross-isolate configuration |
-| [Migration Guide](https://github.com/pooriaaskarim/logd/blob/master/doc/migration.md) | Upgrading from legacy components |
-| [Architecture Decisions](https://github.com/pooriaaskarim/logd/blob/master/doc/decisions/README.md) | ADR-001 through ADR-008 |
-| [Roadmap](https://github.com/pooriaaskarim/logd/blob/master/doc/logger/roadmap.md) | Planned features |
+| [API Reference](https://github.com/pccria/logd/blob/master/doc/api_reference.md) | Complete catalog of public classes, methods, and configurations |
+| [Production Cookbook](https://github.com/pccria/logd/blob/master/doc/cookbook.md) | Copy-paste recipes for Flutter, Dio, Shelf, SQLite & AI |
+| [Logger Philosophy](https://github.com/pccria/logd/blob/master/doc/logger/philosophy.md) | 13 design principles with rationale |
+| [Handler Architecture](https://github.com/pccria/logd/blob/master/doc/handler/architecture.md) | Pipeline internals |
+| [Execution Engines Guide](https://github.com/pccria/logd/blob/master/doc/handler/engines.md) | Standard, Arena, Native |
+| [TOON Specification](https://github.com/pccria/logd/blob/master/packages/logd_toon/doc/toon_spec.md) | Format spec + DuckDB ingestion |
+| [Dio Interceptor Guide](https://github.com/pccria/logd/blob/master/packages/logd_dio/README.md) | Full-featured HTTP interceptor, cURL generation & redaction |
+| [Isolates Guide](https://github.com/pccria/logd/blob/master/doc/logger/isolates.md) | Cross-isolate configuration |
+| [Migration Guide](https://github.com/pccria/logd/blob/master/doc/migration.md) | Upgrading from legacy components |
+| [Architecture Decisions](https://github.com/pccria/logd/blob/master/doc/decisions/README.md) | ADR-001 through ADR-008 |
+| [Roadmap](https://github.com/pccria/logd/blob/master/doc/logger/roadmap.md) | Planned features |
 
 ---
 
 ## Contributing
 
-- Report bugs or suggest features via [GitHub Issues](https://github.com/pooriaaskarim/logd/issues)
-- Share ideas in [GitHub Discussions](https://github.com/pooriaaskarim/logd/discussions)
-- Read [CONTRIBUTING.md](https://github.com/pooriaaskarim/logd/blob/master/CONTRIBUTING.md) before sending a PR
+- Report bugs or suggest features via [GitHub Issues](https://github.com/pccria/logd/issues)
+- Share ideas in [GitHub Discussions](https://github.com/pccria/logd/discussions)
+- Read [CONTRIBUTING.md](https://github.com/pccria/logd/blob/master/CONTRIBUTING.md) before sending a PR
 
 ## License
 
-BSD 3-Clause. See [LICENSE](https://github.com/pooriaaskarim/logd/blob/master/LICENSE).
+BSD 3-Clause. See [LICENSE](https://github.com/pccria/logd/blob/master/LICENSE).
