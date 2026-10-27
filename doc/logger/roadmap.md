@@ -75,7 +75,7 @@ Items in this phase are prerequisites for subsequent phases.
 - [x] **Finalizer-based tracking**: Implemented via `Finalizer` with stack trace capturing for leaks
 - [x] **New Default**: `autoSinkBuffer` now defaults to `false`
 - [x] **Max-size safeguard**: Add optional `maxEntries` limit on `LogBuffer` to bound memory growth in the "forgot to sink" case (v0.9.1)
-- [-] **Add lint rule** to warn about acquiring a buffer without sinking it (Working on it: branch [mororepo+linter](https://github.com/pooriaaskarim/logd/tree/feat/monorepo%2Blinter)) 
+- [-] **Add lint rule** to warn about acquiring a buffer without sinking it (Working on it: branch [mororepo+linter](https://github.com/pccria/logd/tree/feat/monorepo%2Blinter)) 
 - [x] Tests added for leak detection state and error/stackTrace fields
 
 ---

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.5
+
+- **Maintenance**: Update repository, issue tracker, documentation, and raw asset URLs to reflect account migration to `pccria`.
+
 ## 0.10.4
 
 - **Documentation**: Use absolute raw asset URLs for all README visual diagrams to ensure proper rendering on pub.dev.

@@ -3,7 +3,7 @@
 [![pub package](https://img.shields.io/pub/v/logd_network.svg)](https://pub.dev/packages/logd_network)
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
-![logd_network Hero](https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_network_hero.webp)
+![logd_network Hero](https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_network_hero.webp)
 
 Network-based sinks and live observability handlers for [`logd`](https://pub.dev/packages/logd).
 
@@ -94,7 +94,7 @@ Logger.configure('app', handlers: [dashboard]);
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_network_dashboard_preview.webp" alt="logd_network Embedded Dashboard Preview" width="780" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_network_dashboard_preview.webp" alt="logd_network Embedded Dashboard Preview" width="780" />
 </p>
 
 ---
@@ -270,9 +270,9 @@ In `logd` v0.10.0, all network transport sinks (`NetworkSink`, `HttpSink`, `Sock
 
 For deep-dive documentation on `logd` architecture, migration guides, and execution engines:
 
-- [**logd Monorepo Root**](https://github.com/pooriaaskarim/logd)
-- [**Migration Guide**](https://github.com/pooriaaskarim/logd/blob/master/doc/migration.md)
-- [**ADR-007: Satellite Package Architecture**](https://github.com/pooriaaskarim/logd/blob/master/doc/decisions/adr-007-satellite-package-extraction.md)
+- [**logd Monorepo Root**](https://github.com/pccria/logd)
+- [**Migration Guide**](https://github.com/pccria/logd/blob/master/doc/migration.md)
+- [**ADR-007: Satellite Package Architecture**](https://github.com/pccria/logd/blob/master/doc/decisions/adr-007-satellite-package-extraction.md)
 
 ---
 

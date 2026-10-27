@@ -1,10 +1,10 @@
 name: logd_network
 description: Network-based sinks and real-time observability handlers (HTTP batching, WebSocket streaming, live browser dashboard) for logd.
-version: 0.2.3
-repository: https://github.com/pooriaaskarim/logd
-homepage: https://github.com/pooriaaskarim/logd
-documentation: https://github.com/pooriaaskarim/logd
-issue_tracker: https://github.com/pooriaaskarim/logd/issues
+version: 0.2.4
+repository: https://github.com/pccria/logd
+homepage: https://github.com/pccria/logd
+documentation: https://github.com/pccria/logd
+issue_tracker: https://github.com/pccria/logd/issues
 
 topics:
   - logging

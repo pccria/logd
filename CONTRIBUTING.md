@@ -14,7 +14,7 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/pooriaaskarim/logd.git
+   git clone https://github.com/pccria/logd.git
    cd logd
    ```
 
@@ -39,7 +39,7 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 
 ### Reporting Issues
 
-Before opening a new issue, search the [issue tracker](https://github.com/pooriaaskarim/logd/issues) to avoid duplicates.
+Before opening a new issue, search the [issue tracker](https://github.com/pccria/logd/issues) to avoid duplicates.
 
 **For Bug Reports**, include:
 - Clear, descriptive title
@@ -217,7 +217,7 @@ Documentation improvements are highly valued. See:
 ## Questions or Discussions
 
 - **Questions**: Open a GitHub issue with the `question` label
-- **Discussions**: Use [GitHub Discussions](https://github.com/pooriaaskarim/logd/discussions)
+- **Discussions**: Use [GitHub Discussions](https://github.com/pccria/logd/discussions)
 - **Clarifications**: Comment on relevant issues or PRs
 
 ---
