@@ -25,7 +25,7 @@ class LogdDioOptions {
     this.sensitiveBodyKeys = defaultSensitiveBodyKeys,
   });
 
-  /// Default headers to redact for security and compliance (SOC2 / GDPR).
+  /// Default headers to redact for security and privacy.
   static const Set<String> defaultSensitiveHeaders = {
     'authorization',
     'cookie',
@@ -34,6 +34,10 @@ class LogdDioOptions {
     'token',
     'secret',
     'proxy-authorization',
+    'x-auth-token',
+    'x-csrf-token',
+    'x-access-token',
+    'api-key',
   };
 
   /// Default query parameters to redact.
@@ -42,6 +46,7 @@ class LogdDioOptions {
     'apikey',
     'token',
     'access_token',
+    'refresh_token',
     'secret',
     'password',
     'auth',
@@ -54,12 +59,14 @@ class LogdDioOptions {
     'new_password',
     'old_password',
     'secret',
+    'client_secret',
     'api_key',
     'apikey',
     'token',
     'access_token',
     'refresh_token',
     'auth_token',
+    'id_token',
     'credit_card',
     'creditcard',
     'card_number',

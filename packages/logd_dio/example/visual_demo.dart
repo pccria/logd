@@ -28,10 +28,7 @@ Future<void> main() async {
       const LogdDioOptions(
         logCurl: true,
         redactedPlaceholder: '[***REDACTED***]',
-        sensitiveBodyKeys: {
-          ...LogdDioOptions.defaultSensitiveBodyKeys,
-          'client_secret',
-        },
+        sensitiveBodyKeys: LogdDioOptions.defaultSensitiveBodyKeys,
       ),
     ),
   );
