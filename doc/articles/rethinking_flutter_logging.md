@@ -81,12 +81,11 @@ void main() {
 
 When application code requests `Logger.get('app.network.auth')`, it immediately evaluates the cached configuration, inheriting defaults from `app` and `app.network` while respecting its specific `TRACE` override.
 
-```
-app (INFO)
- ├── network (WARNING)
- │    └── auth (TRACE) -> inherited sinks, overrides level
- └── cache.* (ERROR)   -> dynamic pattern match
-```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_subsystem_hierarchy.webp" alt="Hierarchical Subsystem Topology and Dynamic Inheritance" width="780" />
+  <br/>
+  <em>Figure 1: Hierarchical subsystem scoping, policy inheritance, and O(1) runtime cache resolution.</em>
+</p>
 
 ### Selective Subtree Pruning
 Entire subtrees can be silenced at runtime with $O(1)$ short-circuit evaluation:
@@ -152,12 +151,6 @@ class OrderService {
   }
 }
 ```
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_zone_context_propagation.webp" alt="Ambient Context Propagation across Async Dart Zones" width="780" />
-  <br/>
-  <em>Figure 1: Ambient context propagation across asynchronous Dart Zones without polluting function signatures.</em>
-</p>
 
 ### Zone Hierarchy and Inheritance
 Context declarations compose hierarchically across nested async branches:
