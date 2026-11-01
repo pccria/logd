@@ -8,6 +8,15 @@ This patch release hardens log retention, rotation, hierarchy invalidation, and 
   - **Obfuscated Stack Frame Origin Resolution**: Prevent silent log drops in stripped or obfuscated release builds (`--split-debug-info`, `--obfuscate`). Origin extraction safely falls back to `'unknown'` when caller frames cannot be parsed.
   - **Hierarchy Invalidation on Config Import**: `Logger.importConfig` stages configurations atomically and rebuilds descendant index mappings, ensuring child loggers correctly invalidate and inherit parent updates.
   - **Explicit Stack Trace Demangling**: Preserved frame #0 (the crash throw site) when an explicit `stackTrace:` is passed to log methods, ensuring error origin accurately reflects the throw site.
+  - **Lifecycle Drain & Process Flush**: Added `Future<void> flush()` contract to `LogSink`, `Handler`, and `AsyncHandler`, complemented by static `Logger.flush()`, `Logger.shutdown()`, and instance `logger.flushHandlers()`. Guarantees all queued and in-flight isolate buffers cleanly drain before process exit.
+
+- ### Async Engine & Isolate Worker Resilience
+  - **Sequential Worker Event Loop**: Replaced asynchronous event listener callbacks with `await for` in `IsolateSink` and `AsyncHandler`. Guarantees strictly ordered FIFO processing and eliminates race conditions where sink disposal preempts in-flight writes.
+  - **Worker Fault Isolation**: Worker isolates now run with `errorsAreFatal: false` and wrap sink outputs in structured diagnostics, preventing isolated target failures from terminating background workers.
+
+- ### Terminal Layout & Security
+  - **Log Injection & Escape Code Neutralization**: Neutralized non-SGR terminal control sequences (screen clears, cursor repositioning, OSC commands) to visible notation (`^[`) and stripped destructive C0 controls (`\x00`, `\x07`, `\x08`, `\x7F`). Carriage returns are normalized to line feeds to prevent visual line forgery in terminal logs, with a fast ASCII path to maintain zero layout overhead.
+  - **Raw Output Opt-Out**: Introduced `LogTag.raw` bitmask flag allowing handlers to bypass neutralization when raw ANSI output is explicitly intended.
 
 - ### Encoders & Serialization
   - **Resilient JSON Encoding**: Added graceful `toEncodable` fallback to `JsonEncoder` and `JsonCodec`, allowing safe serialization of non-JSON-native objects (`DateTime`, `Enum`, `Uri`, and custom models) without throwing `JsonUnsupportedObjectError`.

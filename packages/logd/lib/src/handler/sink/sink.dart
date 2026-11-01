@@ -51,6 +51,12 @@ abstract base class LogSink<T> {
     final LogPipelineFactory factory,
   );
 
+  /// Flushes any buffered data to the underlying destination.
+  ///
+  /// Subclasses that buffer output (such as file or socket sinks) should
+  /// override this method to ensure in-flight data is flushed.
+  Future<void> flush() async {}
+
   /// Performs cleanup, such as closing file handles or network connections.
   ///
   /// This should be called when the sink is no longer needed.

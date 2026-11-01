@@ -8,7 +8,8 @@ import 'package:test/test.dart';
 
 void main() {
   group('Dashboard DNS Rebinding Defense & Auth Token Hardening', () {
-    test('HttpServerSink rejects DNS rebinding requests where Host and Origin are foreign',
+    test(
+        'HttpServerSink rejects DNS rebinding requests where Host and Origin are foreign',
         () async {
       final sink = HttpServerSink(
         address: '127.0.0.1',
@@ -32,7 +33,8 @@ void main() {
       expect(res.statusCode, equals(403));
     });
 
-    test('HttpServerSink enforces authToken on GET / and WebSocket /ws when configured',
+    test(
+        'HttpServerSink enforces authToken on GET / and WebSocket /ws when configured',
         () async {
       const secret = 'super-secret-token-xyz';
       final sink = HttpServerSink(
@@ -68,7 +70,8 @@ void main() {
       );
 
       // 5. Authenticated WebSocket /ws with token parameter must succeed
-      final ws = await io.WebSocket.connect('ws://127.0.0.1:$port/ws?token=$secret');
+      final ws =
+          await io.WebSocket.connect('ws://127.0.0.1:$port/ws?token=$secret');
       expect(ws.readyState, equals(io.WebSocket.open));
       await ws.close();
     });
@@ -114,7 +117,8 @@ void main() {
       Logger.get('test.socket').info('trigger socket connection');
 
       await completer.future.timeout(const Duration(seconds: 3));
-      expect(receivedHeaders['authorization'], equals('Bearer jwt-token-12345'));
+      expect(
+          receivedHeaders['authorization'], equals('Bearer jwt-token-12345'));
       expect(receivedHeaders['x-client-id'], equals('agent-007'));
     });
   });

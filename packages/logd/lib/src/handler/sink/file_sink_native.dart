@@ -412,6 +412,20 @@ base class FileSink extends EncodingSink {
   /// The rotation policy applied to this sink (null for no rotation).
   final FileRotation? fileRotation;
 
+  @override
+  Future<void> flush() async {
+    final lock = _locks[basePath];
+    if (lock != null) {
+      await lock;
+    }
+  }
+
+  @override
+  Future<void> dispose() async {
+    await flush();
+    await super.dispose();
+  }
+
   static void _validateBasePath(final String basePath) {
     if (basePath.isEmpty) {
       throw ArgumentError('Invalid basePath: empty string. '

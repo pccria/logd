@@ -189,7 +189,9 @@ base class HttpServerSink extends EncodingSink {
   bool _isHostAllowed(final String? hostHeader) {
     if (hostHeader == null || hostHeader.isEmpty) return false;
     final hostOnly = hostHeader.split(':').first.toLowerCase();
-    if (hostOnly == 'localhost' || hostOnly == '127.0.0.1' || hostOnly == '::1') {
+    if (hostOnly == 'localhost' ||
+        hostOnly == '127.0.0.1' ||
+        hostOnly == '::1') {
       return true;
     }
     if (allowedHosts.contains(hostOnly) || allowedHosts.contains(hostHeader)) {

@@ -1569,6 +1569,11 @@ class Logger {
     }
   }
 
+  /// Flushes all pending log operations across this logger's handlers.
+  Future<void> flushHandlers() async {
+    await Future.wait(handlers.map((final h) => h.flush()));
+  }
+
   /// The set of fields that have been explicitly configured on this logger.
   Set<String> get explicitFields {
     final config = _registry[name];
@@ -2121,6 +2126,41 @@ class Logger {
         }
       }
     }
+  }
+
+  /// Flushes all pending log entries across all registered loggers and
+  /// handlers.
+  ///
+  /// Call this before process exit (e.g. at the end of `main()` or before
+  /// `exit(0)`) to ensure all asynchronous background writes and buffered
+  /// sinks are fully flushed to disk, network, or console.
+  static Future<void> flush() async {
+    final handlers = <Handler>{};
+    for (final config in _registry.values) {
+      if (config.handlers != null) {
+        handlers.addAll(config.handlers!);
+      }
+    }
+    for (final resolved in LoggerCache._cache.values) {
+      handlers.addAll(resolved.handlers);
+    }
+    await Future.wait(handlers.map((final h) => h.flush()));
+  }
+
+  /// Flushes all pending log entries and gracefully disposes all registered
+  /// handlers.
+  static Future<void> shutdown() async {
+    final handlers = <Handler>{};
+    for (final config in _registry.values) {
+      if (config.handlers != null) {
+        handlers.addAll(config.handlers!);
+      }
+    }
+    for (final resolved in LoggerCache._cache.values) {
+      handlers.addAll(resolved.handlers);
+    }
+    await Future.wait(handlers.map((final h) => h.flush()));
+    await Future.wait(handlers.map((final h) => h.dispose()));
   }
 
   static void _defaultFallbackHandler(

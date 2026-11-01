@@ -198,5 +198,32 @@ void main() {
       expect(result, equals('Fallback message'));
       await asyncHandler.dispose();
     });
+
+    test('should survive underlying sink dispose throwing an error', () async {
+      final sink = ThrowingDisposeSink();
+      final asyncHandler = AsyncHandler(
+        formatter: const PlainFormatter(),
+        sink: sink,
+      );
+      await asyncHandler.ready;
+      await expectLater(asyncHandler.dispose(), completes);
+    });
   });
+}
+
+base class ThrowingDisposeSink extends LogSink<LogDocument> {
+  ThrowingDisposeSink();
+
+  @override
+  Future<void> output(
+    final LogDocument document,
+    final LogEntry entry,
+    final LogLevel level,
+    final LogPipelineFactory factory,
+  ) async {}
+
+  @override
+  Future<void> dispose() async {
+    throw StateError('Simulated sink dispose failure');
+  }
 }

@@ -280,7 +280,7 @@ abstract base class NetworkSink extends EncodingSink {
 
   /// Returns and clears the current buffer.
   @protected
-  List<Uint8List> flush() {
+  List<Uint8List> takeBuffer() {
     final buffer = _state.buffer;
     final lines = buffer.toList();
     buffer.clear();
@@ -457,6 +457,11 @@ base class HttpSink extends NetworkSink {
     }
   }
 
+  @override
+  Future<void> flush() async {
+    await _flush();
+  }
+
   /// Triggers an asynchronous flush of the current buffer.
   void _triggerFlush() {
     scheduleMicrotask(_flush);
@@ -499,7 +504,7 @@ base class HttpSink extends NetworkSink {
           }
         }
 
-        final batch = flush();
+        final batch = takeBuffer();
         if (batch.isEmpty) {
           break;
         }
@@ -654,8 +659,9 @@ base class HttpSink extends NetworkSink {
   static String _sanitizeEndpoint(final String url) {
     try {
       final uri = Uri.parse(url);
-      final portPart =
-          (uri.hasPort && uri.port != 80 && uri.port != 443) ? ':${uri.port}' : '';
+      final portPart = (uri.hasPort && uri.port != 80 && uri.port != 443)
+          ? ':${uri.port}'
+          : '';
       return '${uri.scheme}://${uri.host}$portPart${uri.path}';
     } catch (_) {
       return url.split('?').first;
@@ -841,11 +847,16 @@ base class SocketSink extends NetworkSink {
     }
   }
 
+  @override
+  Future<void> flush() async {
+    _drainBuffer();
+  }
+
   void _drainBuffer() {
     if (!hasBufferedLogs) {
       return;
     }
-    final batch = flush();
+    final batch = takeBuffer();
     for (final line in batch) {
       _send(line);
     }

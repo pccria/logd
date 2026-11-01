@@ -65,6 +65,10 @@ abstract class LogTag {
   /// Semantic hint: Content is a preview string for a collapsed section.
   /// (Should be hidden when the section is open).
   static const int preview = 1 << 17;
+
+  /// Semantic hint: Content contains intentional raw formatting or escape
+  /// codes and should not be sanitized.
+  static const int raw = 1 << 18;
 }
 
 /// Visual style suggestion for a log segment.

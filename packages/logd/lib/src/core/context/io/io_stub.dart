@@ -11,6 +11,7 @@ class Stdout {
   bool get hasTerminal => false;
   int get terminalColumns => 80;
   bool get supportsAnsiEscapes => false;
+  Future<void> flush() async {}
 }
 
 final stdout = Stdout();

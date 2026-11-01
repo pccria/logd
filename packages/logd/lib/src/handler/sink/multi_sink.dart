@@ -92,7 +92,13 @@ base class MultiSink extends LogSink<LogDocument> {
   int get hashCode => Object.hash(Object.hashAll(sinks), enabled);
 
   @override
+  Future<void> flush() async {
+    await Future.wait(sinks.map((final sink) => sink.flush()));
+  }
+
+  @override
   Future<void> dispose() async {
+    await flush();
     await Future.wait(sinks.map((final sink) => sink.dispose()));
   }
 }

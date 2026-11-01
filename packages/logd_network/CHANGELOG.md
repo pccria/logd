@@ -9,6 +9,9 @@
   - Implemented cross-platform WebSocket connection adapter. On native VM platforms, configured `headers` are now transmitted as authentic HTTP headers during the handshake rather than offered as subprotocols, with dedicated support for `protocols`.
 - **Diagnostic Endpoint Sanitization (`HttpSink`)**:
   - Sanitized endpoint URLs and error strings in internal logging diagnostics, removing sensitive query strings and credentials before printing failover or drop warnings.
+- **Lifecycle & Buffer Drain (`flush`)**:
+  - Implemented `Future<void> flush()` on `HttpSink` and `SocketSink` conforming to the core `LogSink.flush()` contract, allowing callers to await pending HTTP transmissions and socket buffer drains before process shutdown.
+  - Renamed internal buffer extraction method to `takeBuffer()` to resolve naming conflicts.
 
 ## 0.2.4
 

@@ -122,6 +122,12 @@ class Handler {
     }
   }
 
+  /// Flushes any pending log operations in this handler's pipeline and sink.
+  @mustCallSuper
+  Future<void> flush() async {
+    await sink.flush();
+  }
+
   /// Disposes of any resources held by this handler.
   ///
   /// Subclasses that manage stateful resources (such as background isolates

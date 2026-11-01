@@ -153,62 +153,114 @@ base class AsyncHandler extends Handler {
     }
   }
 
+  /// Flushes in-flight log operations on the background worker isolate.
+  @override
+  Future<void> flush() async {
+    await super.flush();
+    if (_worker.isDisposed) {
+      return;
+    }
+    if (!_worker.isReady) {
+      await _worker.ready;
+    }
+    final port = _worker.commandPort;
+    if (port != null) {
+      final callback = ReceivePort();
+      try {
+        port.send(IsolateCommand.flush(callback.sendPort));
+        await callback.first.timeout(const Duration(seconds: 5));
+      } catch (_) {
+        // Safe fallback on timeout or worker issue
+      } finally {
+        callback.close();
+      }
+    }
+  }
+
   /// Disposes of the background isolate and releases any associated resources.
   @override
   Future<void> dispose() async {
     _finalizer.detach(this);
+    await flush();
     await _worker.dispose();
     await super.dispose();
   }
 
   static void _spawnWorker(final List<dynamic> args) {
-    final sendPort = args[0] as SendPort;
-    final configArgs = args[1] as List<dynamic>;
+    unawaited(
+      () async {
+        final sendPort = args[0] as SendPort;
+        final configArgs = args[1] as List<dynamic>;
 
-    final formatter = configArgs[0] as LogFormatter;
-    final sink = configArgs[1] as LogSink;
-    final decorators = configArgs[2] as List<LogDecorator>;
-    final engine = configArgs[3] as LogEngine;
-    final timeout = configArgs[4] as Duration?;
+        final formatter = configArgs[0] as LogFormatter;
+        final sink = configArgs[1] as LogSink;
+        final decorators = configArgs[2] as List<LogDecorator>;
+        final engine = configArgs[3] as LogEngine;
+        final timeout = configArgs[4] as Duration?;
 
-    final receivePort = ReceivePort();
-    sendPort.send(receivePort.sendPort);
+        final receivePort = ReceivePort();
+        sendPort.send(receivePort.sendPort);
 
-    receivePort.listen((final message) async {
-      if (message is LogEntry) {
-        try {
-          if (timeout != null) {
-            await engine
-                .execute(
+        await for (final message in receivePort) {
+          if (message is LogEntry) {
+            try {
+              if (timeout != null) {
+                await engine
+                    .execute(
+                      message,
+                      formatter,
+                      decorators,
+                      sink,
+                    )
+                    .timeout(timeout);
+              } else {
+                await engine.execute(
                   message,
                   formatter,
                   decorators,
                   sink,
-                )
-                .timeout(timeout);
-          } else {
-            await engine.execute(
-              message,
-              formatter,
-              decorators,
-              sink,
-            );
+                );
+              }
+            } catch (e, s) {
+              InternalLogger.log(
+                LogLevel.error,
+                'AsyncHandler worker pipeline execution failed',
+                error: e,
+                stackTrace: s,
+              );
+            }
+          } else if (message is IsolateCommand) {
+            if (message.type == IsolateCommandType.flush) {
+              try {
+                await sink.flush();
+              } catch (e, s) {
+                InternalLogger.log(
+                  LogLevel.error,
+                  'AsyncHandler worker sink flush failed',
+                  error: e,
+                  stackTrace: s,
+                );
+              } finally {
+                message.replyPort?.send(null);
+              }
+            } else if (message.type == IsolateCommandType.stop) {
+              try {
+                await sink.dispose();
+              } catch (e, s) {
+                InternalLogger.log(
+                  LogLevel.error,
+                  'AsyncHandler worker sink disposal failed',
+                  error: e,
+                  stackTrace: s,
+                );
+              } finally {
+                message.replyPort?.send(null);
+                receivePort.close();
+              }
+            }
           }
-        } catch (e, s) {
-          InternalLogger.log(
-            LogLevel.error,
-            'AsyncHandler worker pipeline execution failed',
-            error: e,
-            stackTrace: s,
-          );
         }
-      } else if (message is IsolateCommand) {
-        if (message.type == IsolateCommandType.stop) {
-          await sink.dispose();
-          message.replyPort?.send(null);
-          receivePort.close();
-        }
-      }
-    });
+      }(),
+    );
   }
 }

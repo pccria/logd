@@ -233,10 +233,14 @@ class TerminalLayout {
         continue;
       }
       final resolvedText = resolveFileUris(segment.text);
+      final sanitizedText = sanitizeControlCharacters(
+        resolvedText,
+        isRaw: (segment.tags & LogTag.raw) != 0,
+      );
       // If segment is tagged noWrap, we bypass width constraints.
       if ((segment.tags & LogTag.noWrap) != 0) {
         // Just append the whole text. If there are newlines, respect them.
-        final physicalLines = resolvedText.split('\n');
+        final physicalLines = sanitizedText.split('\n');
         for (var l = 0; l < physicalLines.length; l++) {
           if (l > 0) {
             commitLine();
@@ -254,7 +258,7 @@ class TerminalLayout {
         continue;
       }
 
-      final physicalLines = resolvedText.split('\n');
+      final physicalLines = sanitizedText.split('\n');
 
       for (var l = 0; l < physicalLines.length; l++) {
         if (l > 0) {

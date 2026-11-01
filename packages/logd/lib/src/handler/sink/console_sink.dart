@@ -47,6 +47,15 @@ base class ConsoleSink extends EncodingSink {
       lineLength ?? (io.stdout.hasTerminal ? io.stdout.terminalColumns : 80);
 
   @override
+  Future<void> flush() async {
+    if (!io.isStub && io.stdout.hasTerminal) {
+      try {
+        await io.stdout.flush();
+      } catch (_) {}
+    }
+  }
+
+  @override
   bool operator ==(final Object other) =>
       identical(this, other) ||
       other is ConsoleSink &&
