@@ -702,7 +702,10 @@ final class BinaryAnsiEncoder {
     // 1. Read Header
     final magic = irPtr.cast<ffi.Uint32>()[0];
     if (magic != BinaryIR.magic) {
-      return 'Error: Invalid Binary IR';
+      throw FormatException(
+        'Invalid Binary IR magic: 0x${magic.toRadixString(16)} '
+        '(expected 0x${BinaryIR.magic.toRadixString(16)})',
+      );
     }
 
     final nodeCount = irPtr.cast<ffi.Uint32>()[2];
@@ -1812,8 +1815,10 @@ final class BinaryAnsiEncoder {
           break;
 
         default:
-          currentOffset += 8;
-          break;
+          throw FormatException(
+            'Unrecognized or unsupported Binary IR opcode: '
+            '0x${op.toRadixString(16)} at offset $currentOffset',
+          );
       }
       i++;
     }
@@ -1991,7 +1996,10 @@ final class BinaryToonEncoder {
     // 1. Read Header
     final magic = irPtr.cast<ffi.Uint32>()[0];
     if (magic != BinaryIR.magic) {
-      return 'Error: Invalid Binary IR';
+      throw FormatException(
+        'Invalid Binary IR magic: 0x${magic.toRadixString(16)} '
+        '(expected 0x${BinaryIR.magic.toRadixString(16)})',
+      );
     }
 
     final nodeCount = irPtr.cast<ffi.Uint32>()[2];
@@ -2012,38 +2020,59 @@ final class BinaryToonEncoder {
 
       switch (op) {
         case BinaryIR.opGlobalMetadata:
-          if (totalLength > 0 && currentOffset + 8 > totalLength) {
+          if (totalLength > 0 && currentOffset + 16 > totalLength) {
             break;
           }
-          final count = opPtr.cast<ffi.Uint32>()[1];
-          currentOffset += 8;
+          final count = opPtr.cast<ffi.Uint32>()[2];
+          currentOffset += 16;
           for (int j = 0; j < count; j++) {
-            if (totalLength > 0 && currentOffset + 8 > totalLength) {
+            final remaining =
+                totalLength > 0 ? (totalLength - currentOffset) : 0x7FFFFFFF;
+            final entry = _readMetadataEntry(
+              irPtr + currentOffset,
+              remainingBytes: remaining,
+            );
+            if (entry == null) {
               break;
             }
-            final entry = _readMetadataEntry(irPtr + currentOffset);
-            if (totalLength > 0 &&
-                currentOffset + entry.totalSize > totalLength) {
-              break;
+            final val = entry.value;
+            if (entry.key == 'toon_columns' && val is String) {
+              final colStr = val;
+              if (colStr.startsWith('[') && colStr.endsWith(']')) {
+                try {
+                  globalMetadata[entry.key] = convert.jsonDecode(colStr);
+                } catch (_) {
+                  globalMetadata[entry.key] = colStr
+                      .substring(1, colStr.length - 1)
+                      .split(',')
+                      .map((final e) => e.trim())
+                      .toList();
+                }
+              } else {
+                globalMetadata[entry.key] =
+                    colStr.split(',').map((final e) => e.trim()).toList();
+              }
+            } else {
+              globalMetadata[entry.key] = entry.value;
             }
-            globalMetadata[entry.key] = entry.value;
             currentOffset += entry.totalSize;
           }
 
         case BinaryIR.opMetadata:
-          if (totalLength > 0 && currentOffset + 8 > totalLength) {
+          if (totalLength > 0 && currentOffset + 16 > totalLength) {
             break;
           }
-          final count = opPtr.cast<ffi.Uint32>()[1];
-          currentOffset += 8;
+          final count = opPtr.cast<ffi.Uint32>()[2];
+          currentOffset += 16;
           final map = <String, Object?>{};
           for (int j = 0; j < count; j++) {
-            if (totalLength > 0 && currentOffset + 8 > totalLength) {
-              break;
-            }
-            final entry = _readMetadataEntry(irPtr + currentOffset);
-            if (totalLength > 0 &&
-                currentOffset + entry.totalSize > totalLength) {
+            final remaining =
+                totalLength > 0 ? (totalLength - currentOffset) : 0x7FFFFFFF;
+            final entry = _readMetadataEntry(
+              irPtr + currentOffset,
+              remainingBytes: remaining,
+            );
+            if (entry == null) {
               break;
             }
             map[entry.key] = entry.value;
@@ -2056,7 +2085,7 @@ final class BinaryToonEncoder {
             break;
           }
           final len = opPtr.cast<ffi.Uint32>()[3];
-          currentOffset += 16 + len;
+          currentOffset += (16 + len + 7) & ~7;
         case BinaryIR.opNewline:
           currentOffset += 8;
         case BinaryIR.opBoxStart:
@@ -2067,11 +2096,11 @@ final class BinaryToonEncoder {
             break;
           }
           final len = opPtr.cast<ffi.Uint32>()[3];
-          currentOffset += 16 + len;
+          currentOffset += (16 + len + 7) & ~7;
         case BinaryIR.opIndentEnd:
           currentOffset += 8;
         case BinaryIR.opFiller:
-          currentOffset += 20;
+          currentOffset += 24;
         case BinaryIR.opDecoratedStart:
           if (totalLength > 0 && currentOffset + 24 > totalLength) {
             break;
@@ -2099,7 +2128,10 @@ final class BinaryToonEncoder {
         case BinaryIR.opDecoratedEnd:
           currentOffset += 8;
         default:
-          currentOffset += 8;
+          throw FormatException(
+            'Unrecognized or unsupported Binary IR opcode: '
+            '0x${op.toRadixString(16)} at offset $currentOffset',
+          );
       }
     }
 
@@ -2113,7 +2145,7 @@ final class BinaryToonEncoder {
     }
 
     // Header (Simplified for offload)
-    buffer.write('$arrayName[]${columns.join(',')}:');
+    buffer.write('$arrayName[]${columns.join(',')}:\n');
 
     // Rows
     for (int i = 0; i < rows.length; i++) {
@@ -2132,13 +2164,23 @@ final class BinaryToonEncoder {
     return buffer.toString();
   }
 
-  _MetadataEntry _readMetadataEntry(final ffi.Pointer<ffi.Uint8> ptr) {
+  _MetadataEntry? _readMetadataEntry(
+    final ffi.Pointer<ffi.Uint8> ptr, {
+    required final int remainingBytes,
+  }) {
+    if (remainingBytes < 8) {
+      return null;
+    }
     final type = ptr[0];
     final keyLen = (ptr + 2).cast<ffi.Uint16>()[0];
-    final key = convert.utf8.decode((ptr + 4).asTypedList(keyLen));
+    final valLen = (ptr + 4).cast<ffi.Uint32>()[0];
+    final totalSize = (8 + keyLen + valLen + 7) & ~7;
 
-    final valLenPtr = (ptr + 4 + keyLen).cast<ffi.Uint32>();
-    final valLen = valLenPtr[0];
+    if (totalSize > remainingBytes) {
+      return null;
+    }
+
+    final key = convert.utf8.decode((ptr + 8).asTypedList(keyLen));
     final valStr = convert.utf8.decode((ptr + 8 + keyLen).asTypedList(valLen));
 
     Object? value = valStr;
@@ -2152,7 +2194,7 @@ final class BinaryToonEncoder {
       } catch (_) {}
     }
 
-    return _MetadataEntry(key, value, 8 + keyLen + valLen);
+    return _MetadataEntry(key, value, totalSize);
   }
 
   String _escape(final String value, final String delimiter) {

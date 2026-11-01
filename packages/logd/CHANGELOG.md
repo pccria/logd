@@ -9,6 +9,8 @@ This patch release hardens log retention, rotation, hierarchy invalidation, and 
   - **Hierarchy Invalidation on Config Import**: `Logger.importConfig` stages configurations atomically and rebuilds descendant index mappings, ensuring child loggers correctly invalidate and inherit parent updates.
   - **Explicit Stack Trace Demangling**: Preserved frame #0 (the crash throw site) when an explicit `stackTrace:` is passed to log methods, ensuring error origin accurately reflects the throw site.
   - **Lifecycle Drain & Process Flush**: Added `Future<void> flush()` contract to `LogSink`, `Handler`, and `AsyncHandler`, complemented by static `Logger.flush()`, `Logger.shutdown()`, and instance `logger.flushHandlers()`. Guarantees all queued and in-flight isolate buffers cleanly drain before process exit.
+  - **Filter Equality & Reconfiguration Resilience**: Implemented `operator ==` and `hashCode` value equality across `LevelFilter` and `ContextFilter` with `@immutable` enforcement, preventing redundant handler cache invalidations when reconfiguring loggers with equivalent filter configurations.
+  - **Timezone Resolution Fast Path & Cold-Start Optimization**: Introduced fast-path resolution and lazy database initialization in `Timezone.local()`. UTC, numeric offsets (`+0330`), and mobile platform abbreviations (`EDT`, `EST`, `PST`) resolve instantly to fixed offsets without triggering full timezone database extraction or logging alarming false-positive error diagnostics.
 
 - ### Async Engine & Isolate Worker Resilience
   - **Sequential Worker Event Loop**: Replaced asynchronous event listener callbacks with `await for` in `IsolateSink` and `AsyncHandler`. Guarantees strictly ordered FIFO processing and eliminates race conditions where sink disposal preempts in-flight writes.
@@ -20,6 +22,7 @@ This patch release hardens log retention, rotation, hierarchy invalidation, and 
 
 - ### Encoders & Serialization
   - **Resilient JSON Encoding**: Added graceful `toEncodable` fallback to `JsonEncoder` and `JsonCodec`, allowing safe serialization of non-JSON-native objects (`DateTime`, `Enum`, `Uri`, and custom models) without throwing `JsonUnsupportedObjectError`.
+  - **Structured Binary IR Decoder Resilience**: Hardened `BinaryAnsiEncoder` and `BinaryToonEncoder` to throw structured `FormatException` on invalid magic headers or unrecognized opcodes rather than emitting open error strings or advancing corrupted offset streams. Resolved metadata alignment and bounds checking in `BinaryToonEncoder`.
 
 - ### File Sinks & Rotation Policies
   - **Safe Retention Cleanup**: Enforced exact indexed pattern matching in `SizeRotation` and timestamp pattern matching in `TimeRotation` to prevent deletion of sibling files sharing a stem prefix (e.g. `app_error.log` when rotating `app.log`).
