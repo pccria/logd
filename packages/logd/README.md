@@ -79,7 +79,7 @@ Ready-to-use handlers cover common destinations out of the box (with specialized
 ConsoleHandler(theme: const DarkTheme())
 
 // Structured JSON to file (pretty or compact)
-JsonFileHandler('logs/api.json', pretty: true)
+JsonFileHandler(path: 'logs/api.json', pretty: true)
 
 // Self-contained HTML report (from package:logd_html)
 HtmlFileHandler('logs/session.html')
@@ -88,7 +88,7 @@ HtmlFileHandler('logs/session.html')
 ToonFileHandler('logs/telemetry.toon')
 
 // Plain text to file
-PlainFileHandler('logs/app.log')
+PlainFileHandler(path: 'logs/app.log')
 
 // GitHub-Flavored Markdown for CI summaries (from package:logd_markdown)
 MarkdownFileHandler('logs/ci.md')
@@ -108,7 +108,7 @@ Add `.async()` to any output-bound handler to offload its pipeline to a backgrou
 ```dart
 Logger.configure('app', handlers: [
   ConsoleHandler.async(),
-  JsonFileHandler.async('logs/production.json'),
+  JsonFileHandler.async(path: 'logs/production.json'),
   HtmlFileHandler.async('logs/report.html'),
   SqliteHandler.async('logs/app.db'),
   HttpDashboardHandler.async(port: 8080),
@@ -318,7 +318,7 @@ Or fan out a single formatter to multiple sinks:
 ```dart
 Handler(
   formatter: const PlainFormatter(),
-  sink: MultiSink(sinks: [
+  sink: MultiSink([
     ConsoleSink(),
     FileSink('logs/app.log'),
   ]),
@@ -344,11 +344,11 @@ buffer?.sink(); // flushed as a single atomic LogEntry
 // Level filter — errors only
 Handler(filters: [LevelFilter(LogLevel.error)], ...)
 
-// Regex filter — exclude sensitive fields
-Handler(filters: [RegexFilter(r'password|secret|token', exclude: true)], ...)
+// Regex filter — exclude matching messages
+Handler(filters: [RegexFilter(RegExp(r'password|secret|token'), invert: true)], ...)
 
 // Context filter — match on MDC key presence or value
-Handler(filters: [ContextFilter(key: 'tenantId', value: 'acme')], ...)
+Handler(filters: [ContextFilter('tenantId', value: 'acme')], ...)
 ```
 
 ### Timestamp & Timezone
@@ -379,7 +379,7 @@ FileSink('logs/app.log', fileRotation: SizeRotation(
 // Time-based
 FileSink('logs/app.log', fileRotation: TimeRotation(
   interval: Duration(hours: 1),
-  timestamp: Timestamp(formatter: 'yyyy-MM-dd_HH'),
+  timestamp: Timestamp(formatter: 'yyyy-MM-dd-HH'),
   backupCount: 24,
 ))
 ```
@@ -586,7 +586,7 @@ void main() async {
     handlers: [
       if (kDebugMode) ConsoleHandler(theme: const DarkTheme()),
       // Background worker isolate — disk writes never hitch the UI thread:
-      JsonFileHandler.async('${dir.path}/app_logs.json'),
+      JsonFileHandler.async(path: '${dir.path}/app_logs.json'),
     ],
   );
 
@@ -725,15 +725,12 @@ void main() {
 import 'package:logd/testing.dart';
 
 test('logs warning on failure', () async {
-  final logger = TestLogger.get('app');
-  final capture = CaptureSink();
-  logger.configure(handlers: [
-    Handler(formatter: const PlainFormatter(), sink: capture),
-  ]);
+  final testLogger = TestLogger('app');
+  addTearDown(() => testLogger.dispose());
 
-  performAction(logger);
+  performAction(testLogger.logger);
 
-  expect(capture, hasLog(
+  expect(testLogger, hasLog(
     message: contains('action failed'),
     level: LogLevel.warning,
   ));

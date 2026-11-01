@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.6: Core Resilience & Serialization Stabilization
+
+This patch release hardens log retention, rotation, and serialization across the core logging engine:
+
+- **Critical Fix — Obfuscated Stack Frame Handling**: Prevent silent log drops in stripped or obfuscated release builds (`--split-debug-info`, `--obfuscate`). When `StackTraceParser` cannot identify a caller frame, origin extraction now defaults safely to `'unknown'` instead of aborting the logging pipeline.
+- **Critical Fix — Safe Rotation Cleanup**: Prevent accidental deletion of unrelated log files on disk during retention cleanup. Enforced exact backup pattern matching in `SizeRotation` and `TimeRotation` so prefix-matching edge cases no longer delete sibling files sharing a stem prefix (e.g. `app_error.log` when rotating `app.log`).
+- **Critical Fix — Resilient JSON Encoding**: Prevent serialization crashes when logging structured metadata. Added a graceful `toEncodable` fallback in `JsonEncoder` to safely serialize non-JSON-native objects (`DateTime`, `Enum`, `Uri`, and custom models) instead of throwing unhandled `JsonUnsupportedObjectError` exceptions.
+- **Bug Fix — Continuous TimeRotation**: Resolved an issue where continuous writes prevented `TimeRotation` from ever triggering by removing the modification-timestamp overwrite on append operations.
+- **Packaging — Flutter Compatibility**: Relaxed `matcher` dependency constraint to `'>=0.12.16 <0.13.0'` for seamless compatibility across Flutter releases.
+- **Documentation**: Corrected constructor signatures and examples in README (`JsonFileHandler`, `PlainFileHandler`, `MultiSink`, `RegexFilter`, `ContextFilter`, `TestLogger`, and `TimeRotation`).
+
 ## 0.10.5
 
 - **Maintenance**: Update repository, issue tracker, documentation, and raw asset URLs to reflect account migration to `pccria`.

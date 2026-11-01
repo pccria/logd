@@ -1965,10 +1965,11 @@ class Logger {
         maxFrames: frameCount,
       );
       if (shouldExtractOrigin) {
-        if (parsed.caller == null) {
-          return;
+        if (parsed.caller != null) {
+          origin = _buildOrigin(parsed.caller!);
+        } else {
+          origin = 'unknown';
         }
-        origin = _buildOrigin(parsed.caller!);
       } else {
         origin = '';
       }

@@ -172,10 +172,34 @@ class SizeRotation extends FileRotation {
       final dir = file.parent;
       final entities = await dir.list().toList();
       final backupFiles = <File>[];
+      final targetStem = filenamePart.substring(
+        0,
+        filenamePart.length - (ext?.length ?? 0),
+      );
       for (final e in entities) {
-        if (e is File &&
-            e.path.startsWith(baseWithoutExt) &&
-            e.path.endsWith(extension)) {
+        if (e is! File || e.path == basePath) {
+          continue;
+        }
+        final name = e.path.split(pathSeparator).last;
+        if (compress && !name.endsWith('.gz')) {
+          continue;
+        }
+        if (!compress && name.endsWith('.gz')) {
+          continue;
+        }
+        final n = compress ? name.substring(0, name.length - 3) : name;
+        if (!n.startsWith('$targetStem.')) {
+          continue;
+        }
+        final extPart = ext ?? '';
+        if (extPart.isNotEmpty && !n.endsWith(extPart)) {
+          continue;
+        }
+        final indexPart = n.substring(
+          targetStem.length + 1,
+          n.length - extPart.length,
+        );
+        if (int.tryParse(indexPart) != null) {
           backupFiles.add(e);
         }
       }
@@ -289,13 +313,37 @@ class TimeRotation extends FileRotation {
       // Cleanup: Find rotated files, sort by mod time, delete oldest
       final dir = file.parent;
       final entities = await dir.list().toList();
-      final extension = compress ? '.gz' : '';
+      final targetStem = filenamePart.substring(
+        0,
+        filenamePart.length - (ext?.length ?? 0),
+      );
       final logFiles = entities
           .where(
-            (final e) =>
-                e is File &&
-                e.path.startsWith('$baseWithoutExt-') &&
-                e.path.endsWith(extension),
+            (final e) {
+              if (e is! File || e.path == basePath) {
+                return false;
+              }
+              final name = e.path.split(pathSeparator).last;
+              if (compress && !name.endsWith('.gz')) {
+                return false;
+              }
+              if (!compress && name.endsWith('.gz')) {
+                return false;
+              }
+              final n = compress ? name.substring(0, name.length - 3) : name;
+              if (!n.startsWith('$targetStem-')) {
+                return false;
+              }
+              final extPart = ext ?? '';
+              if (extPart.isNotEmpty && !n.endsWith(extPart)) {
+                return false;
+              }
+              final middle = n.substring(
+                targetStem.length + 1,
+                n.length - extPart.length,
+              );
+              return middle.isNotEmpty;
+            },
           )
           .cast<File>()
           .toList()
@@ -435,13 +483,6 @@ base class FileSink extends EncodingSink {
         );
       } finally {
         raf.closeSync();
-      }
-
-      if (fileRotation is TimeRotation) {
-        final timeRotation = fileRotation;
-        if (await targetFile.exists()) {
-          timeRotation.lastRotation = await targetFile.lastModified();
-        }
       }
     } finally {
       if (_locks[basePath] == completer.future) {

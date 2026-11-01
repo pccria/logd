@@ -47,8 +47,8 @@ class JsonEncoder implements LogEncoder {
     }
 
     final encoder = indent != null
-        ? convert.JsonEncoder.withIndent(indent)
-        : const convert.JsonCodec().encoder;
+        ? convert.JsonEncoder.withIndent(indent, _toEncodable)
+        : const convert.JsonCodec(toEncodable: _toEncodable).encoder;
 
     // Optimization: If there's exactly one MapNode or ListNode, serialize its
     // raw data.
@@ -136,4 +136,17 @@ class JsonEncoder implements LogEncoder {
           },
         _ => node.toString(),
       };
+
+  static Object? _toEncodable(final Object? object) {
+    if (object is DateTime) {
+      return object.toIso8601String();
+    }
+    if (object is Enum) {
+      return object.name;
+    }
+    if (object is Uri) {
+      return object.toString();
+    }
+    return object?.toString();
+  }
 }
