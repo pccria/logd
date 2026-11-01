@@ -2,11 +2,16 @@
 
 ## 0.10.6: Core Resilience & Serialization Stabilization
 
-This patch release hardens log retention, rotation, and serialization across the core logging engine:
+This patch release hardens log retention, rotation, hierarchy invalidation, and serialization across the core logging engine:
 
 - **Critical Fix — Obfuscated Stack Frame Handling**: Prevent silent log drops in stripped or obfuscated release builds (`--split-debug-info`, `--obfuscate`). When `StackTraceParser` cannot identify a caller frame, origin extraction now defaults safely to `'unknown'` instead of aborting the logging pipeline.
 - **Critical Fix — Safe Rotation Cleanup**: Prevent accidental deletion of unrelated log files on disk during retention cleanup. Enforced exact backup pattern matching in `SizeRotation` and `TimeRotation` so prefix-matching edge cases no longer delete sibling files sharing a stem prefix (e.g. `app_error.log` when rotating `app.log`).
 - **Critical Fix — Resilient JSON Encoding**: Prevent serialization crashes when logging structured metadata. Added a graceful `toEncodable` fallback in `JsonEncoder` to safely serialize non-JSON-native objects (`DateTime`, `Enum`, `Uri`, and custom models) instead of throwing unhandled `JsonUnsupportedObjectError` exceptions.
+- **Explicit Stack Trace Demangling**: Preserved frame #0 (the actual throw site) when an explicit `stackTrace:` is passed to log methods, ensuring error origin and collected frames accurately reflect the crash site.
+- **Hierarchy Invalidation on Config Import**: `Logger.importConfig` now stages configurations atomically and rebuilds the descendant index, ensuring child loggers correctly invalidate and inherit parent updates following an import.
+- **MemorySink Reconfiguration**: Switched `MemorySink` to identity equality so reconfiguring a logger with a new `MemorySink` instance is properly recognized rather than ignored.
+- **Symbol Resolver Equality**: Included `symbolResolver` in `StackTraceParser` equality and hashing to ensure deobfuscation configuration changes trigger proper cache updates.
+- **MultiSink Failure Propagation**: Rethrow errors when all active child sinks fail, allowing `Logger.fallbackHandler` and failure metrics to engage during catastrophic sink failures.
 - **Bug Fix — Continuous TimeRotation**: Resolved an issue where continuous writes prevented `TimeRotation` from ever triggering by removing the modification-timestamp overwrite on append operations.
 - **Packaging — Flutter Compatibility**: Relaxed `matcher` dependency constraint to `'>=0.12.16 <0.13.0'` for seamless compatibility across Flutter releases.
 - **Documentation**: Corrected constructor signatures and examples in README (`JsonFileHandler`, `PlainFileHandler`, `MultiSink`, `RegexFilter`, `ContextFilter`, `TestLogger`, and `TimeRotation`).

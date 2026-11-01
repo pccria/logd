@@ -44,29 +44,39 @@ base class MultiSink extends LogSink<LogDocument> {
       return;
     }
 
-    await Future.wait(
-      sinks.where((final sink) => sink.enabled).map(
-            (final sink) => _safeOutput(sink, document, entry, level, factory),
-          ),
-    );
-  }
+    final activeSinks = sinks.where((final sink) => sink.enabled).toList();
+    if (activeSinks.isEmpty) {
+      return;
+    }
 
-  Future<void> _safeOutput(
-    final LogSink<LogDocument> sink,
-    final LogDocument document,
-    final LogEntry entry,
-    final LogLevel level,
-    final LogPipelineFactory factory,
-  ) async {
-    try {
-      await sink.output(document, entry, level, factory);
-    } catch (e, s) {
-      InternalLogger.log(
-        LogLevel.error,
-        'MultiSink child failure: ${sink.runtimeType}',
-        error: e,
-        stackTrace: s,
-      );
+    final errors = <Object>[];
+    await Future.wait(
+      activeSinks.map(
+        (final sink) async {
+          try {
+            await sink.output(document, entry, level, factory);
+          } catch (e, s) {
+            errors.add(e);
+            InternalLogger.log(
+              LogLevel.error,
+              'MultiSink child failure: ${sink.runtimeType}',
+              error: e,
+              stackTrace: s,
+            );
+          }
+        },
+      ),
+    );
+
+    if (errors.length == activeSinks.length) {
+      final firstError = errors.first;
+      if (firstError is Error) {
+        throw firstError;
+      }
+      if (firstError is Exception) {
+        throw firstError;
+      }
+      throw Exception(firstError.toString());
     }
   }
 

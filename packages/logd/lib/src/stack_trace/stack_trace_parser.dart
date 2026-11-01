@@ -381,12 +381,14 @@ class StackTraceParser {
           runtimeType == other.runtimeType &&
           listEquals(ignorePackages, other.ignorePackages) &&
           customFilter == other.customFilter &&
-          includeAsyncOrigin == other.includeAsyncOrigin;
+          includeAsyncOrigin == other.includeAsyncOrigin &&
+          symbolResolver == other.symbolResolver;
 
   @override
   int get hashCode => Object.hash(
         Object.hashAll(ignorePackages),
         customFilter,
         includeAsyncOrigin,
+        symbolResolver,
       );
 }

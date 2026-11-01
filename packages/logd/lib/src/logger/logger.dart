@@ -1222,20 +1222,20 @@ class Logger {
   /// This registers all configurations, merging/overwriting any existing ones
   /// and invalidating cache keys.
   static void importConfig(final Map<String, dynamic> configData) {
+    final stagedRegistry = <String, LoggerConfig>{};
     final registryMap = configData['registry'] as Map<dynamic, dynamic>?;
     if (registryMap != null) {
       for (final entry in registryMap.entries) {
-        final name = entry.key as String;
+        final name = _normalizeName(entry.key as String);
         final configJson = entry.value as Map<dynamic, dynamic>;
-        final config =
+        stagedRegistry[name] =
             LoggerConfig.fromJson(Map<String, dynamic>.from(configJson));
-        _registry[name] = config;
       }
     }
 
+    final stagedRules = <_PatternRule>[];
     final patternRulesList = configData['patternRules'] as List<dynamic>?;
     if (patternRulesList != null) {
-      _patternRules.clear();
       for (final ruleObj in patternRulesList) {
         final ruleMap = ruleObj as Map<dynamic, dynamic>;
         final pattern = ruleMap['pattern'] as String;
@@ -1243,7 +1243,7 @@ class Logger {
         final config =
             LoggerConfig.fromJson(Map<String, dynamic>.from(configJson));
         final regExp = _patternToRegExp(pattern);
-        _patternRules.add(
+        stagedRules.add(
           _PatternRule(
             pattern: pattern,
             regExp: regExp,
@@ -1253,7 +1253,16 @@ class Logger {
       }
     }
 
+    _patternRules
+      ..clear()
+      ..addAll(stagedRules);
+
+    _registry.addAll(stagedRegistry);
+
     LoggerCache.clear();
+    for (final name in _registry.keys) {
+      LoggerCache._registerDescendant(name);
+    }
   }
 
   /// Internal: Checks if a name is a descendant of parent.
@@ -1961,7 +1970,7 @@ class Logger {
       }
       final parsed = stackTraceParser.parse(
         stackTrace: trace,
-        skipFrames: _logMethodSkipFrames,
+        skipFrames: hasExplicitTrace ? 0 : _logMethodSkipFrames,
         maxFrames: frameCount,
       );
       if (shouldExtractOrigin) {
