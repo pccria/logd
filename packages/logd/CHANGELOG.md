@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.10.6: Core Resilience & Serialization Stabilization
+
+This patch release hardens log retention, rotation, hierarchy invalidation, and serialization across the core logging engine:
+
+- ### Core Logging Engine & Hierarchy
+  - **Obfuscated Stack Frame Origin Resolution**: Prevent silent log drops in stripped or obfuscated release builds (`--split-debug-info`, `--obfuscate`). Origin extraction safely falls back to `'unknown'` when caller frames cannot be parsed.
+  - **Hierarchy Invalidation on Config Import**: `Logger.importConfig` stages configurations atomically and rebuilds descendant index mappings, ensuring child loggers correctly invalidate and inherit parent updates.
+  - **Explicit Stack Trace Demangling**: Preserved frame #0 (the crash throw site) when an explicit `stackTrace:` is passed to log methods, ensuring error origin accurately reflects the throw site.
+
+- ### Encoders & Serialization
+  - **Resilient JSON Encoding**: Added graceful `toEncodable` fallback to `JsonEncoder` and `JsonCodec`, allowing safe serialization of non-JSON-native objects (`DateTime`, `Enum`, `Uri`, and custom models) without throwing `JsonUnsupportedObjectError`.
+
+- ### File Sinks & Rotation Policies
+  - **Safe Retention Cleanup**: Enforced exact indexed pattern matching in `SizeRotation` and timestamp pattern matching in `TimeRotation` to prevent deletion of sibling files sharing a stem prefix (e.g. `app_error.log` when rotating `app.log`).
+  - **Continuous TimeRotation**: Fixed period tracking so continuous writes do not push `lastRotation` forward on append operations.
+  - **MemorySink State Reconfiguration**: Switched `MemorySink` to identity equality so reconfiguring a logger with a new sink buffer is recognized rather than ignored.
+  - **MultiSink Error Propagation**: Rethrows failures when all active child sinks fail, allowing `Logger.fallbackHandler` and failure metrics to engage.
+
+- ### Packaging & Diagnostics
+  - **Flutter SDK Compatibility**: Relaxed `matcher` constraint to `'>=0.12.16 <0.13.0'`.
+  - **Symbol Resolver Equality**: Included `symbolResolver` in `StackTraceParser` equality and hashing.
+  - **Documentation**: Aligned constructor signatures and code snippets across README (`JsonFileHandler`, `PlainFileHandler`, `MultiSink`, `RegexFilter`, `ContextFilter`, `TestLogger`, and `TimeRotation`).
+
 ## 0.10.5
 
 - **Maintenance**: Update repository, issue tracker, documentation, and raw asset URLs to reflect account migration to `pccria`.
