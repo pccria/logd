@@ -26,6 +26,8 @@ base class HttpServerSink extends EncodingSink {
     this.bufferCapacity = 100,
     this.maxConnections = 32,
     this.allowedOrigins = const {},
+    this.allowedHosts = const {},
+    this.authToken,
   }) : super(preferredWidth: lineLength ?? 120, delegate: _staticWrite) {
     _startServer();
   }
@@ -49,6 +51,15 @@ base class HttpServerSink extends EncodingSink {
   /// and non-browser clients (null origin) are allowed to prevent Cross-Site WebSocket
   /// Hijacking (CSWSH). Add any custom remote dashboard domains here if applicable.
   final Set<String> allowedOrigins;
+
+  /// Allowed hosts for incoming HTTP requests (DNS rebinding defense).
+  ///
+  /// Requests with `Host` headers not matching loopback interfaces (`localhost`, `127.0.0.1`, `::1`)
+  /// or this set will be rejected with HTTP 403 Forbidden.
+  final Set<String> allowedHosts;
+
+  /// Optional authentication token required for dashboard HTTP and WebSocket access.
+  final String? authToken;
 
   /// Completer to track server readiness.
   final Completer<void> _ready = Completer<void>();
@@ -76,6 +87,24 @@ base class HttpServerSink extends EncodingSink {
       _ready.complete();
 
       server.listen((final request) async {
+        // 1. Host header validation (DNS Rebinding Defense)
+        final hostHeader = request.headers.host;
+        if (!_isHostAllowed(hostHeader)) {
+          request.response.statusCode = io.HttpStatus.forbidden;
+          request.response.write('Host forbidden (DNS rebinding protection).');
+          await request.response.close();
+          return;
+        }
+
+        // 2. Auth token verification (if configured)
+        if (!_isAuthorized(request)) {
+          request.response.statusCode = io.HttpStatus.unauthorized;
+          request.response.headers.set('WWW-Authenticate', 'Bearer');
+          request.response.write('Unauthorized: valid authToken required.');
+          await request.response.close();
+          return;
+        }
+
         if (request.uri.path == '/') {
           request.response.headers.contentType = io.ContentType.html;
           request.response.headers.set('X-Content-Type-Options', 'nosniff');
@@ -157,6 +186,33 @@ base class HttpServerSink extends EncodingSink {
     }
   }
 
+  bool _isHostAllowed(final String? hostHeader) {
+    if (hostHeader == null || hostHeader.isEmpty) return false;
+    final hostOnly = hostHeader.split(':').first.toLowerCase();
+    if (hostOnly == 'localhost' || hostOnly == '127.0.0.1' || hostOnly == '::1') {
+      return true;
+    }
+    if (allowedHosts.contains(hostOnly) || allowedHosts.contains(hostHeader)) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _isAuthorized(final io.HttpRequest request) {
+    if (authToken == null || authToken!.isEmpty) return true;
+    final queryToken = request.uri.queryParameters['token'];
+    if (queryToken == authToken) return true;
+    final authHeader = request.headers.value('authorization');
+    if (authHeader != null) {
+      if (authHeader == 'Bearer $authToken' || authHeader == authToken) {
+        return true;
+      }
+    }
+    final xAuth = request.headers.value('x-auth-token');
+    if (xAuth == authToken) return true;
+    return false;
+  }
+
   bool _isOriginAllowed(final String origin, final String? hostHeader) {
     if (allowedOrigins.contains(origin)) {
       return true;
@@ -172,10 +228,15 @@ base class HttpServerSink extends EncodingSink {
         return true;
       }
 
-      // Allow if origin host matches the incoming HTTP Host header
-      if (hostHeader != null) {
+      // Allow if origin host matches the incoming HTTP Host header,
+      // provided that hostHeader is a validated allowed host
+      if (hostHeader != null && _isHostAllowed(hostHeader)) {
         final hostOnly = hostHeader.split(':').first.toLowerCase();
-        if (originHost == hostOnly) {
+        if (originHost == hostOnly &&
+            (allowedHosts.contains(originHost) ||
+                originHost == 'localhost' ||
+                originHost == '127.0.0.1' ||
+                originHost == '::1')) {
           return true;
         }
       }
