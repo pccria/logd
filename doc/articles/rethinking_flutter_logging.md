@@ -1,7 +1,7 @@
 ---
 title: "Rethinking Logging in Dart & Flutter: An Architectural Approach to Hierarchies, Context, and Isolate Offloading"
 description: "Exploring design patterns for structured observability, dynamic subsystem control, and background isolate execution in modern Dart applications."
-cover_image: "https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_hero.webp"
+cover_image: "https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_hero.webp"
 tags: ["flutter", "dart", "architecture", "opensource"]
 canonical_url: "https://medium.com/@pooriaaskari/rethinking-logging-in-dart-flutter-an-architectural-approach-to-hierarchies-context-and-isolate-offloading"
 ---
@@ -10,7 +10,7 @@ canonical_url: "https://medium.com/@pooriaaskari/rethinking-logging-in-dart-flut
 
 *Exploring design patterns for structured observability, dynamic subsystem control, and background isolate execution in modern Dart applications.*
 
-![logd Architecture Hero](https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_hero.webp)
+![logd Architecture Hero](https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_hero.webp)
 
 ---
 
@@ -34,7 +34,7 @@ This foundational law establishes three invariant pillars:
 * **Never Pay for Silence**: Disabled subtrees short-circuit at $O(1)$ with zero allocations. Version-based cache invalidation avoids costly tree walks on hot paths.
 * **Never Crash the Host**: Isolated internal routing and fallback sinks prevent circular error loops when disks fill or sockets throw, ensuring observability failures never crash the host application.
 
-This exploration led to the development of **[logd](https://github.com/pooriaaskarim/logd)**: an extensible, hierarchical logging engine designed to give developers complete architectural control over diagnostics without compromising execution performance or application stability.
+This exploration led to the development of **[logd](https://github.com/pccria/logd)**: an extensible, hierarchical logging engine designed to give developers complete architectural control over diagnostics without compromising execution performance or application stability.
 
 ---
 
@@ -154,7 +154,7 @@ class OrderService {
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_zone_context_propagation.webp" alt="Ambient Context Propagation across Async Dart Zones" width="780" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_zone_context_propagation.webp" alt="Ambient Context Propagation across Async Dart Zones" width="780" />
   <br/>
   <em>Figure 1: Ambient context propagation across asynchronous Dart Zones without polluting function signatures.</em>
 </p>
@@ -183,7 +183,7 @@ Because context flows through Zone-local storage, it survives async gaps, microt
 Unhandled exceptions in Flutter frequently produce stack traces cluttered with framework-internal frames (`package:flutter/src/widgets/...`, `package:flutter/src/rendering/...`), obscuring the application call site responsible for the error.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_stack_trace_demangling.webp" alt="Smart Stack Trace Demangling" width="780" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_stack_trace_demangling.webp" alt="Smart Stack Trace Demangling" width="780" />
   <br/>
   <em>Figure 2: Comparison between standard framework-cluttered traces and logd's package-focused demangling.</em>
 </p>
@@ -210,7 +210,7 @@ Unhandled exceptions in Flutter frequently produce stack traces cluttered with f
 4. **`LogSink`**: Renders the physical layout to the destination target (terminal ANSI, flat file, network socket).
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_pipeline_architecture.webp" alt="Composable Logging Pipeline Architecture" width="780" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_pipeline_architecture.webp" alt="Composable Logging Pipeline Architecture" width="780" />
   <br/>
   <em>Figure 3: The four-stage log compilation pipeline: LogRecord ──> LogFilter ──> LogFormatter ──> LogDecorator ──> LogSink.</em>
 </p>
@@ -256,7 +256,7 @@ Logger.configure('app', handlers: [
 In performance-sensitive environments—such as high-refresh-rate Flutter interfaces operating within tight frame budgets (e.g., 8.3ms at 120Hz)—intensive string manipulation, JSON serialization, and disk I/O on the main thread can introduce perceptible latency.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_architecture_flowmap.webp" alt="logd Architecture Flow Map" width="780" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_architecture_flowmap.webp" alt="logd Architecture Flow Map" width="780" />
   <br/>
   <em>Figure 4: Architecture of logd's worker isolate pipeline, transferring immutable records across SendPort boundaries.</em>
 </p>
@@ -271,7 +271,7 @@ Logger.configure('app', handlers: [
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_architecture_zero_jank.webp" alt="120Hz Zero-Jank Timeline" width="780" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_architecture_zero_jank.webp" alt="120Hz Zero-Jank Timeline" width="780" />
   <br/>
   <em>Figure 5: Main thread execution vs. background worker isolate offloading within an 8.3ms frame budget.</em>
 </p>
@@ -306,7 +306,7 @@ test('records failure when checkout fails', () async {
 As developers increasingly integrate large language models (LLMs) into applications for telemetry analysis, agentic workflows, or automated triage, sending structured diagnostics via standard JSON presents a noticeable token overhead. Repeated schema keys, delimiters, and quotation marks can consume a substantial portion of an LLM's context window.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_toon_token_comparison.webp" alt="TOON Token Comparison" width="760" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_toon_token_comparison.webp" alt="TOON Token Comparison" width="760" />
   <br/>
   <em>Figure 6: Token density comparison between verbose JSON and schema-delimited TOON telemetry.</em>
 </p>
@@ -338,7 +338,7 @@ To maintain a zero-network-dependency core, `package:logd` focuses strictly on t
 * **[`logd_linters`](https://pub.dev/packages/logd_linters)**: Custom Dart analyzer rules and quick-fixes that enforce logging hygiene and prevent raw `print()` statements at compile time.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pooriaaskarim/logd/master/assets/img/logd_satellite_ecosystem.webp" alt="Satellite Ecosystem: Network Dashboard and HTML Report" width="780" />
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_satellite_ecosystem.webp" alt="Satellite Ecosystem: Network Dashboard and HTML Report" width="780" />
   <br/>
   <em>Figure 7: Real-time browser telemetry dashboard (logd_network) and self-contained HTML5 session report (logd_html).</em>
 </p>
@@ -380,8 +380,8 @@ Observability requirements vary significantly depending on application scale, te
 
 By offloading pipeline computation to background isolates, providing fail-safe exception boundaries, and enabling zero-restart runtime reconfiguration, `logd` was built to explore how architectural hierarchies, ambient context, and background concurrency could give Dart and Flutter teams a robust, structured foundation without ever compromising application stability or UI performance.
 
-* **GitHub Repository**: [github.com/pooriaaskarim/logd](https://github.com/pooriaaskarim/logd)
+* **GitHub Repository**: [github.com/pccria/logd](https://github.com/pccria/logd)
 * **pub.dev Package**: [pub.dev/packages/logd](https://pub.dev/packages/logd)
-* **Architecture Documentation & Recipes**: [github.com/pooriaaskarim/logd/tree/master/doc](https://github.com/pooriaaskarim/logd/tree/master/doc)
+* **Architecture Documentation & Recipes**: [github.com/pccria/logd/tree/master/doc](https://github.com/pccria/logd/tree/master/doc)
 
 All packages are available on pub.dev. I welcome your feedback, critiques, and contributions as the project continues to evolve.
