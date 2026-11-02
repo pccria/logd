@@ -117,8 +117,9 @@ class Handler {
     }
 
     if (timeout != null) {
+      final effectiveEntry = entry.clone();
       await engine
-          .execute(entry, formatter, decorators, sink)
+          .execute(effectiveEntry, formatter, decorators, sink)
           .timeout(timeout!);
     } else {
       await engine.execute(entry, formatter, decorators, sink);
