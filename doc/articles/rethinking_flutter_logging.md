@@ -1,14 +1,14 @@
 ---
-title: "Rethinking Logging in Dart & Flutter: An Architectural Approach to Hierarchies, Context, and Isolate Offloading"
-description: "Exploring design patterns for structured observability, dynamic subsystem control, and background isolate execution in modern Dart applications."
+title: "Rethinking Logging in Dart and Flutter: Designing Observability as an Independent Subsystem"
+description: "Decoupling the observer from the observed: isolating diagnostic workloads, memory churn, and I/O latency from the runtime."
 cover_image: "https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_hero.webp"
 tags: ["flutter", "dart", "architecture", "opensource"]
 canonical_url: "https://medium.com/@pooriaaskari/rethinking-logging-in-dart-flutter-an-architectural-approach-to-hierarchies-context-and-isolate-offloading"
 ---
 
-# Rethinking Logging in Dart & Flutter: An Architectural Approach to Hierarchies, Context, and Isolate Offloading
+# Rethinking Logging in Dart and Flutter: Designing Observability as an Independent Subsystem
 
-*Exploring design patterns for structured observability, dynamic subsystem control, and background isolate execution in modern Dart applications.*
+*Decoupling the observer from the observed: isolating diagnostic workloads, memory churn, and I/O latency from the runtime.*
 
 ![logd Architecture Hero](https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_hero.webp)
 
