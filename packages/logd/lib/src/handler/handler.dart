@@ -93,6 +93,9 @@ class Handler {
   /// in the exact order specified.
   final List<LogDecorator> decorators;
 
+  /// Pre-compiled decorator pipeline for zero-allocation decorator composition.
+  DecoratorPipeline get decoratorPipeline => DecoratorPipeline.of(decorators);
+
   /// The maximum duration permitted for processing a single log entry.
   ///
   /// If specified, caps the time spent executing [LogEngine.execute] to

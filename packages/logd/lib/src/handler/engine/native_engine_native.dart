@@ -62,7 +62,7 @@ class NativeEngine implements LogEngine {
       } else {
         // Standard Path: Apply decorators to the object tree
         if (decorators.isNotEmpty) {
-          DecoratorPipeline(decorators).apply(document, entry, arena);
+          DecoratorPipeline.of(decorators).apply(document, entry, arena);
         }
         irPtr = document.writer.write(document);
       }
@@ -144,7 +144,7 @@ class ArenaEngine implements LogEngine {
 
       // 2. Decorate: Transform document in-place
       if (decorators.isNotEmpty) {
-        DecoratorPipeline(decorators).apply(document, entry, arena);
+        DecoratorPipeline.of(decorators).apply(document, entry, arena);
       }
 
       // 3. Output: Emission
