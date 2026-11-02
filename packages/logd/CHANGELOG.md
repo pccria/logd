@@ -14,8 +14,9 @@ This patch release hardens log retention, rotation, hierarchy invalidation, and 
   - **Zero-Allocation Fast Path for Filtered-Out Logs**: Added `isLoggable(LogLevel level)` to `Logger` and wrapped all log methods (`trace`, `debug`, `info`, `warning`, `error`) and `LogBuffer.sink()` with synchronous pre-flight level checks. Filtered log invocations bypass async dispatch, future allocation, and microtask scheduling, directly incrementing `LoggerMetrics.drops` with zero heap allocation.
 
 - ### Async Engine & Isolate Worker Resilience
-  - **Sequential Worker Event Loop**: Replaced asynchronous event listener callbacks with `await for` in `IsolateSink` and `AsyncHandler`. Guarantees strictly ordered FIFO processing and eliminates race conditions where sink disposal preempts in-flight writes.
-  - **Worker Fault Isolation**: Worker isolates now run with `errorsAreFatal: false` and wrap sink outputs in structured diagnostics, preventing isolated target failures from terminating background workers.
+  - **Sequential Worker Event Loop**: Replaced asynchronous event listener callbacks with sequential `await for` message processing loops in `IsolateSink`, `AsyncHandler`, and `spawnNativeWorker` (`NativeIsolateSink`). Guarantees strictly ordered FIFO processing and eliminates race conditions where worker disposal preempts in-flight writes.
+  - **Worker Fault Isolation & Delegate Resilience**: Worker isolates now run with `errorsAreFatal: false` and wrap target sink delegations and packet decodings in structured diagnostic logging, preventing isolated downstream delegate failures from crashing background workers.
+  - **NativeIsolateSink Flush Contract**: Implemented `flush()` on `NativeIsolateSink` to dispatch `IsolateCommand.flush` and synchronize in-flight native buffer emissions prior to sink disposal or process shutdown.
 
 - ### Terminal Layout & Security
   - **Log Injection & Escape Code Neutralization**: Neutralized non-SGR terminal control sequences (screen clears, cursor repositioning, OSC commands) to visible notation (`^[`) and stripped destructive C0 controls (`\x00`, `\x07`, `\x08`, `\x7F`). Carriage returns are normalized to line feeds to prevent visual line forgery in terminal logs, with a fast ASCII path to maintain zero layout overhead.

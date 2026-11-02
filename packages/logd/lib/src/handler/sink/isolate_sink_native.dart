@@ -339,7 +339,30 @@ base class NativeIsolateSink extends LogSink<dynamic> {
   }
 
   @override
+  Future<void> flush() async {
+    if (!enabled || _workerDead || _worker.isDisposed) {
+      return;
+    }
+    if (!_worker.isReady) {
+      await _worker.ready;
+    }
+    final port = _worker.commandPort;
+    if (port != null) {
+      final callback = ReceivePort();
+      try {
+        port.send(IsolateCommand.flush(callback.sendPort));
+        await callback.first.timeout(const Duration(seconds: 5));
+      } catch (_) {
+        // Fallback if timeout or worker error
+      } finally {
+        callback.close();
+      }
+    }
+  }
+
+  @override
   Future<void> dispose() async {
+    await flush();
     _isDisposed = true;
     await _worker.dispose();
     for (final msg in _buffer) {

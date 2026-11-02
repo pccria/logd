@@ -168,40 +168,92 @@ class ArenaEngine implements LogEngine {
 /// 5. Signals completion to recycle the native buffer.
 @internal
 void spawnNativeWorker(final List<dynamic> args) {
-  final sendPort = args[0] as SendPort;
-  final target = args[1] as EncodingSink;
+  unawaited(
+    () async {
+      final sendPort = args[0] as SendPort;
+      final target = args[1] as EncodingSink;
 
-  final receivePort = ReceivePort();
-  sendPort.send(receivePort.sendPort);
+      final receivePort = ReceivePort();
+      sendPort.send(receivePort.sendPort);
 
-  receivePort.listen((final message) async {
-    if (message is NativePacket) {
-      try {
-        const encoder = BinaryAnsiEncoder();
-        final String output = encoder.encode(
-          message.pointer,
-          terminalWidth: message.terminalWidth,
-          length: message.length,
-        );
+      await for (final message in receivePort) {
+        if (message is NativePacket) {
+          try {
+            const encoder = BinaryAnsiEncoder();
+            final String output = encoder.encode(
+              message.pointer,
+              terminalWidth: message.terminalWidth,
+              length: message.length,
+            );
 
-        // 2. Encode to UTF-8 bytes
-        final data = convert.utf8.encode(output);
+            // 2. Encode to UTF-8 bytes
+            final data = convert.utf8.encode(output);
 
-        // 3. Dispatch to Sink Delegate
-        await target.delegate(data);
-      } finally {
-        // 4. Signal completion to recycle the buffer
-        message.completionPort.send(message.address);
+            // 3. Dispatch to Sink Delegate
+            try {
+              await target.delegate(data);
+            } catch (e, s) {
+              InternalLogger.log(
+                LogLevel.error,
+                'Native worker target delegate failed',
+                error: e,
+                stackTrace: s,
+              );
+            }
+          } catch (e, s) {
+            InternalLogger.log(
+              LogLevel.error,
+              'Native worker packet processing failed',
+              error: e,
+              stackTrace: s,
+            );
+          } finally {
+            // 4. Signal completion to recycle the buffer
+            message.completionPort.send(message.address);
+          }
+        } else if (message is IsolateCommand) {
+          if (message.type == IsolateCommandType.flush) {
+            try {
+              await target.flush();
+            } catch (e, s) {
+              InternalLogger.log(
+                LogLevel.error,
+                'Native worker target flush failed',
+                error: e,
+                stackTrace: s,
+              );
+            } finally {
+              message.replyPort?.send(null);
+            }
+          } else if (message.type == IsolateCommandType.stop) {
+            try {
+              await target.dispose();
+            } catch (e, s) {
+              InternalLogger.log(
+                LogLevel.error,
+                'Native worker target disposal failed',
+                error: e,
+                stackTrace: s,
+              );
+            } finally {
+              message.replyPort?.send(null);
+              receivePort.close();
+            }
+          }
+        } else if (message is IsolateLog) {
+          try {
+            final data = message.data.materialize().asUint8List();
+            await target.delegate(data);
+          } catch (e, s) {
+            InternalLogger.log(
+              LogLevel.error,
+              'Native worker target delegate failed',
+              error: e,
+              stackTrace: s,
+            );
+          }
+        }
       }
-    } else if (message is IsolateCommand) {
-      if (message.type == IsolateCommandType.stop) {
-        await target.dispose();
-        message.replyPort?.send(null);
-        receivePort.close();
-      }
-    } else if (message is IsolateLog) {
-      final data = message.data.materialize().asUint8List();
-      await target.delegate(data);
-    }
-  });
+    }(),
+  );
 }
