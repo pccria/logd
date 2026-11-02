@@ -79,6 +79,11 @@ class _LogBuffer extends StringBuffer {
         error != null ||
         stackTrace != null ||
         (context != null && context!.isNotEmpty)) {
+      if (!_logger.isLoggable(logLevel)) {
+        LoggerMetrics.incrementDrops();
+        clear();
+        return;
+      }
       _logger
           .logInternal(logLevel, toString(), error, stackTrace, context)
           .catchError(

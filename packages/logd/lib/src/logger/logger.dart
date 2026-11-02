@@ -1279,6 +1279,15 @@ class Logger {
   /// The minimum level to log (events below this are dropped).
   LogLevel get logLevel => LoggerCache.logLevel(name);
 
+  /// Returns whether a log message at the specified [level] will be
+  /// processed.
+  ///
+  /// Returns `false` if this logger is disabled or if [level] is below
+  /// [logLevel].
+  @pragma('vm:prefer-inline')
+  bool isLoggable(final LogLevel level) =>
+      enabled && level.index >= logLevel.index;
+
   /// Resolves the effective [includeFileLineInHeader] for this logger.
   bool get includeFileLineInHeader => LoggerCache.includeFileLineInHeader(name);
 
@@ -1852,11 +1861,16 @@ class Logger {
     final Map<String, dynamic>? context,
     final Object? error,
     final StackTrace? stackTrace,
-  }) =>
-      logInternal(LogLevel.trace, message, error, stackTrace, context)
-          .catchError((final e) {
-        InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
-      });
+  }) {
+    if (!isLoggable(LogLevel.trace)) {
+      LoggerMetrics.incrementDrops();
+      return;
+    }
+    logInternal(LogLevel.trace, message, error, stackTrace, context)
+        .catchError((final e) {
+      InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
+    });
+  }
 
   /// Logs a debug-level message.
   ///
@@ -1870,11 +1884,16 @@ class Logger {
     final Map<String, dynamic>? context,
     final Object? error,
     final StackTrace? stackTrace,
-  }) =>
-      logInternal(LogLevel.debug, message, error, stackTrace, context)
-          .catchError((final e) {
-        InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
-      });
+  }) {
+    if (!isLoggable(LogLevel.debug)) {
+      LoggerMetrics.incrementDrops();
+      return;
+    }
+    logInternal(LogLevel.debug, message, error, stackTrace, context)
+        .catchError((final e) {
+      InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
+    });
+  }
 
   /// Logs an info-level message.
   ///
@@ -1888,11 +1907,16 @@ class Logger {
     final Map<String, dynamic>? context,
     final Object? error,
     final StackTrace? stackTrace,
-  }) =>
-      logInternal(LogLevel.info, message, error, stackTrace, context)
-          .catchError((final e) {
-        InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
-      });
+  }) {
+    if (!isLoggable(LogLevel.info)) {
+      LoggerMetrics.incrementDrops();
+      return;
+    }
+    logInternal(LogLevel.info, message, error, stackTrace, context)
+        .catchError((final e) {
+      InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
+    });
+  }
 
   /// Logs a warning-level message.
   ///
@@ -1906,11 +1930,16 @@ class Logger {
     final Map<String, dynamic>? context,
     final Object? error,
     final StackTrace? stackTrace,
-  }) =>
-      logInternal(LogLevel.warning, message, error, stackTrace, context)
-          .catchError((final e) {
-        InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
-      });
+  }) {
+    if (!isLoggable(LogLevel.warning)) {
+      LoggerMetrics.incrementDrops();
+      return;
+    }
+    logInternal(LogLevel.warning, message, error, stackTrace, context)
+        .catchError((final e) {
+      InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
+    });
+  }
 
   /// Logs an error-level message.
   ///
@@ -1924,11 +1953,16 @@ class Logger {
     final Map<String, dynamic>? context,
     final Object? error,
     final StackTrace? stackTrace,
-  }) =>
-      logInternal(LogLevel.error, message, error, stackTrace, context)
-          .catchError((final e) {
-        InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
-      });
+  }) {
+    if (!isLoggable(LogLevel.error)) {
+      LoggerMetrics.incrementDrops();
+      return;
+    }
+    logInternal(LogLevel.error, message, error, stackTrace, context)
+        .catchError((final e) {
+      InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
+    });
+  }
 
   /// Internal: Processes a log event, creating and dispatching a LogEntry.
   ///
@@ -1951,8 +1985,8 @@ class Logger {
     final StackTrace? stackTrace, [
     final Map<String, dynamic>? context,
   ]) async {
-    if (!enabled || level.index < logLevel.index) {
-      LoggerMetrics._drops++;
+    if (!isLoggable(level)) {
+      LoggerMetrics.incrementDrops();
       return;
     }
     final frameCount = stackMethodCount[level] ?? 0;
@@ -2218,6 +2252,8 @@ class LoggerMetrics {
   static void incrementHandlerFailures() => _handlerFailures++;
   @internal
   static void incrementDroppedBatches() => _droppedBatches++;
+  @internal
+  static void incrementDrops() => _drops++;
 
   static int _cacheHits = 0;
   static int _cacheMisses = 0;
