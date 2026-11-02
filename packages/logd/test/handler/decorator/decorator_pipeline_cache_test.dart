@@ -38,13 +38,12 @@ void main() {
       expect(pipeline.sortedDecorators.last, isA<StyleDecorator>());
     });
 
-    test(
-      'DecoratorPipeline.apply correctly decorates document using cache',
-      () {
-        const decorators = [BoxDecorator()];
-        final pipeline = DecoratorPipeline.of(decorators);
+    test('DecoratorPipeline.apply correctly decorates document using cache',
+        () {
+      const decorators = [BoxDecorator()];
+      final pipeline = DecoratorPipeline.of(decorators);
 
-        const factory = StandardPipelineFactory();
+      const factory = StandardPipelineFactory();
       final doc = factory.checkoutDocument()..text('hello cached pipeline');
 
       pipeline.apply(doc, entry, factory);
