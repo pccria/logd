@@ -402,5 +402,23 @@ void main() {
 
       expect(output, contains('Raw <custom> <b>tag</b>'));
     });
+
+    test('neutralizes leading > to backslash > and not &gt;', () {
+      final entry = LogEntry(
+        level: LogLevel.info,
+        message: '> quoted',
+        loggerName: 'test.quote',
+        timestamp: '2026-10-23T12:00:00.000Z',
+        origin: 'quote_test.dart:1',
+      );
+
+      final document = formatDoc(const PlainFormatter(metadata: {}), entry);
+      final context = HandlerContext();
+      encoder.encode(entry, document, LogLevel.info, context, factory);
+      final output = const Utf8Decoder().convert(context.takeBytes());
+
+      expect(output, contains(r'\> quoted'));
+      expect(output, isNot(contains('&gt; quoted')));
+    });
   });
 }

@@ -1079,7 +1079,17 @@ class Logger {
       final isStillReferenced = _registry.values.any(
         (final config) => config.handlers?.contains(handler) ?? false,
       );
-      if (!isStillReferenced) {
+      if (isStillReferenced) {
+        continue;
+      }
+      final sinkIsStillUsed = _registry.values.any(
+        (final config) =>
+            config.handlers?.any(
+              (final h) => identical(h.sink, handler.sink),
+            ) ??
+            false,
+      );
+      if (!sinkIsStillUsed) {
         unawaited(handler.dispose());
       }
     }

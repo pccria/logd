@@ -210,41 +210,82 @@ void main() {
     });
 
     test(
-        'Logger.configure() disposes replaced handlers that become '
-        'unreferenced', () async {
-      final receivePort = ReceivePort();
-      final sink1 = SlowTrackingSink(receivePort.sendPort);
-      final handler1 = Handler(
-        formatter: const PlainFormatter(),
-        sink: sink1,
-      );
+      'reconfiguring with a shared sink does not dispose sink and delivers '
+      'entries',
+      () async {
+        final receivePort = ReceivePort();
+        final s = SlowTrackingSink(receivePort.sendPort);
+        final handlerA = Handler(
+          formatter: const PlainFormatter(),
+          sink: s,
+        );
 
-      Logger.configure('replace_handler_test', handlers: [handler1]);
+        Logger.configure('shared_sink_test', handlers: [handlerA]);
 
-      final sink2 = SlowTrackingSink(receivePort.sendPort);
-      final handler2 = Handler(
-        formatter: const PlainFormatter(),
-        sink: sink2,
-      );
+        final handlerB = Handler(
+          formatter: const StructuredFormatter(),
+          sink: s,
+        );
 
-      // Reconfigure replaces handler1 with handler2
-      Logger.configure('replace_handler_test', handlers: [handler2]);
+        // Reconfigure with Handler B sharing sink s
+        Logger.configure('shared_sink_test', handlers: [handlerB]);
 
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(
+          s.disposed,
+          isFalse,
+          reason: 'shared sink must not be disposed',
+        );
 
-      expect(
-        sink1.disposed,
-        isTrue,
-        reason: 'handler1 sink should be disposed when replaced',
-      );
-      expect(
-        sink2.disposed,
-        isFalse,
-        reason: 'handler2 is active and should not be disposed',
-      );
+        Logger.get('shared_sink_test').info('entry via handler B');
 
-      receivePort.close();
-    });
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await Logger.flush();
+
+        expect(s.disposed, isFalse);
+        expect(s.received, contains('entry via handler B'));
+
+        receivePort.close();
+      },
+    );
+
+    test(
+      'a displaced handler with an unshared sink IS disposed',
+      () async {
+        final receivePort = ReceivePort();
+        final sink1 = SlowTrackingSink(receivePort.sendPort);
+        final handler1 = Handler(
+          formatter: const PlainFormatter(),
+          sink: sink1,
+        );
+
+        Logger.configure('unshared_sink_test', handlers: [handler1]);
+
+        final sink2 = SlowTrackingSink(receivePort.sendPort);
+        final handler2 = Handler(
+          formatter: const PlainFormatter(),
+          sink: sink2,
+        );
+
+        // Reconfigure replaces handler1 with handler2 (unshared sink)
+        Logger.configure('unshared_sink_test', handlers: [handler2]);
+
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(
+          sink1.disposed,
+          isTrue,
+          reason: 'displaced handler with unshared sink must be disposed',
+        );
+        expect(
+          sink2.disposed,
+          isFalse,
+          reason: 'active handler sink must not be disposed',
+        );
+
+        receivePort.close();
+      },
+    );
 
     test('Logger.reset() disposes registered handlers', () async {
       final receivePort = ReceivePort();

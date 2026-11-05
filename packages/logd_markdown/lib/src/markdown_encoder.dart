@@ -422,7 +422,7 @@ class MarkdownEncoder implements LogEncoder {
         atLineStart = false;
       } else if (code == 0x3E) {
         if (atLineStart) {
-          buffer.write(r'\&gt;');
+          buffer.write(r'\>');
         } else {
           buffer.write('&gt;');
         }

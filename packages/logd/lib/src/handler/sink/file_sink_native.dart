@@ -404,9 +404,11 @@ base class FileSink extends EncodingSink {
             fileRotation,
             encoder: encoder,
             strategy: encoder.wrappingStrategy,
+            getPreamble: () => _activeSinks[basePath]?.rememberedPreamble,
           ),
         ) {
     _validateBasePath(basePath);
+    _activeSinks[basePath] = this;
   }
 
   /// The path to the active log file (e.g., 'logs/app.log').
@@ -414,6 +416,8 @@ base class FileSink extends EncodingSink {
 
   /// The rotation policy applied to this sink (null for no rotation).
   final FileRotation? fileRotation;
+
+  static final Map<String, FileSink> _activeSinks = {};
 
   @override
   Future<void> flush() async {
@@ -425,8 +429,14 @@ base class FileSink extends EncodingSink {
 
   @override
   Future<void> dispose() async {
-    await flush();
-    await super.dispose();
+    try {
+      await flush();
+      await super.dispose();
+    } finally {
+      if (identical(_activeSinks[basePath], this)) {
+        _activeSinks.remove(basePath);
+      }
+    }
   }
 
   static void _validateBasePath(final String basePath) {
@@ -457,6 +467,7 @@ base class FileSink extends EncodingSink {
     final FileRotation? fileRotation, {
     final LogEncoder? encoder,
     final WrappingStrategy? strategy,
+    final Uint8List? Function()? getPreamble,
   }) async {
     final lock = _locks[basePath];
     final completer = Completer<void>();
@@ -509,21 +520,15 @@ base class FileSink extends EncodingSink {
           targetFile = Context.fileSystem.file(basePath);
 
           if (shouldWrap) {
-            const factory = StandardPipelineFactory();
-            final preContext = factory.checkoutContext();
-            try {
-              encoder.preamble(preContext, LogLevel.info, factory);
-              final preBytes = preContext.takeBytes();
-              if (preBytes.isNotEmpty) {
-                final newRaf = targetFile.openSync(mode: LogFileMode.append);
-                try {
-                  newRaf.writeFromSync(preBytes, 0, preBytes.length);
-                } finally {
-                  newRaf.closeSync();
-                }
+            final preBytes = getPreamble?.call() ??
+                _activeSinks[basePath]?.rememberedPreamble;
+            if (preBytes != null && preBytes.isNotEmpty) {
+              final newRaf = targetFile.openSync(mode: LogFileMode.append);
+              try {
+                newRaf.writeFromSync(preBytes, 0, preBytes.length);
+              } finally {
+                newRaf.closeSync();
               }
-            } finally {
-              factory.release(preContext);
             }
           }
         } catch (rotationError, rotationStack) {

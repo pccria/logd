@@ -82,22 +82,22 @@ ConsoleHandler(theme: const DarkTheme())
 JsonFileHandler(path: 'logs/api.json', pretty: true)
 
 // Self-contained HTML report (from package:logd_html)
-HtmlFileHandler('logs/session.html')
+HtmlFileHandler(path: 'logs/session.html')
 
 // Token-efficient format for LLM / AI agent consumption (from package:logd_toon)
-ToonFileHandler('logs/telemetry.toon')
+ToonFileHandler(path: 'logs/telemetry.toon')
 
 // Plain text to file
 PlainFileHandler(path: 'logs/app.log')
 
 // GitHub-Flavored Markdown for CI summaries (from package:logd_markdown)
-MarkdownFileHandler('logs/ci.md')
+MarkdownFileHandler(path: 'logs/ci.md')
 
 // In-memory ring buffer for tests and debug panels
 MemoryHandler(capacity: 200)
 
 // Indexed SQLite database storage (from package:logd_sqlite)
-SqliteHandler('logs/app.db')
+SqliteHandler(path: 'logs/app.db')
 
 // Live browser dashboard via HTTP + WebSocket server (from package:logd_network)
 HttpDashboardHandler(port: 8080)
@@ -109,8 +109,8 @@ Add `.async()` to any output-bound handler to offload its pipeline to a backgrou
 Logger.configure('app', handlers: [
   ConsoleHandler.async(),
   JsonFileHandler.async(path: 'logs/production.json'),
-  HtmlFileHandler.async('logs/report.html'),
-  SqliteHandler.async('logs/app.db'),
+  HtmlFileHandler.async(path: 'logs/report.html'),
+  SqliteHandler.async(path: 'logs/app.db'),
   HttpDashboardHandler.async(port: 8080),
 ]);
 ```
@@ -227,7 +227,7 @@ import 'package:logd/logd.dart';
 import 'package:logd_toon/logd_toon.dart';
 
 Logger.configure('ai.agent', handlers: [
-  ToonFileHandler('logs/agent.toon'),
+  ToonFileHandler(path: 'logs/agent.toon'),
 ]);
 ```
 
@@ -365,7 +365,7 @@ Logger.configure('app', timestamp: timestamp);
 For high-frequency or daily aggregate logs, bypass sub-second calculations entirely with date-only formatting:
 
 ```dart
-Logger.configure('app.audit', timestamp: Timestamp.dateOnly('yyyy-MM-dd'));
+Logger.configure('app.audit', timestamp: Timestamp.dateOnly());
 ```
 
 ### File Rotation
@@ -439,12 +439,11 @@ import 'package:logd/logd.dart';
 import 'package:logd_sqlite/logd_sqlite.dart';
 
 final sqliteHandler = SqliteHandler(
-  dbPath: 'app_logs.db',
+  path: 'app_logs.db',
   maxEntries: 10000,
   maxAge: const Duration(days: 7),
   batchSize: 50,
   flushInterval: const Duration(seconds: 2),
-  walMode: true,
 );
 
 Logger.configure('app', handlers: [sqliteHandler]);
@@ -536,7 +535,7 @@ final config = Logger.exportConfig();
 Logger.importConfig(config);
 ```
 
-Custom formatters and sinks are mapped via `LoggerSerializationRegistry.register`.
+Custom components are mapped via `LoggerSerializationRegistry` (`registerFormatter`, `registerSink`, `registerFilter`, `registerDecorator`, and `registerEngine`).
 
 ---
 
@@ -699,7 +698,7 @@ import 'package:logd_toon/logd_toon.dart';
 
 void main() {
   Logger.configure('agent', handlers: [
-    ToonFileHandler('logs/agent_session.toon'),
+    ToonFileHandler(path: 'logs/agent_session.toon'),
   ]);
 
   final logger = Logger.get('agent');
