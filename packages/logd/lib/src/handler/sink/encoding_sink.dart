@@ -105,6 +105,7 @@ base class EncodingSink extends LogSink<LogDocument> {
   @mustCallSuper
   Future<void> dispose() async {
     if (strategy == WrappingStrategy.document && isPreambleWritten) {
+      isPreambleWritten = false;
       const factory = StandardPipelineFactory();
       final context = factory.checkoutContext();
       try {

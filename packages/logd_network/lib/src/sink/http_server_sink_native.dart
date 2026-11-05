@@ -29,6 +29,16 @@ base class HttpServerSink extends EncodingSink {
     this.allowedHosts = const {},
     this.authToken,
   }) : super(preferredWidth: lineLength ?? 120, delegate: _staticWrite) {
+    final isLoopback =
+        address == 'localhost' || address == '127.0.0.1' || address == '::1';
+    if (!isLoopback && (authToken == null || authToken!.isEmpty)) {
+      throw ArgumentError.value(
+        address,
+        'address',
+        'Non-loopback bind address requires a non-empty authToken to prevent '
+            'unauthenticated dashboard exposure.',
+      );
+    }
     _startServer();
   }
 

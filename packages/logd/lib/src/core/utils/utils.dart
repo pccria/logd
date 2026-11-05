@@ -434,7 +434,15 @@ String sanitizeControlCharacters(
   bool hasControls = false;
   for (var i = 0; i < input.length; i++) {
     final code = input.codeUnitAt(i);
-    if ((code < 0x20 && code != 0x09 && code != 0x0A) || code == 0x7F) {
+    if ((code < 0x20 && code != 0x09 && code != 0x0A) ||
+        code == 0x7F ||
+        (code >= 0x80 && code <= 0x9F) ||
+        code == 0x2028 ||
+        code == 0x2029 ||
+        code == 0x200E ||
+        code == 0x200F ||
+        (code >= 0x202A && code <= 0x202E) ||
+        (code >= 0x2066 && code <= 0x2069)) {
       hasControls = true;
       break;
     }
@@ -463,11 +471,20 @@ String sanitizeControlCharacters(
         continue;
       }
       buffer.write('\n');
+    } else if (code == 0x85 || code == 0x2028 || code == 0x2029) {
+      // Normalize C1 Next Line (NEL) and Unicode line/paragraph separators to newline
+      buffer.write('\n');
     } else if (code == 0x09 || code == 0x0A) {
       // Preserve tab and newline
       buffer.writeCharCode(code);
-    } else if (code < 0x20 || code == 0x7F) {
-      // Strip other destructive C0 control codes (NUL, BEL, BS, DEL, etc.)
+    } else if (code < 0x20 ||
+        code == 0x7F ||
+        (code >= 0x80 && code <= 0x9F) ||
+        code == 0x200E ||
+        code == 0x200F ||
+        (code >= 0x202A && code <= 0x202E) ||
+        (code >= 0x2066 && code <= 0x2069)) {
+      // Strip other destructive C0/C1 control codes and Unicode bidi overrides
       continue;
     } else {
       buffer.writeCharCode(code);

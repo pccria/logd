@@ -132,12 +132,24 @@ class Handler {
     await sink.flush();
   }
 
-  /// Disposes of any resources held by this handler.
+  /// Disposes of any resources held by this handler, including its underlying
+  /// [sink].
   ///
   /// Subclasses that manage stateful resources (such as background isolates
   /// or file handles) should override this method to clean up resources.
   @mustCallSuper
-  Future<void> dispose() async {}
+  Future<void> dispose() async {
+    try {
+      await sink.dispose();
+    } catch (e, s) {
+      InternalLogger.log(
+        LogLevel.error,
+        'Handler sink disposal failed for ${sink.runtimeType}',
+        error: e,
+        stackTrace: s,
+      );
+    }
+  }
 
   @override
   bool operator ==(final Object other) =>

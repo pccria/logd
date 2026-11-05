@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LinkedIn Article Publisher Companion — logd</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --heading: #79c0ff;
+      --accent: #1f6feb;
+      --accent-hover: #388bfd;
+      --success: #238636;
+      --code-bg: #161b22;
+    }
+    * { box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 30px 20px 80px 20px;
+      line-height: 1.6;
+    }
+    h1 { color: #58a6ff; font-size: 26px; margin-bottom: 6px; }
+    .subtitle { color: #8b949e; font-size: 15px; margin-top: 0; margin-bottom: 24px; }
+    
+    .top-bar {
+      position: sticky;
+      top: 12px;
+      z-index: 1000;
+      background: rgba(22, 27, 34, 0.95);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--accent);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      border-radius: 10px;
+      padding: 14px 20px;
+      margin-bottom: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .top-bar-title { font-weight: 600; font-size: 16px; color: #fff; }
+    .top-bar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .btn {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { background: #30363d; color: #fff; border-color: #8b949e; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn-success, .btn.copied {
+      background: var(--success) !important;
+      color: #fff !important;
+      border-color: var(--success) !important;
+    }
+
+    .instruction-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left-width: 4px;
+      border-left-color: var(--accent);
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin-bottom: 28px;
+      font-size: 14px;
+    }
+    .instruction-card h3 { margin-top: 0; color: #fff; font-size: 16px; }
+    .instruction-card ol { margin: 8px 0 0 20px; padding: 0; }
+    .instruction-card li { margin-bottom: 6px; }
+    
+    .meta-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #21262d;
+      gap: 16px;
+    }
+    .meta-row:last-child { border-bottom: none; }
+    .meta-label { font-size: 13px; color: #8b949e; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; width: 150px; flex-shrink: 0; }
+    .meta-val { font-size: 15px; color: #fff; font-family: ui-monospace, SFMono-Regular, monospace; word-break: break-all; flex-grow: 1; }
+
+    .section-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    .section-header {
+      background: #1c2128;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .section-title { font-size: 14px; font-weight: 600; color: #79c0ff; }
+    .section-body { padding: 22px 24px; }
+
+    .article-figure img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    
+    .cover-box {
+      text-align: center;
+      background: #0d1117;
+      border: 1px solid #21262d;
+      border-radius: 6px;
+      padding: 14px;
+      margin-top: 12px;
+    }
+    .cover-box img { max-width: 100%; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <h1>LinkedIn Article Publisher Companion — logd</h1>
+  <p class="subtitle">Exact Verbatim Edition matching <code>doc/articles/rethinking_flutter_logging.md</code>. Click "Copy Entire Formatted Article" to paste natively formatted Rich Text (Headings, bold, links, code) directly into LinkedIn's WYSIWYG editor.</p>
+
+  <div class="top-bar no-copy">
+    <div>
+      <div class="top-bar-title">⚡ Rich-Text Formatting Bridge (Exact Canonical Post)</div>
+      <div style="font-size: 12px; color: #8b949e;">Pastes into LinkedIn with Headings, Bold, Lists, Links & Code blocks preserved!</div>
+    </div>
+    <div class="top-bar-actions">
+      <button class="btn btn-primary" onclick="copyFullArticleRichText(this)">
+        ⚡ Copy Entire Formatted Article
+      </button>
+      <button class="btn" onclick="selectAllArticle()">
+        🔍 Select All (Manual Ctrl+C)
+      </button>
+    </div>
+  </div>
+
+  <div class="instruction-card no-copy">
+    <h3>💡 How to Publish on LinkedIn in 3 Fast Steps</h3>
+    <ol>
+      <li>Go to your LinkedIn Home feed and click <strong>"Write article"</strong> (next to "Start a post").</li>
+      <li>Copy the <strong>Title</strong> below and paste it into LinkedIn's Title box. Upload the <strong>Cover Banner</strong> image.</li>
+      <li>Click <strong>"⚡ Copy Entire Formatted Article"</strong> above, then in LinkedIn's editor body, hit <strong>Ctrl+V</strong> (or <strong>Cmd+V</strong>). All formatting, headers, links, and code blocks paste seamlessly!</li>
+      <li><em>(Optional)</em> If LinkedIn limits long clipboard text in your browser, use the <strong>"📋 Copy This Section"</strong> button on each section below to paste section by section.</li>
+    </ol>
+  </div>
+
+  <div class="meta-card no-copy">
+    <div class="meta-row">
+      <div class="meta-label">Article Title</div>
+      <div class="meta-val" id="title-text">Rethinking Logging in Dart & Flutter: An Architectural Approach to Hierarchies, Context, and Isolate Offloading</div>
+      <button class="btn btn-sm" onclick="copyText('title-text', this)">📋 Copy Title</button>
+    </div>
+    <div class="meta-row">
+      <div class="meta-label">Cover Banner</div>
+      <div class="meta-val">assets/img/logd_hero.png (or logd_ecosystem_hero.png)</div>
+      <button class="btn btn-sm" onclick="copyImageToClipboard('https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_hero.png', this)">🖼️ Copy Image</button>
+    </div>
+    <div class="cover-box">
+      <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_hero.png" alt="Cover Banner">
+    </div>
+  </div>
+
+  <div id="full-article-container">
+
+<div class="section-card" id="sec-overview">
+  <div class="section-header no-copy">
+    <span class="section-title">Overview & First Principles</span>
+    <button class="btn btn-sm btn-primary" onclick="copySectionRichText('sec-overview-body', this)">📋 Copy This Section (Formatted)</button>
+  </div>
+  <div class="section-body" id="sec-overview-body">
+<h1 style="margin-top: 18px; margin-bottom: 12px; font-size: 26px; font-weight: 700; color: #58a6ff;">Rethinking Logging in Dart &amp; Flutter: An Architectural Approach to Hierarchies, Context, and Isolate Offloading</h1>
+<p style="font-size: 17px; color: #8b949e; line-height: 1.6; margin-bottom: 20px;"><em>Exploring design patterns for structured observability, dynamic subsystem control, and background isolate execution in modern Dart applications.</em></p>
+
+<div class="article-figure" style="margin: 24px 0; padding: 18px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; text-align: center;">
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_hero.webp" alt="logd Architecture Hero" style="max-width: 100%; height: auto; border-radius: 4px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  <p style="margin-top: 8px; font-style: italic; color: #8b949e; font-size: 13px;">logd Architecture Hero</p>
+  <div class="no-copy" style="margin-top: 10px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+    <button class="btn btn-sm" onclick="copyImageToClipboard('https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_hero.webp', this)">🖼️ Copy Image to Clipboard</button>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_hero.webp" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open WebP</a>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_hero.png" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open PNG</a>
+  </div>
+</div>
+
+<hr style="border: none; border-top: 1px solid #30363d; margin: 28px 0;" />
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">As Dart and Flutter applications scale in complexity, managing observability becomes a practical engineering challenge. In smaller projects or early prototypes, standard console outputs or formatted terminal boxes serve their purpose well.</p>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">However, as an application architecture matures to encompass multiple concurrent subsystems—networking, authentication, local persistence, web sockets, and state management—maintaining an actionable diagnostic stream becomes significantly more demanding. Under real computational load with continuous calculations, high-throughput network streams, or 120Hz display budgets, real-time observability is not a convenience—it is the only window into the health of the machine. At that scale, an innocent string interpolation or synchronous terminal write quietly steals microseconds, triggers garbage collection churn, and risks dropped frames.</p>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">When multiple active services emit logs concurrently, console output can quickly become overwhelming:</p>
+<ol style="margin: 12px 0 16px 24px; padding: 0; line-height: 1.7;">
+<li style="margin-bottom: 8px;"><strong>Broad Filtering Constraints</strong>: In many setups, filtering is an all-or-nothing decision. Adjusting the verbosity threshold often silences or elevates the entire application, making it difficult to isolate output from a single subsystem under investigation without missing critical context elsewhere.</li>
+<li style="margin-bottom: 8px;"><strong>Context Propagation Overhead</strong>: Associating diagnostic events with a specific user, request, or session typically requires threading metadata parameters through multiple layers of function signatures and class constructors.</li>
+<li style="margin-bottom: 8px;"><strong>Framework Trace Verbosity</strong>: During unhandled exceptions, default stack traces often contain dozens of internal framework frames, requiring developers to manually sift through framework lifecycle calls to identify relevant application code.</li>
+</ol>
+<h3 style="margin-top: 26px; margin-bottom: 12px; font-size: 18px; font-weight: 600; color: #58a6ff;">First Principles: Observation Without Interference</h3>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;"><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd</code> was built from the need for an instrument of control, not an obstacle. Inspired by the architectural maturity of Python&#x27;s <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logging</code> module and enterprise event routers, but rebuilt natively for Dart&#x27;s event-loop and isolate boundaries, it grew organically from an uncompromising rule: <strong>the observer must never alter the runtime determinism of the system being observed.</strong></p>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">This foundational law establishes three invariant pillars:</p>
+<ul style="margin: 12px 0 16px 24px; padding: 0; line-height: 1.7;">
+<li style="margin-bottom: 8px;"><strong>Never Drop a Frame</strong>: Document formatting, ANSI layout, and file I/O offload to background worker isolates in ~15µs, safeguarding 8.3ms frame budgets.</li>
+<li style="margin-bottom: 8px;"><strong>Never Pay for Silence</strong>: Disabled subtrees short-circuit at <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">O(1)</code> with zero allocations. Version-based cache invalidation avoids costly tree walks on hot paths.</li>
+<li style="margin-bottom: 8px;"><strong>Never Crash the Host</strong>: Isolated internal routing and fallback sinks prevent circular error loops when disks fill or sockets throw, ensuring observability failures never crash the host application.</li>
+</ul>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">This exploration led to the development of <strong><a href="https://github.com/pccria/logd" target="_blank" style="color: #0a66c2; text-decoration: underline;">logd</a></strong>: an extensible, hierarchical logging engine designed to give developers complete architectural control over diagnostics without compromising execution performance or application stability.</p>
+<hr style="border: none; border-top: 1px solid #30363d; margin: 28px 0;" />
+  </div>
+</div>
+
+
+<div class="section-card" id="sec-1-the-dart-observability-landscape">
+  <div class="section-header no-copy">
+    <span class="section-title">1. The Dart Observability Landscape</span>
+    <button class="btn btn-sm btn-primary" onclick="copySectionRichText('sec-1-the-dart-observability-landscape-body', this)">📋 Copy This Section (Formatted)</button>
+  </div>
+  <div class="section-body" id="sec-1-the-dart-observability-landscape-body">
+<h2 style="margin-top: 32px; margin-bottom: 14px; font-size: 22px; font-weight: 700; color: #79c0ff; border-bottom: 1px solid #30363d; padding-bottom: 8px;">1. The Dart Observability Landscape</h2>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">Dart provides several dependable logging mechanisms, each tailored to different operational needs:</p>
+<ul style="margin: 12px 0 16px 24px; padding: 0; line-height: 1.7;">
+<li style="margin-bottom: 8px;"><strong><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">dart-lang/logging</code></strong>: The official Dart package establishes a clean, hierarchical event model (<code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">Logger(&#x27;app.network&#x27;)</code>). However, by design, it remains a low-level primitive. It does not provide default terminal formatting, colorization, or output sinks, leaving the implementation of rendering pipelines and file management entirely to the developer.</li>
+<li style="margin-bottom: 8px;"><strong><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">package:logger</code></strong>: A popular and accessible community solution that provides well-structured ANSI output out of the box. Its design centers around standalone logger instances, making it straightforward for self-contained components, though managing granular configurations across deeply nested package structures requires manual coordination.</li>
+<li style="margin-bottom: 8px;"><strong><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">talker</code></strong>: An effective solution tailored for in-app inspection, offering visual UI overlays and monitors on physical test devices.</li>
+</ul>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">Rather than replacing these approaches, <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd</code> was designed to address a complementary set of requirements: providing an extensible, hierarchical logging engine with declarative subsystem control, ambient context propagation, and background isolate offloading.</p>
+<hr style="border: none; border-top: 1px solid #30363d; margin: 28px 0;" />
+  </div>
+</div>
+
+
+<div class="section-card" id="sec-2-hierarchical-topologies-and-runtime-reconfiguration">
+  <div class="section-header no-copy">
+    <span class="section-title">2. Hierarchical Topologies and Runtime Reconfiguration</span>
+    <button class="btn btn-sm btn-primary" onclick="copySectionRichText('sec-2-hierarchical-topologies-and-runtime-reconfiguration-body', this)">📋 Copy This Section (Formatted)</button>
+  </div>
+  <div class="section-body" id="sec-2-hierarchical-topologies-and-runtime-reconfiguration-body">
+<h2 style="margin-top: 32px; margin-bottom: 14px; font-size: 22px; font-weight: 700; color: #79c0ff; border-bottom: 1px solid #30363d; padding-bottom: 8px;">2. Hierarchical Topologies and Runtime Reconfiguration</h2>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">In complex applications, diagnostics benefit from reflecting the underlying modular structure of the codebase. <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd</code> organizes loggers into dot-separated namespaces (e.g., <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">app.network.auth</code>) backed by an inheritance model and an internal resolution cache (<code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">LoggerCache</code>).</p>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">Configurations declared on a parent node automatically cascade to descendant loggers unless explicitly overridden. Crucially, this hierarchy is not a fixed, startup-only constraint—it is designed around <strong>real-time runtime reconfiguration</strong>. Because active policies resolve dynamically through <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">LoggerCache</code>, invoking <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">Logger.configure()</code> or <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">Logger.configurePattern()</code> at any point immediately invalidates cached paths for that logger and its descendants.</p>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">This enables a running application—such as a long-running backend service, an admin dashboard, or a Flutter app with a debug menu—to adjust its diagnostic topology on the fly with zero restarts across several practical dimensions:</p>
+<h3 style="margin-top: 26px; margin-bottom: 12px; font-size: 18px; font-weight: 600; color: #58a6ff;">Declarative Subsystem Scoping</h3>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">Subsystems can be governed declaratively without modifying individual call sites in business logic:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>import &#x27;package:logd/logd.dart&#x27;;
+
+void main() {
+  // Establish an application-wide baseline at INFO
+  Logger.configure(&#x27;app&#x27;, logLevel: LogLevel.info);
+
+  // Constrain verbose polling within the network subtree
+  Logger.configure(&#x27;app.network&#x27;, logLevel: LogLevel.warning);
+
+  // Elevate the authentication subsystem to TRACE for targeted investigation
+  Logger.configure(&#x27;app.network.auth&#x27;, logLevel: LogLevel.trace);
+
+  // Apply pattern-based matching across dynamic subsystems
+  Logger.configurePattern(&#x27;app.cache.*&#x27;, logLevel: LogLevel.error);
+}</code></pre>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">When application code requests <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">Logger.get(&#x27;app.network.auth&#x27;)</code>, it immediately evaluates the cached configuration, inheriting defaults from <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">app</code> and <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">app.network</code> while respecting its specific <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">TRACE</code> override.</p>
+
+<div class="article-figure" style="margin: 28px 0; padding: 18px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; text-align: center;">
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_subsystem_hierarchy.webp" alt="Hierarchical Subsystem Topology and Dynamic Inheritance" style="max-width: 100%; height: auto; border-radius: 4px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  <p style="margin-top: 10px; font-style: italic; color: #8b949e; font-size: 13px;">Figure 1: Hierarchical subsystem scoping, policy inheritance, and O(1) runtime cache resolution.</p>
+  <div class="no-copy" style="margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+    <button class="btn btn-sm" onclick="copyImageToClipboard('https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_subsystem_hierarchy.webp', this)">🖼️ Copy Image to Clipboard</button>
+    <button class="btn btn-sm" onclick="copyCaption('Figure 1: Hierarchical subsystem scoping, policy inheritance, and O(1) runtime cache resolution.', this)">📋 Copy Caption</button>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_subsystem_hierarchy.webp" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open WebP</a>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_subsystem_hierarchy.png" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open PNG</a>
+  </div>
+</div>
+
+<h3 style="margin-top: 26px; margin-bottom: 12px; font-size: 18px; font-weight: 600; color: #58a6ff;">Selective Subtree Pruning</h3>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">Entire subtrees can be silenced at runtime with <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">O(1)</code> short-circuit evaluation:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>// Completely disable a noisy subsystem in production
+Logger.configure(&#x27;app.telemetry&#x27;, enabled: false);
+
+// Zero allocations: Logger.get(&#x27;app.telemetry.metrics&#x27;).debug(...) returns immediately</code></pre>
+<h3 style="margin-top: 26px; margin-bottom: 12px; font-size: 18px; font-weight: 600; color: #58a6ff;">Targeted Sink Routing</h3>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">Handlers can be attached to specific nodes, directing sensitive or specialized data exclusively where it belongs:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>// Route audit events to a dedicated secure file sink while keeping console clean
+Logger.configure(&#x27;app.security.audit&#x27;, handlers: [
+  PlainFileHandler.async(path: &#x27;logs/audit.log&#x27;),
+]);</code></pre>
+<h3 style="margin-top: 26px; margin-bottom: 12px; font-size: 18px; font-weight: 600; color: #58a6ff;">Adaptive Diagnostics on Demand</h3>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">Because configurations update in real time, an application can expose runtime debug controls:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>// Dynamically elevate verbosity when troubleshooting a live session
+void enableNetworkDebugging() {
+  Logger.configure(&#x27;app.network&#x27;, logLevel: LogLevel.trace);
+}</code></pre>
+<hr style="border: none; border-top: 1px solid #30363d; margin: 28px 0;" />
+  </div>
+</div>
+
+
+<div class="section-card" id="sec-3-ambient-context-propagation-via-dart-zones">
+  <div class="section-header no-copy">
+    <span class="section-title">3. Ambient Context Propagation via Dart Zones</span>
+    <button class="btn btn-sm btn-primary" onclick="copySectionRichText('sec-3-ambient-context-propagation-via-dart-zones-body', this)">📋 Copy This Section (Formatted)</button>
+  </div>
+  <div class="section-body" id="sec-3-ambient-context-propagation-via-dart-zones-body">
+<h2 style="margin-top: 32px; margin-bottom: 14px; font-size: 22px; font-weight: 700; color: #79c0ff; border-bottom: 1px solid #30363d; padding-bottom: 8px;">3. Ambient Context Propagation via Dart Zones</h2>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">A recurring friction in application logging is threading contextual data (such as <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">correlationId</code>, <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">userId</code>, or <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">tenantId</code>) through layers of business logic without polluting public API contracts.</p>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;"><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd</code> addresses this through ambient context propagation powered by Dart Zones. By executing a workflow inside <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">LogContext.run()</code>, arbitrary metadata is implicitly bound to that asynchronous execution branch:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>import &#x27;package:logd/logd.dart&#x27;;
+
+final _logger = Logger.get(&#x27;app.checkout&#x27;);
+
+Future&lt;void&gt; handleCheckoutRequest(String orderId, String userId) async {
+  // Bind ambient correlation context to the active execution zone
+  await LogContext.run({
+    &#x27;orderId&#x27;: orderId,
+    &#x27;userId&#x27;: userId,
+  }, () async {
+    // Downstream services need zero logging parameters in their signatures:
+    await OrderService.checkout();
+  });
+}
+
+class OrderService {
+  static Future&lt;void&gt; checkout() async {
+    // Emits: [INFO] Order validated (orderId: ord-4921, userId: usr-8841)
+    _logger.info(&#x27;Order validated&#x27;);
+
+    // Emits: [INFO] Payment processing (orderId: ord-4921, userId: usr-8841, gateway: stripe)
+    _logger.info(&#x27;Payment processing&#x27;, context: {&#x27;gateway&#x27;: &#x27;stripe&#x27;});
+  }
+}</code></pre>
+<h3 style="margin-top: 26px; margin-bottom: 12px; font-size: 18px; font-weight: 600; color: #58a6ff;">Zone Hierarchy and Inheritance</h3>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">Context declarations compose hierarchically across nested async branches:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>await LogContext.run({&#x27;requestId&#x27;: &#x27;req-101&#x27;}, () async {
+  _logger.info(&#x27;Received request&#x27;); // context: {requestId: req-101}
+
+  await LogContext.run({&#x27;subtask&#x27;: &#x27;db-sync&#x27;}, () async {
+    _logger.info(&#x27;Syncing records&#x27;); // context: {requestId: req-101, subtask: db-sync}
+  });
+
+  _logger.info(&#x27;Request completed&#x27;); // context: {requestId: req-101}
+});</code></pre>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">Because context flows through Zone-local storage, it survives async gaps, microtask queues, and nested futures without requiring explicit dependency injection or global state mutations.</p>
+<hr style="border: none; border-top: 1px solid #30363d; margin: 28px 0;" />
+  </div>
+</div>
+
+
+<div class="section-card" id="sec-4-stack-trace-filtering-and-structured-presentation">
+  <div class="section-header no-copy">
+    <span class="section-title">4. Stack Trace Filtering and Structured Presentation</span>
+    <button class="btn btn-sm btn-primary" onclick="copySectionRichText('sec-4-stack-trace-filtering-and-structured-presentation-body', this)">📋 Copy This Section (Formatted)</button>
+  </div>
+  <div class="section-body" id="sec-4-stack-trace-filtering-and-structured-presentation-body">
+<h2 style="margin-top: 32px; margin-bottom: 14px; font-size: 22px; font-weight: 700; color: #79c0ff; border-bottom: 1px solid #30363d; padding-bottom: 8px;">4. Stack Trace Filtering and Structured Presentation</h2>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">Unhandled exceptions in Flutter frequently produce stack traces cluttered with framework-internal frames (<code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">package:flutter/src/widgets/...</code>, <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">package:flutter/src/rendering/...</code>), obscuring the application call site responsible for the error.</p>
+
+<div class="article-figure" style="margin: 28px 0; padding: 18px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; text-align: center;">
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_stack_trace_demangling.webp" alt="Smart Stack Trace Demangling" style="max-width: 100%; height: auto; border-radius: 4px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  <p style="margin-top: 10px; font-style: italic; color: #8b949e; font-size: 13px;">Figure 2: Comparison between standard framework-cluttered traces and logd's package-focused demangling.</p>
+  <div class="no-copy" style="margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+    <button class="btn btn-sm" onclick="copyImageToClipboard('https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_stack_trace_demangling.webp', this)">🖼️ Copy Image to Clipboard</button>
+    <button class="btn btn-sm" onclick="copyCaption('Figure 2: Comparison between standard framework-cluttered traces and logd\'s package-focused demangling.', this)">📋 Copy Caption</button>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_stack_trace_demangling.webp" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open WebP</a>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_stack_trace_demangling.png" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open PNG</a>
+  </div>
+</div>
+
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;"><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd</code> incorporates automated stack trace filtering and structured layout formatting:</p>
+<ul style="margin: 12px 0 16px 24px; padding: 0; line-height: 1.7;">
+<li style="margin-bottom: 8px;">Framework-internal frames are recognized and can be collapsed or filtered out.</li>
+<li style="margin-bottom: 8px;">Diagnostic output emphasizes call sites within user packages and application code.</li>
+<li style="margin-bottom: 8px;">Structured data (maps, lists, tables) is rendered through dedicated intermediate representation nodes (<code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">MapNode</code>, <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">TableNode</code>), presenting data in aligned, compact tables that conserve console scrollback.</li>
+</ul>
+<hr style="border: none; border-top: 1px solid #30363d; margin: 28px 0;" />
+  </div>
+</div>
+
+
+<div class="section-card" id="sec-5-the-composable-pipeline-filters-formatters-decorators-and-sinks">
+  <div class="section-header no-copy">
+    <span class="section-title">5. The Composable Pipeline: Filters, Formatters, Decorators, and Sinks</span>
+    <button class="btn btn-sm btn-primary" onclick="copySectionRichText('sec-5-the-composable-pipeline-filters-formatters-decorators-and-sinks-body', this)">📋 Copy This Section (Formatted)</button>
+  </div>
+  <div class="section-body" id="sec-5-the-composable-pipeline-filters-formatters-decorators-and-sinks-body">
+<h2 style="margin-top: 32px; margin-bottom: 14px; font-size: 22px; font-weight: 700; color: #79c0ff; border-bottom: 1px solid #30363d; padding-bottom: 8px;">5. The Composable Pipeline: Filters, Formatters, Decorators, and Sinks</h2>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;"><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd</code> treats logging as a decoupled compilation pipeline. Instead of binding formatters directly to output mechanisms, each handler processes events through four orthogonal stages:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>[LogRecord] ──&gt; [Filters] ──&gt; [Formatter] ──&gt; [Decorators] ──&gt; [Sink]</code></pre>
+<ol style="margin: 12px 0 16px 24px; padding: 0; line-height: 1.7;">
+<li style="margin-bottom: 8px;"><strong><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">LogFilter</code></strong>: Evaluates whether a record should be processed (e.g., minimum level, tag bitmasks, custom rate-limiters).</li>
+<li style="margin-bottom: 8px;"><strong><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">LogFormatter</code></strong>: Transforms the raw event into an abstract Semantic Intermediate Representation (<code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">LogDocument</code>).</li>
+<li style="margin-bottom: 8px;"><strong><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">LogDecorator</code></strong>: Enriches the <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">LogDocument</code> with metadata (e.g., timestamps, subsystem path badges, thread/isolate IDs).</li>
+<li style="margin-bottom: 8px;"><strong><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">LogSink</code></strong>: Renders the physical layout to the destination target (terminal ANSI, flat file, network socket).</li>
+</ol>
+
+<div class="article-figure" style="margin: 28px 0; padding: 18px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; text-align: center;">
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_pipeline_architecture.webp" alt="Composable Logging Pipeline Architecture" style="max-width: 100%; height: auto; border-radius: 4px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  <p style="margin-top: 10px; font-style: italic; color: #8b949e; font-size: 13px;">Figure 3: The four-stage log compilation pipeline: LogRecord ──> LogFilter ──> LogFormatter ──> LogDecorator ──> LogSink.</p>
+  <div class="no-copy" style="margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+    <button class="btn btn-sm" onclick="copyImageToClipboard('https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_pipeline_architecture.webp', this)">🖼️ Copy Image to Clipboard</button>
+    <button class="btn btn-sm" onclick="copyCaption('Figure 3: The four-stage log compilation pipeline: LogRecord ──> LogFilter ──> LogFormatter ──> LogDecorator ──> LogSink.', this)">📋 Copy Caption</button>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_pipeline_architecture.webp" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open WebP</a>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_pipeline_architecture.png" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open PNG</a>
+  </div>
+</div>
+
+<h3 style="margin-top: 26px; margin-bottom: 12px; font-size: 18px; font-weight: 600; color: #58a6ff;">Composing a Custom Pipeline</h3>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">This decoupling allows developers to mix and match formatting, filtering, and transport behaviors without subclassing:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>import &#x27;package:logd/logd.dart&#x27;;
+
+final customHandler = Handler(
+  formatter: TerminalFormatter(),
+  sink: ConsoleSink(),
+  filters: [
+    LevelFilter(LogLevel.info),
+  ],
+  decorators: [
+    TimestampDecorator(),
+    SubsystemDecorator(),
+  ],
+);
+
+Logger.configure(&#x27;app&#x27;, handlers: [customHandler]);</code></pre>
+<h3 style="margin-top: 26px; margin-bottom: 12px; font-size: 18px; font-weight: 600; color: #58a6ff;">Production Resilience: Fail-Safe Fallbacks</h3>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">In mission-critical production environments, an observability pipeline must never crash the host application. If a primary file sink throws due to a full disk or file permission error, <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd</code> allows configuring fail-safe fallbacks:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>Logger.configure(&#x27;app&#x27;, handlers: [
+  PlainFileHandler.async(
+    path: &#x27;/var/log/app.log&#x27;,
+    fallbackHandler: ConsoleHandler.async(),
+  ),
+]);</code></pre>
+<hr style="border: none; border-top: 1px solid #30363d; margin: 28px 0;" />
+  </div>
+</div>
+
+
+<div class="section-card" id="sec-6-background-isolate-execution-async">
+  <div class="section-header no-copy">
+    <span class="section-title">6. Background Isolate Execution (`.async()`)</span>
+    <button class="btn btn-sm btn-primary" onclick="copySectionRichText('sec-6-background-isolate-execution-async-body', this)">📋 Copy This Section (Formatted)</button>
+  </div>
+  <div class="section-body" id="sec-6-background-isolate-execution-async-body">
+<h2 style="margin-top: 32px; margin-bottom: 14px; font-size: 22px; font-weight: 700; color: #79c0ff; border-bottom: 1px solid #30363d; padding-bottom: 8px;">6. Background Isolate Execution (<code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">.async()</code>)</h2>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">In performance-sensitive environments—such as high-refresh-rate Flutter interfaces operating within tight frame budgets (e.g., 8.3ms at 120Hz)—intensive string manipulation, JSON serialization, and disk I/O on the main thread can introduce perceptible latency.</p>
+
+<div class="article-figure" style="margin: 28px 0; padding: 18px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; text-align: center;">
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_architecture_flowmap.webp" alt="logd Architecture Flow Map" style="max-width: 100%; height: auto; border-radius: 4px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  <p style="margin-top: 10px; font-style: italic; color: #8b949e; font-size: 13px;">Figure 4: Architecture of logd's worker isolate pipeline, transferring immutable records across SendPort boundaries.</p>
+  <div class="no-copy" style="margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+    <button class="btn btn-sm" onclick="copyImageToClipboard('https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_architecture_flowmap.webp', this)">🖼️ Copy Image to Clipboard</button>
+    <button class="btn btn-sm" onclick="copyCaption('Figure 4: Architecture of logd\'s worker isolate pipeline, transferring immutable records across SendPort boundaries.', this)">📋 Copy Caption</button>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_architecture_flowmap.webp" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open WebP</a>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_architecture_flowmap.png" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open PNG</a>
+  </div>
+</div>
+
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">To decouple logging overhead from UI rendering or event-loop execution, <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd</code> allows output handlers to be offloaded to dedicated background isolates by appending <strong><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">.async()</code></strong>:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>Logger.configure(&#x27;app&#x27;, handlers: [
+  ConsoleHandler.async(),
+  PlainFileHandler.async(path: &#x27;logs/app.log&#x27;),
+]);</code></pre>
+
+<div class="article-figure" style="margin: 28px 0; padding: 18px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; text-align: center;">
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_architecture_zero_jank.webp" alt="120Hz Zero-Jank Timeline" style="max-width: 100%; height: auto; border-radius: 4px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  <p style="margin-top: 10px; font-style: italic; color: #8b949e; font-size: 13px;">Figure 5: Main thread execution vs. background worker isolate offloading within an 8.3ms frame budget.</p>
+  <div class="no-copy" style="margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+    <button class="btn btn-sm" onclick="copyImageToClipboard('https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_architecture_zero_jank.webp', this)">🖼️ Copy Image to Clipboard</button>
+    <button class="btn btn-sm" onclick="copyCaption('Figure 5: Main thread execution vs. background worker isolate offloading within an 8.3ms frame budget.', this)">📋 Copy Caption</button>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_architecture_zero_jank.webp" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open WebP</a>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_architecture_zero_jank.png" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open PNG</a>
+  </div>
+</div>
+
+<h3 style="margin-top: 26px; margin-bottom: 12px; font-size: 18px; font-weight: 600; color: #58a6ff;">Pipeline Overview</h3>
+<ul style="margin: 12px 0 16px 24px; padding: 0; line-height: 1.7;">
+<li style="margin-bottom: 8px;"><strong>Low Main-Thread Overhead</strong>: The calling isolate performs a lightweight transfer of immutable log records across <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">SendPort</code> boundaries.</li>
+<li style="margin-bottom: 8px;"><strong>Independent Processing</strong>: ANSI formatting, timestamp parsing, document layout, and file writing execute asynchronously within the background worker isolate.</li>
+</ul>
+<h3 style="margin-top: 26px; margin-bottom: 12px; font-size: 18px; font-weight: 600; color: #58a6ff;">Deterministic Unit Testing with <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">MemoryHandler</code></h3>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">Deterministic unit testing often requires verifying that specific telemetry events were emitted during a workflow without polluting test output or resorting to stream-interception hacks.</p>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;"><em>Note on Craft</em>: While I/O handlers benefit from asynchronous worker isolates, components like <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">MemoryHandler</code> deliberately operate synchronously in-process to ensure unit tests and local inspection panels retain deterministic, immediate access to logged records:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>test(&#x27;records failure when checkout fails&#x27;, () async {
+  final memory = MemoryHandler();
+  Logger.configure(&#x27;app.checkout&#x27;, handlers: [memory]);
+
+  await checkoutService.processOrder();
+
+  expect(memory.entries.length, 1);
+  expect(memory.entries.first.level, LogLevel.warning);
+  expect(memory.entries.first.context?[&#x27;status&#x27;], &#x27;failed&#x27;);
+});</code></pre>
+<hr style="border: none; border-top: 1px solid #30363d; margin: 28px 0;" />
+  </div>
+</div>
+
+
+<div class="section-card" id="sec-7-efficient-telemetry-for-language-models-toon">
+  <div class="section-header no-copy">
+    <span class="section-title">7. Efficient Telemetry for Language Models (TOON)</span>
+    <button class="btn btn-sm btn-primary" onclick="copySectionRichText('sec-7-efficient-telemetry-for-language-models-toon-body', this)">📋 Copy This Section (Formatted)</button>
+  </div>
+  <div class="section-body" id="sec-7-efficient-telemetry-for-language-models-toon-body">
+<h2 style="margin-top: 32px; margin-bottom: 14px; font-size: 22px; font-weight: 700; color: #79c0ff; border-bottom: 1px solid #30363d; padding-bottom: 8px;">7. Efficient Telemetry for Language Models (TOON)</h2>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">As developers increasingly integrate large language models (LLMs) into applications for telemetry analysis, agentic workflows, or automated triage, sending structured diagnostics via standard JSON presents a noticeable token overhead. Repeated schema keys, delimiters, and quotation marks can consume a substantial portion of an LLM&#x27;s context window.</p>
+
+<div class="article-figure" style="margin: 28px 0; padding: 18px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; text-align: center;">
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_toon_token_comparison.webp" alt="TOON Token Comparison" style="max-width: 100%; height: auto; border-radius: 4px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  <p style="margin-top: 10px; font-style: italic; color: #8b949e; font-size: 13px;">Figure 6: Token density comparison between verbose JSON and schema-delimited TOON telemetry.</p>
+  <div class="no-copy" style="margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+    <button class="btn btn-sm" onclick="copyImageToClipboard('https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_toon_token_comparison.webp', this)">🖼️ Copy Image to Clipboard</button>
+    <button class="btn btn-sm" onclick="copyCaption('Figure 6: Token density comparison between verbose JSON and schema-delimited TOON telemetry.', this)">📋 Copy Caption</button>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_toon_token_comparison.webp" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open WebP</a>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_toon_token_comparison.png" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open PNG</a>
+  </div>
+</div>
+
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">To address this use case, the <strong>TOON (Tab-Oriented Object Notation)</strong> format is provided via a dedicated satellite package (<a href="https://pub.dev/packages/logd_toon" target="_blank" style="color: #0a66c2; text-decoration: underline;"><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">package:logd_toon</code></a>).</p>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">TOON structures diagnostic streams with a schema header followed by tab-delimited records. This representation reduces prompt token usage by an estimated 30% to 50% while preserving full structured data fidelity for downstream ingestion:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>import &#x27;package:logd_toon/logd_toon.dart&#x27;;
+
+Logger.configure(&#x27;app.telemetry&#x27;, handlers: [
+  ToonFileHandler.async(path: &#x27;logs/agent_telemetry.toon&#x27;),
+]);</code></pre>
+<hr style="border: none; border-top: 1px solid #30363d; margin: 28px 0;" />
+  </div>
+</div>
+
+
+<div class="section-card" id="sec-8-modular-architecture-the-satellite-ecosystem">
+  <div class="section-header no-copy">
+    <span class="section-title">8. Modular Architecture: The Satellite Ecosystem</span>
+    <button class="btn btn-sm btn-primary" onclick="copySectionRichText('sec-8-modular-architecture-the-satellite-ecosystem-body', this)">📋 Copy This Section (Formatted)</button>
+  </div>
+  <div class="section-body" id="sec-8-modular-architecture-the-satellite-ecosystem-body">
+<h2 style="margin-top: 32px; margin-bottom: 14px; font-size: 22px; font-weight: 700; color: #79c0ff; border-bottom: 1px solid #30363d; padding-bottom: 8px;">8. Modular Architecture: The Satellite Ecosystem</h2>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">To maintain a zero-network-dependency core, <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">package:logd</code> focuses strictly on the fundamental logging engine. Specialized transports, integrations, and tools are decoupled into seven optional satellite packages:</p>
+<ul style="margin: 12px 0 16px 24px; padding: 0; line-height: 1.7;">
+<li style="margin-bottom: 8px;"><strong><a href="https://pub.dev/packages/logd_dio" target="_blank" style="color: #0a66c2; text-decoration: underline;"><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd_dio</code></a></strong>: Interceptor for Dio HTTP traffic, supporting automatic credential redaction, monotonic timing metrics, and copy-paste executable cURL generation.</li>
+<li style="margin-bottom: 8px;"><strong><a href="https://pub.dev/packages/logd_sqlite" target="_blank" style="color: #0a66c2; text-decoration: underline;"><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd_sqlite</code></a></strong>: WAL-mode SQLite database persistence with embedded terminal table query inspection.</li>
+<li style="margin-bottom: 8px;"><strong><a href="https://pub.dev/packages/logd_network" target="_blank" style="color: #0a66c2; text-decoration: underline;"><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd_network</code></a></strong>: Local development server providing an embedded browser dashboard with real-time WebSocket telemetry streaming.</li>
+<li style="margin-bottom: 8px;"><strong><a href="https://pub.dev/packages/logd_toon" target="_blank" style="color: #0a66c2; text-decoration: underline;"><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd_toon</code></a></strong>: Token-optimized format designed specifically for LLM context windows and agent workflows <em>(detailed in Section 7)</em>.</li>
+<li style="margin-bottom: 8px;"><strong><a href="https://pub.dev/packages/logd_html" target="_blank" style="color: #0a66c2; text-decoration: underline;"><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd_html</code></a></strong>: Self-contained interactive HTML5 report generator for post-mortem debugging and offline session inspection.</li>
+<li style="margin-bottom: 8px;"><strong><a href="https://pub.dev/packages/logd_markdown" target="_blank" style="color: #0a66c2; text-decoration: underline;"><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd_markdown</code></a></strong>: GitHub-Flavored Markdown formatter designed for CI/CD pipeline summaries and automated PR reports.</li>
+<li style="margin-bottom: 8px;"><strong><a href="https://pub.dev/packages/logd_linters" target="_blank" style="color: #0a66c2; text-decoration: underline;"><code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd_linters</code></a></strong>: Custom Dart analyzer rules and quick-fixes that enforce logging hygiene and prevent raw <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">print()</code> statements at compile time.</li>
+</ul>
+
+<div class="article-figure" style="margin: 28px 0; padding: 18px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; text-align: center;">
+  <img src="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_satellite_ecosystem.webp" alt="Satellite Ecosystem: Network Dashboard and HTML Report" style="max-width: 100%; height: auto; border-radius: 4px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  <p style="margin-top: 10px; font-style: italic; color: #8b949e; font-size: 13px;">Figure 7: Real-time browser telemetry dashboard (logd_network) and self-contained HTML5 session report (logd_html).</p>
+  <div class="no-copy" style="margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+    <button class="btn btn-sm" onclick="copyImageToClipboard('https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_satellite_ecosystem.webp', this)">🖼️ Copy Image to Clipboard</button>
+    <button class="btn btn-sm" onclick="copyCaption('Figure 7: Real-time browser telemetry dashboard (logd_network) and self-contained HTML5 session report (logd_html).', this)">📋 Copy Caption</button>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_satellite_ecosystem.webp" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open WebP</a>
+    <a href="https://raw.githubusercontent.com/pccria/logd/master/assets/img/logd_satellite_ecosystem.png" target="_blank" class="btn btn-sm" style="text-decoration:none;">🔗 Open PNG</a>
+  </div>
+</div>
+
+<hr style="border: none; border-top: 1px solid #30363d; margin: 28px 0;" />
+  </div>
+</div>
+
+
+<div class="section-card" id="sec-9-getting-started">
+  <div class="section-header no-copy">
+    <span class="section-title">9. Getting Started</span>
+    <button class="btn btn-sm btn-primary" onclick="copySectionRichText('sec-9-getting-started-body', this)">📋 Copy This Section (Formatted)</button>
+  </div>
+  <div class="section-body" id="sec-9-getting-started-body">
+<h2 style="margin-top: 32px; margin-bottom: 14px; font-size: 22px; font-weight: 700; color: #79c0ff; border-bottom: 1px solid #30363d; padding-bottom: 8px;">9. Getting Started</h2>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">A standard configuration can be initialized with minimal setup:</p>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>dependencies:
+  logd: ^latest</code></pre>
+<pre style="background: #161b22; color: #e6edf3; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; line-height: 1.45; margin: 16px 0; border: 1px solid #30363d;"><code>import &#x27;package:logd/logd.dart&#x27;;
+
+void main() {
+  // 1. Configure baseline handlers
+  Logger.configure(&#x27;app&#x27;, handlers: [
+    ConsoleHandler.async(),
+  ]);
+
+  // 2. Obtain a logger instance and emit structured entries
+  final logger = Logger.get(&#x27;app&#x27;);
+  logger.info(&#x27;Application initialized&#x27;, context: {
+    &#x27;environment&#x27;: &#x27;production&#x27;,
+    &#x27;port&#x27;: 8080,
+  });
+}</code></pre>
+<hr style="border: none; border-top: 1px solid #30363d; margin: 28px 0;" />
+  </div>
+</div>
+
+
+<div class="section-card" id="sec-final-thoughts-logging-as-infrastructure">
+  <div class="section-header no-copy">
+    <span class="section-title">Final Thoughts: Logging as Infrastructure</span>
+    <button class="btn btn-sm btn-primary" onclick="copySectionRichText('sec-final-thoughts-logging-as-infrastructure-body', this)">📋 Copy This Section (Formatted)</button>
+  </div>
+  <div class="section-body" id="sec-final-thoughts-logging-as-infrastructure-body">
+<h2 style="margin-top: 32px; margin-bottom: 14px; font-size: 22px; font-weight: 700; color: #79c0ff; border-bottom: 1px solid #30363d; padding-bottom: 8px;">Final Thoughts: Logging as Infrastructure</h2>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">Observability requirements vary significantly depending on application scale, team workflows, and platform constraints. But across every scale, the guiding philosophy remains the same: an observer must never alter the observee&#x27;s behavior.</p>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">By offloading pipeline computation to background isolates, providing fail-safe exception boundaries, and enabling zero-restart runtime reconfiguration, <code style="background: rgba(175, 184, 193, 0.2); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em;">logd</code> was built to explore how architectural hierarchies, ambient context, and background concurrency could give Dart and Flutter teams a robust, structured foundation without ever compromising application stability or UI performance.</p>
+<ul style="margin: 12px 0 16px 24px; padding: 0; line-height: 1.7;">
+<li style="margin-bottom: 8px;"><strong>GitHub Repository</strong>: <a href="https://github.com/pccria/logd" target="_blank" style="color: #0a66c2; text-decoration: underline;">github.com/pccria/logd</a></li>
+<li style="margin-bottom: 8px;"><strong>pub.dev Package</strong>: <a href="https://pub.dev/packages/logd" target="_blank" style="color: #0a66c2; text-decoration: underline;">pub.dev/packages/logd</a></li>
+<li style="margin-bottom: 8px;"><strong>Architecture Documentation &amp; Recipes</strong>: <a href="https://github.com/pccria/logd/tree/master/doc" target="_blank" style="color: #0a66c2; text-decoration: underline;">github.com/pccria/logd/tree/master/doc</a></li>
+</ul>
+<p style="margin: 14px 0; line-height: 1.75; font-size: 15px;">All packages are available on pub.dev. I welcome your feedback, critiques, and contributions as the project continues to evolve.</p>
+  </div>
+</div>
+
+  </div>
+
+  <div style="text-align: center; margin-top: 40px;" class="no-copy">
+    <button class="btn btn-primary" style="padding: 12px 24px; font-size: 15px;" onclick="copyFullArticleRichText(this)">
+      ⚡ Copy Entire Formatted Article to Clipboard
+    </button>
+  </div>
+
+  <script>
+    async function copyText(elementId, btn) {
+      const el = document.getElementById(elementId);
+      const text = el.innerText || el.textContent;
+      await navigator.clipboard.writeText(text);
+      indicateSuccess(btn, '✅ Copied!');
+    }
+
+    async function copyCaption(text, btn) {
+      await navigator.clipboard.writeText(text);
+      indicateSuccess(btn, '✅ Caption Copied!');
+    }
+
+    async function copySectionRichText(sectionBodyId, btn) {
+      const el = document.getElementById(sectionBodyId);
+      if (!el) return;
+      await copyElementAsRichText(el, btn);
+    }
+
+    async function copyFullArticleRichText(btn) {
+      const bodies = document.querySelectorAll('.section-body');
+      const tempDiv = document.createElement('div');
+      bodies.forEach(b => {
+        const clone = b.cloneNode(true);
+        clone.querySelectorAll('.no-copy').forEach(n => n.remove());
+        tempDiv.appendChild(clone);
+      });
+      await copyElementAsRichText(tempDiv, btn);
+    }
+
+    async function copyElementAsRichText(element, btn) {
+      const clone = element.cloneNode(true);
+      clone.querySelectorAll('.no-copy').forEach(n => n.remove());
+
+      const htmlContent = clone.innerHTML;
+      const textContent = clone.innerText;
+
+      let success = false;
+      if (navigator.clipboard && window.ClipboardItem) {
+        try {
+          const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+          const textBlob = new Blob([textContent], { type: 'text/plain' });
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'text/html': htmlBlob,
+              'text/plain': textBlob
+            })
+          ]);
+          success = true;
+        } catch (e) {
+          console.warn('ClipboardItem failed, trying fallback', e);
+        }
+      }
+
+      if (!success) {
+        const offscreen = document.createElement('div');
+        offscreen.contentEditable = 'true';
+        offscreen.style.position = 'fixed';
+        offscreen.style.left = '-9999px';
+        offscreen.innerHTML = htmlContent;
+        document.body.appendChild(offscreen);
+
+        const range = document.createRange();
+        range.selectNodeContents(offscreen);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand('copy');
+        sel.removeAllRanges();
+        document.body.removeChild(offscreen);
+        success = true;
+      }
+
+      indicateSuccess(btn, '✅ Copied Rich Text! Ctrl+V into LinkedIn');
+    }
+
+    async function copyImageToClipboard(imgUrl, btn) {
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '⏳ Copying image...';
+      try {
+        const res = await fetch(imgUrl);
+        const blob = await res.blob();
+        
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.src = URL.createObjectURL(blob);
+        
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        canvas.toBlob(async (pngBlob) => {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': pngBlob })
+            ]);
+            indicateSuccess(btn, '✅ Image Copied! Ctrl+V in LinkedIn');
+          } catch (e) {
+            console.error('Clipboard write error', e);
+            btn.innerHTML = '⚠️ Right-click image > Copy Image';
+            setTimeout(() => { btn.innerHTML = originalText; }, 3500);
+          }
+        }, 'image/png');
+      } catch (e) {
+        console.error('Fetch error', e);
+        btn.innerHTML = '⚠️ Right-click image > Copy Image';
+        setTimeout(() => { btn.innerHTML = originalText; }, 3500);
+      }
+    }
+
+    function selectAllArticle() {
+      const container = document.getElementById('full-article-container');
+      const range = document.createRange();
+      range.selectNodeContents(container);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      alert('Article content selected! Now press Ctrl+C (Cmd+C), then Ctrl+V into LinkedIn Article.');
+    }
+
+    function indicateSuccess(btn, msg) {
+      if (!btn) return;
+      const orig = btn.innerHTML;
+      btn.innerHTML = msg;
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.innerHTML = orig;
+        btn.classList.remove('copied');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

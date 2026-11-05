@@ -15,22 +15,33 @@ This patch release hardens log retention, rotation, hierarchy invalidation, and 
   - **Decorator Pipeline Allocation & Composition Caching**: Added `DecoratorPipeline.of(decorators)` and `Handler.decoratorPipeline` pre-compilation with identity-based `Expando` memoization. Replaces per-log-cycle heap churn (Sets, intermediate Lists, Maps, and dynamic sort comparisons) with pre-sorted canonical pipelines across `StandardEngine`, `ArenaEngine`, and `NativeEngine`.
   - **Timeout Entry Lifetime Guard**: Guarded `Handler.log` with `entry.clone()` whenever an execution timeout is configured. Detaches background asynchronous pipeline executions on timed-out operations from pool recycling in `Arena.instance.releaseLogEntry()`, ensuring delayed or stalled sinks never observe reset or mutated state during background completion while preserving zero-allocation fast-path semantics for untimed handlers.
 
+- ### Core Logging Engine & Hierarchy
+  - **Sink Disposal on Handler Lifecycle**: Made `Handler.dispose()` dispose its underlying `sink` (`await sink.dispose()`), ensuring sinks, file resources, timers, and isolate ports cleanly terminate when handlers or loggers are disposed.
+  - **Replaced Handler Disposal on Reconfiguration**: When loggers are reconfigured via `Logger.configure`, `Logger.configureMultiple`, `Logger.reset`, or `Logger.importConfig`, any displaced handler no longer referenced by any registered logger is automatically disposed asynchronously.
+  - **Zero Process-Spawning Clock Fast Path**: Removed all synchronous external process spawning from the default native timezone detection path in favor of zero-overhead symlink inspection (`/etc/localtime`, `/etc/timezone`) and direct `DateTime.now().timeZoneName` resolution.
+  - **Piped Console Sink Flush**: Enhanced `ConsoleSink.flush()` to flush standard output even in non-interactive terminal environments (piped or redirected outputs in servers and CI runners).
+
 - ### Async Engine & Isolate Worker Resilience
   - **Sequential Worker Event Loop**: Replaced asynchronous event listener callbacks with sequential `await for` message processing loops in `IsolateSink`, `AsyncHandler`, and `spawnNativeWorker` (`NativeIsolateSink`). Guarantees strictly ordered FIFO processing and eliminates race conditions where worker disposal preempts in-flight writes.
   - **Worker Fault Isolation & Delegate Resilience**: Worker isolates now run with `errorsAreFatal: false` and wrap target sink delegations and packet decodings in structured diagnostic logging, preventing isolated downstream delegate failures from crashing background workers.
   - **NativeIsolateSink Flush Contract**: Implemented `flush()` on `NativeIsolateSink` to dispatch `IsolateCommand.flush` and synchronize in-flight native buffer emissions prior to sink disposal or process shutdown.
+  - **AsyncHandler Bounded Queue & Lifecycle Drain**: Added `maxQueueSize` (default: 10,000) and backpressure accounting via worker ACK signaling, dropping excess messages when saturated. Worker isolate finalizer now performs graceful drain and shutdown (`worker.dispose()`) rather than abrupt kill.
+  - **AsyncHandler Identity Equality**: Implemented identity-based equality (`operator ==` and `hashCode`) on `AsyncHandler` instances to reflect independent background isolates and lifecycles.
 
 - ### Terminal Layout & Security
   - **Log Injection & Escape Code Neutralization**: Neutralized non-SGR terminal control sequences (screen clears, cursor repositioning, OSC commands) to visible notation (`^[`) and stripped destructive C0 controls (`\x00`, `\x07`, `\x08`, `\x7F`). Carriage returns are normalized to line feeds to prevent visual line forgery in terminal logs, with a fast ASCII path to maintain zero layout overhead.
+  - **Comprehensive Control Code & Bidi Neutralization**: Extended `sanitizeControlCharacters` to normalize C1 Next Line (`U+0085`) and Unicode line/paragraph separators (`U+2028`, `U+2029`) into newlines, while stripping C1 control characters (`U+0080` to `U+009F`) and Unicode bidirectional override codes (`U+200E`, `U+200F`, `U+202A` to `U+202E`, `U+2066` to `U+2069`).
   - **Raw Output Opt-Out**: Introduced `LogTag.raw` bitmask flag allowing handlers to bypass neutralization when raw ANSI output is explicitly intended.
 
 - ### Encoders & Serialization
   - **Resilient JSON Encoding**: Added graceful `toEncodable` fallback to `JsonEncoder` and `JsonCodec`, allowing safe serialization of non-JSON-native objects (`DateTime`, `Enum`, `Uri`, and custom models) without throwing `JsonUnsupportedObjectError`.
   - **Structured Binary IR Decoder Resilience**: Hardened `BinaryAnsiEncoder` and `BinaryToonEncoder` to throw structured `FormatException` on invalid magic headers or unrecognized opcodes rather than emitting open error strings or advancing corrupted offset streams. Resolved metadata alignment and bounds checking in `BinaryToonEncoder`.
+  - **Unconditional Binary IR Bounds Checking**: Added strict header-length validation (`totalLength < BinaryIR.headerSize`) and converted all inner offset checks in `BinaryAnsiEncoder` and `BinaryToonEncoder` to unconditional bounds guards, eliminating zero-length out-of-bounds bypass risks.
 
 - ### File Sinks & Rotation Policies
   - **Safe Retention Cleanup**: Enforced exact indexed pattern matching in `SizeRotation` and timestamp pattern matching in `TimeRotation` to prevent deletion of sibling files sharing a stem prefix (e.g. `app_error.log` when rotating `app.log`).
   - **Continuous TimeRotation**: Fixed period tracking so continuous writes do not push `lastRotation` forward on append operations.
+  - **Document-Wrapped File Lifecycle on Rotation**: Hardened `FileSink` to invoke `encoder.postamble()` on the rotated file and emit `encoder.preamble()` on the fresh active file, ensuring document-wrapping encoders (e.g. HTML, TOON) preserve valid closing tags and opening headers across rotation cycles.
   - **MemorySink State Reconfiguration**: Switched `MemorySink` to identity equality so reconfiguring a logger with a new sink buffer is recognized rather than ignored.
   - **MultiSink Error Propagation**: Rethrows failures when all active child sinks fail, allowing `Logger.fallbackHandler` and failure metrics to engage.
 

@@ -208,7 +208,80 @@ void main() {
       await asyncHandler.ready;
       await expectLater(asyncHandler.dispose(), completes);
     });
+
+    test('AsyncHandler compares by identity even with equal configuration',
+        () async {
+      // ignore: prefer_const_constructors
+      final h1 = AsyncHandler(
+        formatter: const PlainFormatter(),
+        sink: const ConsoleSink(),
+      );
+      // ignore: prefer_const_constructors
+      final h2 = AsyncHandler(
+        formatter: const PlainFormatter(),
+        sink: const ConsoleSink(),
+      );
+
+      expect(
+        h1 == h2,
+        isFalse,
+        reason: 'AsyncHandlers own distinct isolates and must not be equal',
+      );
+      expect(h1 == h1, isTrue);
+
+      await h1.dispose();
+      await h2.dispose();
+    });
+
+    test(
+        'AsyncHandler bounds send queue and drops when '
+        'maxQueueSize is exceeded', () async {
+      LoggerMetrics.reset();
+      final receivePort = ReceivePort();
+      final sink = SlowBlockSink(receivePort.sendPort);
+
+      final handler = AsyncHandler(
+        formatter: const PlainFormatter(),
+        sink: sink,
+        maxQueueSize: 2,
+      );
+      await handler.ready;
+
+      final logger = Logger.get('async_queue_test');
+      Logger.configure('async_queue_test', handlers: [handler]);
+
+      // Emit 10 logs rapidly while worker is delayed
+      for (int i = 0; i < 10; i++) {
+        logger.info('Rapid message $i');
+      }
+
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await handler.dispose();
+      receivePort.close();
+
+      expect(
+        LoggerMetrics.drops,
+        greaterThan(0),
+        reason: 'Excess logs beyond maxQueueSize should increment drops metric',
+      );
+    });
   });
+}
+
+base class SlowBlockSink extends LogSink<LogDocument> {
+  SlowBlockSink(this.port);
+  final SendPort port;
+
+  @override
+  Future<void> output(
+    final LogDocument document,
+    final LogEntry entry,
+    final LogLevel level,
+    final LogPipelineFactory factory,
+  ) async {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    port.send(entry.message);
+  }
 }
 
 base class ThrowingDisposeSink extends LogSink<LogDocument> {

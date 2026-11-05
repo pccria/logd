@@ -43,6 +43,48 @@ void main() {
       }
     });
 
+    test(
+      'BinaryAnsiEncoder throws FormatException when '
+      'totalLength < headerSize',
+      () {
+        final ptr = calloc<ffi.Uint8>(32);
+        try {
+          ptr.cast<ffi.Uint32>()[0] = BinaryIR.magic;
+          ptr.cast<ffi.Uint16>()[2] = BinaryIR.version;
+          ptr.cast<ffi.Uint32>()[2] = 0;
+          ptr.cast<ffi.Uint32>()[3] = 0; // totalLength = 0
+
+          const encoder = BinaryAnsiEncoder();
+          expect(
+            () => encoder.encode(ptr, length: 0, terminalWidth: 80),
+            throwsA(isA<FormatException>()),
+          );
+        } finally {
+          calloc.free(ptr);
+        }
+      },
+    );
+
+    test(
+        'BinaryToonEncoder throws FormatException when '
+        'totalLength < headerSize', () {
+      final ptr = calloc<ffi.Uint8>(32);
+      try {
+        ptr.cast<ffi.Uint32>()[0] = BinaryIR.magic;
+        ptr.cast<ffi.Uint16>()[2] = BinaryIR.version;
+        ptr.cast<ffi.Uint32>()[2] = 0;
+        ptr.cast<ffi.Uint32>()[3] = 0; // totalLength = 0
+
+        const encoder = BinaryToonEncoder();
+        expect(
+          () => encoder.encode(ptr, length: 0),
+          throwsA(isA<FormatException>()),
+        );
+      } finally {
+        calloc.free(ptr);
+      }
+    });
+
     test('BinaryAnsiEncoder throws FormatException on unrecognized opcode', () {
       final ptr = calloc<ffi.Uint8>(32);
       try {

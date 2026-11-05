@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:meta/meta.dart';
 
 import '../core/log_level.dart';
@@ -847,6 +849,7 @@ class Logger {
     final stagedUpdates = <String, LoggerConfig>{};
     final changedLoggers = <String>{};
     final loggersToRegister = <String>{};
+    final oldCandidateHandlers = <Handler>{};
 
     for (final entry in configurations.entries) {
       final name = entry.key;
@@ -855,6 +858,11 @@ class Logger {
 
       if (!_registry.containsKey(normalized)) {
         loggersToRegister.add(normalized);
+      }
+
+      if (_registry.containsKey(normalized) &&
+          _registry[normalized]!.handlers != null) {
+        oldCandidateHandlers.addAll(_registry[normalized]!.handlers!);
       }
 
       final existingConfig = _registry[normalized] ?? const LoggerConfig();
@@ -1057,8 +1065,23 @@ class Logger {
     }
     _registry.addAll(stagedUpdates);
 
+    if (oldCandidateHandlers.isNotEmpty) {
+      _disposeOrphanedHandlers(oldCandidateHandlers);
+    }
+
     if (changedLoggers.isNotEmpty) {
       LoggerCache.invalidateMultiple(changedLoggers);
+    }
+  }
+
+  static void _disposeOrphanedHandlers(final Iterable<Handler> candidates) {
+    for (final handler in candidates) {
+      final isStillReferenced = _registry.values.any(
+        (final config) => config.handlers?.contains(handler) ?? false,
+      );
+      if (!isStillReferenced) {
+        unawaited(handler.dispose());
+      }
     }
   }
 
@@ -1257,11 +1280,22 @@ class Logger {
       ..clear()
       ..addAll(stagedRules);
 
+    final oldCandidateHandlers = <Handler>{};
+    for (final config in _registry.values) {
+      if (config.handlers != null) {
+        oldCandidateHandlers.addAll(config.handlers!);
+      }
+    }
+
     _registry.addAll(stagedRegistry);
 
     LoggerCache.clear();
     for (final name in _registry.keys) {
       LoggerCache._registerDescendant(name);
+    }
+
+    if (oldCandidateHandlers.isNotEmpty) {
+      _disposeOrphanedHandlers(oldCandidateHandlers);
     }
   }
 
@@ -2144,20 +2178,41 @@ class Logger {
     final name =
         loggerName == null ? _globalLoggerName : _normalizeName(loggerName);
     if (name == _globalLoggerName) {
+      final allHandlers = <Handler>{};
+      for (final config in _registry.values) {
+        if (config.handlers != null) {
+          allHandlers.addAll(config.handlers!);
+        }
+      }
       _registry.clear();
       _patternRules.clear();
       LoggerCache.clear();
       _warnedDeepLoggers.clear();
       _warnedHandlerTypes.clear();
+      for (final handler in allHandlers) {
+        unawaited(handler.dispose());
+      }
     } else {
+      final removedHandlers = <Handler>{};
+      final config = _registry[name];
+      if (config?.handlers != null) {
+        removedHandlers.addAll(config!.handlers!);
+      }
       LoggerCache.invalidate(name);
       _registry.remove(name);
       LoggerCache._unregisterLogger(name);
       for (final key in _registry.keys.toList()) {
         if (_isDescendant(key, name)) {
+          final descConfig = _registry[key];
+          if (descConfig?.handlers != null) {
+            removedHandlers.addAll(descConfig!.handlers!);
+          }
           _registry.remove(key);
           LoggerCache._unregisterLogger(key);
         }
+      }
+      if (removedHandlers.isNotEmpty) {
+        _disposeOrphanedHandlers(removedHandlers);
       }
     }
   }

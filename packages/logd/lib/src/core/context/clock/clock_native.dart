@@ -10,32 +10,11 @@ String fetchNativeTimezoneName() {
   final platform = io.Platform.operatingSystem.toLowerCase();
   switch (platform) {
     case 'android':
-      try {
-        final processResult =
-            io.Process.runSync('getprop', ['persist.sys.timezone']);
-        final timezoneString = processResult.stdout.toString().trim();
-        if (timezoneString.isNotEmpty) {
-          return timezoneString;
-        }
-      } on io.ProcessException catch (e) {
-        throw Exception('Android timezone fetch failed: ${e.message}');
-      } catch (e) {
-        throw Exception('Android timezone fetch failed: $e');
-      }
-      throw Exception('Android timezone fetch failed: empty response');
+      // Fast path: DateTime.now().timeZoneName without spawning getprop
+      return DateTime.now().timeZoneName;
     case 'ios':
     case 'macos':
-      // On iOS, Process.runSync is sandbox-prohibited (issue #21).
-      // Use DateTime.now().timeZoneName as the primary, process-free source.
-      // This works on both iOS and macOS and avoids any filesystem or
-      // process access that the iOS sandbox would reject.
-      final dartTzName = io.Platform.isIOS ? DateTime.now().timeZoneName : null;
-      if (dartTzName != null && dartTzName.isNotEmpty) {
-        return dartTzName;
-      }
-
-      // On macOS (and as a secondary attempt on iOS simulators that may have
-      // the zoneinfo symlink), try resolving the /etc/localtime symlink.
+      // Resolve /etc/localtime symlink without spawning systemsetup
       for (final path in [
         '/etc/localtime',
         '/var/db/timezone/localtime',
@@ -46,29 +25,9 @@ String fetchNativeTimezoneName() {
             return name;
           }
         } on io.FileSystemException catch (_) {
-          // Path not found or permission denied, continue to next path
-        } catch (_) {
-          // Any other error, continue to next path or systemsetup
-        }
+        } catch (_) {}
       }
-
-      // Fallback to systemsetup only on macOS
-      if (platform == 'macos') {
-        try {
-          final processResult =
-              io.Process.runSync('systemsetup', ['-gettimezone']);
-          final regexMatch = RegExp('Time Zone: (.+)')
-              .firstMatch(processResult.stdout.toString());
-          if (regexMatch != null) {
-            return regexMatch.group(1)!;
-          }
-        } on io.ProcessException catch (_) {
-          // systemsetup command failed or not found
-        } catch (_) {
-          // Any other error during process execution
-        }
-      }
-      throw Exception('iOS/macOS timezone fetch failed');
+      return DateTime.now().timeZoneName;
     case 'linux':
       final timezoneFile = io.File('/etc/timezone');
       if (timezoneFile.existsSync()) {
@@ -84,43 +43,14 @@ String fetchNativeTimezoneName() {
           }
           final parts = realPath.split('/');
           return parts.sublist(parts.length - 2).join('/');
-        } on Exception catch (e) {
-          throw Exception('Linux localtime fetch failed: $e');
-        }
+        } on Exception catch (_) {}
       }
-      try {
-        final processResult = io.Process.runSync(
-          'timedatectl',
-          ['show', '--value', '--property=Timezone'],
-        );
-        final timezoneString = processResult.stdout.toString().trim();
-        if (timezoneString.isNotEmpty) {
-          return timezoneString;
-        }
-      } on io.ProcessException catch (_) {
-        // Continue to other linux methods
-      }
-      throw Exception('Linux timezone fetch failed');
+      return DateTime.now().timeZoneName;
     case 'windows':
-      try {
-        final processResult = io.Process.runSync(
-          'powershell',
-          ['-Command', '[System.TimeZoneInfo]::Local.Id'],
-        );
-        final timezoneString = processResult.stdout.toString().trim();
-        if (timezoneString.isNotEmpty) {
-          return timezoneString;
-        }
-      } on io.ProcessException catch (e) {
-        throw Exception('Windows timezone fetch failed: ${e.message}');
-      } catch (e) {
-        throw Exception('Windows timezone fetch failed: $e');
-      }
-      throw Exception('Windows timezone fetch failed: empty response');
+      // Fast path: DateTime.now().timeZoneName without spawning powershell
+      return DateTime.now().timeZoneName;
     default:
-      throw UnsupportedError(
-        'Platform $platform not supported for timezone fetch',
-      );
+      return DateTime.now().timeZoneName;
   }
 }
 

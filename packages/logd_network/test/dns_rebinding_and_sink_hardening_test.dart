@@ -74,6 +74,35 @@ void main() {
           await io.WebSocket.connect('ws://127.0.0.1:$port/ws?token=$secret');
       expect(ws.readyState, equals(io.WebSocket.open));
       await ws.close();
+
+      // 6. Dashboard HTML must include location.search in WebSocket URL
+      expect(
+        authRes.body,
+        contains(
+            r'wsUrl = `${protocol}//${window.location.host}/ws${window.location.search}`'),
+        reason:
+            'Dashboard JS must propagate query string tokens to WebSocket handshake',
+      );
+    });
+
+    test(
+        'HttpServerSink throws ArgumentError on non-loopback bind without authToken',
+        () {
+      expect(
+        () => HttpServerSink(
+          address: '0.0.0.0',
+          port: 0,
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      expect(
+        () => HttpServerSink(
+          address: '192.168.1.50',
+          port: 0,
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
     });
   });
 

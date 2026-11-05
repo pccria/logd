@@ -87,6 +87,61 @@ void main() {
       }
     });
 
+    test('strips destructive C1 controls and Unicode bidirectional overrides',
+        () {
+      final entry = LogEntry(
+        loggerName: 'test',
+        origin: 'main.dart',
+        level: LogLevel.info,
+        message: 'Safe\u0080Text\u009B2J\u202ESpoofed\u2066Bidi',
+        timestamp: '2026-11-02 00:00:00',
+      );
+
+      const formatter = PlainFormatter(metadata: {LogMetadata.logger});
+      final arena = Arena.instance;
+      final doc = arena.checkoutDocument();
+      try {
+        formatter.format(entry, doc, arena);
+        final lines = renderLines(doc);
+
+        expect(lines.length, equals(1));
+        expect(lines.first, isNot(contains('\u0080')));
+        expect(lines.first, isNot(contains('\u009B')));
+        expect(lines.first, isNot(contains('\u202E')));
+        expect(lines.first, isNot(contains('\u2066')));
+        expect(lines.first, contains('SafeText2JSpoofedBidi'));
+      } finally {
+        doc.releaseRecursive(arena);
+      }
+    });
+
+    test('normalizes C1 NEL and Unicode line/paragraph separators to newline',
+        () {
+      final entry = LogEntry(
+        loggerName: 'test',
+        origin: 'main.dart',
+        level: LogLevel.info,
+        message: 'First\u0085Second\u2028Third\u2029Fourth',
+        timestamp: '2026-11-02 00:00:00',
+      );
+
+      const formatter = PlainFormatter(metadata: {LogMetadata.logger});
+      final arena = Arena.instance;
+      final doc = arena.checkoutDocument();
+      try {
+        formatter.format(entry, doc, arena);
+        final lines = renderLines(doc);
+
+        expect(lines.length, equals(4));
+        expect(lines[0], contains('First'));
+        expect(lines[1], contains('Second'));
+        expect(lines[2], contains('Third'));
+        expect(lines[3], contains('Fourth'));
+      } finally {
+        doc.releaseRecursive(arena);
+      }
+    });
+
     test('preserves raw escape sequences when tagged with LogTag.raw', () {
       final doc = Arena.instance.checkoutDocument();
       try {

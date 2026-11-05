@@ -11,6 +11,8 @@ base class SlowTrackingSink extends LogSink<LogDocument> {
   final SendPort notifyPort;
   final List<String> received = [];
   bool flushed = false;
+  bool disposed = false;
+  int disposeCallCount = 0;
 
   @override
   Future<void> output(
@@ -29,6 +31,13 @@ base class SlowTrackingSink extends LogSink<LogDocument> {
   Future<void> flush() async {
     flushed = true;
     notifyPort.send('flushed');
+  }
+
+  @override
+  Future<void> dispose() async {
+    disposed = true;
+    disposeCallCount++;
+    notifyPort.send('disposed');
   }
 }
 
@@ -166,6 +175,96 @@ void main() {
       logger.info('Instance Msg');
       await logger.flushHandlers();
       expect(sink.flushed, isTrue);
+      receivePort.close();
+    });
+
+    test('Handler.dispose() disposes underlying sink', () async {
+      final receivePort = ReceivePort();
+      final sink = SlowTrackingSink(receivePort.sendPort);
+      final handler = Handler(
+        formatter: const PlainFormatter(),
+        sink: sink,
+      );
+
+      expect(sink.disposed, isFalse);
+      await handler.dispose();
+      expect(sink.disposed, isTrue);
+      expect(sink.disposeCallCount, equals(1));
+      receivePort.close();
+    });
+
+    test('Logger.shutdown() disposes plain handler sinks', () async {
+      final receivePort = ReceivePort();
+      final sink = SlowTrackingSink(receivePort.sendPort);
+      final handler = Handler(
+        formatter: const PlainFormatter(),
+        sink: sink,
+      );
+
+      Logger.configure('shutdown_sink_test', handlers: [handler]);
+      await Logger.shutdown();
+
+      expect(sink.flushed, isTrue);
+      expect(sink.disposed, isTrue);
+      receivePort.close();
+    });
+
+    test(
+        'Logger.configure() disposes replaced handlers that become '
+        'unreferenced', () async {
+      final receivePort = ReceivePort();
+      final sink1 = SlowTrackingSink(receivePort.sendPort);
+      final handler1 = Handler(
+        formatter: const PlainFormatter(),
+        sink: sink1,
+      );
+
+      Logger.configure('replace_handler_test', handlers: [handler1]);
+
+      final sink2 = SlowTrackingSink(receivePort.sendPort);
+      final handler2 = Handler(
+        formatter: const PlainFormatter(),
+        sink: sink2,
+      );
+
+      // Reconfigure replaces handler1 with handler2
+      Logger.configure('replace_handler_test', handlers: [handler2]);
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(
+        sink1.disposed,
+        isTrue,
+        reason: 'handler1 sink should be disposed when replaced',
+      );
+      expect(
+        sink2.disposed,
+        isFalse,
+        reason: 'handler2 is active and should not be disposed',
+      );
+
+      receivePort.close();
+    });
+
+    test('Logger.reset() disposes registered handlers', () async {
+      final receivePort = ReceivePort();
+      final sink = SlowTrackingSink(receivePort.sendPort);
+      final handler = Handler(
+        formatter: const PlainFormatter(),
+        sink: sink,
+      );
+
+      Logger.configure('reset_dispose_test', handlers: [handler]);
+      Logger.reset('reset_dispose_test');
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(
+        sink.disposed,
+        isTrue,
+        reason: 'handler sink should be disposed when logger is reset',
+      );
+
       receivePort.close();
     });
   });

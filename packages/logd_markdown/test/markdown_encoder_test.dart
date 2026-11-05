@@ -355,5 +355,52 @@ void main() {
       expect(output, contains('```bash'));
       expect(output, contains('````\n'));
     });
+
+    test('neutralizes forged markdown headings and raw HTML tags', () {
+      final entry = LogEntry(
+        level: LogLevel.info,
+        message: 'x\n# Forged heading <b>bold</b>',
+        loggerName: 'test.neutral',
+        timestamp: '2026-10-23T12:00:00.000Z',
+        origin: 'neutral_test.dart:1',
+      );
+
+      final document = formatDoc(const PlainFormatter(metadata: {}), entry);
+      final context = HandlerContext();
+      encoder.encode(entry, document, LogLevel.info, context, factory);
+      final output = const Utf8Decoder().convert(context.takeBytes());
+
+      // HTML should be escaped
+      expect(output, contains('&lt;b&gt;bold&lt;/b&gt;'));
+      expect(output, isNot(contains('<b>bold</b>')));
+      // Forged heading should be escaped with backslash
+      expect(output, contains(r'\# Forged heading'));
+      expect(output, isNot(contains('\n# Forged heading')));
+    });
+
+    test('preserves raw markdown when tagged with LogTag.raw', () {
+      final entry = LogEntry(
+        level: LogLevel.info,
+        message: 'Raw test',
+        loggerName: 'test.raw',
+        timestamp: '2026-10-23T12:00:00.000Z',
+        origin: 'raw_test.dart:1',
+      );
+
+      final document = factory.checkoutDocument();
+      document.writeNode(
+        MessageNode(
+          segments: [
+            const StyledText('Raw <custom> <b>tag</b>', tags: LogTag.raw),
+          ],
+        ),
+      );
+
+      final context = HandlerContext();
+      encoder.encode(entry, document, LogLevel.info, context, factory);
+      final output = const Utf8Decoder().convert(context.takeBytes());
+
+      expect(output, contains('Raw <custom> <b>tag</b>'));
+    });
   });
 }

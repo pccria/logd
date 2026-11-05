@@ -48,7 +48,7 @@ base class ConsoleSink extends EncodingSink {
 
   @override
   Future<void> flush() async {
-    if (!io.isStub && io.stdout.hasTerminal) {
+    if (!io.isStub) {
       try {
         await io.stdout.flush();
       } catch (_) {}

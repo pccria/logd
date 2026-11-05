@@ -9,6 +9,7 @@ import '../../core/context/io/file_system.dart';
 import '../../logger/logger.dart';
 import '../../time/timestamp.dart';
 import '../encoder/encoder.dart';
+import '../engine/engine.dart';
 import '../sink/sink.dart';
 
 /// Base interface for file rotation policies.
@@ -401,6 +402,8 @@ base class FileSink extends EncodingSink {
             basePath,
             data,
             fileRotation,
+            encoder: encoder,
+            strategy: encoder.wrappingStrategy,
           ),
         ) {
     _validateBasePath(basePath);
@@ -451,8 +454,10 @@ base class FileSink extends EncodingSink {
   static Future<void> _staticWrite(
     final String basePath,
     final Uint8List data,
-    final FileRotation? fileRotation,
-  ) async {
+    final FileRotation? fileRotation, {
+    final LogEncoder? encoder,
+    final WrappingStrategy? strategy,
+  }) async {
     final lock = _locks[basePath];
     final completer = Completer<void>();
     _locks[basePath] = completer.future;
@@ -476,8 +481,51 @@ base class FileSink extends EncodingSink {
       if (fileRotation != null &&
           await fileRotation.needsRotation(file, data)) {
         try {
+          final shouldWrap = strategy == WrappingStrategy.document &&
+              encoder != null &&
+              await file.exists() &&
+              await file.length() > 0;
+
+          if (shouldWrap) {
+            const factory = StandardPipelineFactory();
+            final postContext = factory.checkoutContext();
+            try {
+              encoder.postamble(postContext, LogLevel.info, factory);
+              final postBytes = postContext.takeBytes();
+              if (postBytes.isNotEmpty) {
+                final oldRaf = file.openSync(mode: LogFileMode.append);
+                try {
+                  oldRaf.writeFromSync(postBytes, 0, postBytes.length);
+                } finally {
+                  oldRaf.closeSync();
+                }
+              }
+            } finally {
+              factory.release(postContext);
+            }
+          }
+
           await fileRotation.rotate(basePath);
           targetFile = Context.fileSystem.file(basePath);
+
+          if (shouldWrap) {
+            const factory = StandardPipelineFactory();
+            final preContext = factory.checkoutContext();
+            try {
+              encoder.preamble(preContext, LogLevel.info, factory);
+              final preBytes = preContext.takeBytes();
+              if (preBytes.isNotEmpty) {
+                final newRaf = targetFile.openSync(mode: LogFileMode.append);
+                try {
+                  newRaf.writeFromSync(preBytes, 0, preBytes.length);
+                } finally {
+                  newRaf.closeSync();
+                }
+              }
+            } finally {
+              factory.release(preContext);
+            }
+          }
         } catch (rotationError, rotationStack) {
           InternalLogger.log(
             LogLevel.warning,
