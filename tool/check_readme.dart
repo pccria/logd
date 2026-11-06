@@ -174,57 +174,44 @@ analyzer:
               ..addAll(importLines)
               ..add(preludeImport)
               ..addAll(bodyLines);
+            if (!hasMain) {
+              fileLines.add('void main() {}');
+            }
             headerCount = 1;
             isWrapped = false;
           } else {
             fileLines
               ..addAll(importLines)
               ..add(preludeImport)
-              ..add('void main() async {');
+              ..add('void main() async {')
+              ..addAll(bodyLines)
+              ..add('}');
             headerCount = 1 + importLines.length + 2;
-            for (final bl in bodyLines) {
-              final trimmedBl = bl.trim();
-              if (trimmedBl.isNotEmpty &&
-                  !trimmedBl.startsWith('//') &&
-                  trimmedBl.endsWith(')') &&
-                  !trimmedBl.endsWith(');')) {
-                fileLines.add('$bl;');
-              } else {
-                fileLines.add(bl);
-              }
-            }
-            fileLines.add('}');
             isWrapped = true;
           }
         } else {
           if (hasMain || hasClass || hasFunc) {
             fileLines
               ..addAll(defaultImports)
-              ..add(preludeImport);
+              ..add(preludeImport)
+              ..addAll(blockLines);
+            if (!hasMain) {
+              fileLines.add('void main() {}');
+            }
             headerCount = 1 + defaultImports.length + 1;
-            fileLines.addAll(blockLines);
             isWrapped = false;
           } else {
             fileLines
               ..addAll(defaultImports)
               ..add(preludeImport)
-              ..add('void main() async {');
+              ..add('void main() async {')
+              ..addAll(blockLines)
+              ..add('}');
             headerCount = 1 + defaultImports.length + 2;
-            for (final bl in blockLines) {
-              final trimmedBl = bl.trim();
-              if (trimmedBl.isNotEmpty &&
-                  !trimmedBl.startsWith('//') &&
-                  trimmedBl.endsWith(')') &&
-                  !trimmedBl.endsWith(');')) {
-                fileLines.add('$bl;');
-              } else {
-                fileLines.add(bl);
-              }
-            }
-            fileLines.add('}');
             isWrapped = true;
           }
         }
+
 
         final fileName =
             'snippet_${snippetIndex.toString().padLeft(3, '0')}.dart';
@@ -245,53 +232,96 @@ analyzer:
     }
   }
 
-  // Run analyzer over all snippets in the scratch package
-  final analyze = await Process.run(
-    'dart',
-    ['analyze', '--format=machine'],
-    workingDirectory: scratchDir.path,
-  );
-
+  // Compile each snippet with "dart compile kernel"
   final failures = <_SnippetFailure>[];
-  final stdoutStr = analyze.stdout as String;
 
-  for (final line in stdoutStr.split('\n')) {
-    if (line.isEmpty) {
-      continue;
+  for (final entry in snippetMap.entries) {
+    final fileName = entry.key;
+    final meta = entry.value;
+    final dillFile = File('${scratchDir.path}/test/$fileName.dill');
+
+    final result = await Process.run(
+      'dart',
+      [
+        'compile',
+        'kernel',
+        'test/$fileName',
+        '-o',
+        'test/$fileName.dill',
+      ],
+      workingDirectory: scratchDir.path,
+    );
+
+    if (dillFile.existsSync()) {
+      try {
+        dillFile.deleteSync();
+      } catch (_) {}
     }
-    final parts = line.split('|');
-    if (parts.length >= 8 && parts[0] == 'ERROR') {
-      final snippetPath = parts[3];
-      final fileName = snippetPath.split(Platform.pathSeparator).last;
-      final lineInFile = int.tryParse(parts[4]) ?? 0;
-      final message = parts[7];
 
-      final meta = snippetMap[fileName];
-      if (meta != null) {
-        final int originalLine;
-        if (meta.hasImports && !meta.isWrapped) {
-          originalLine = meta.startLine + (lineInFile - 1);
-        } else if (meta.hasImports && meta.isWrapped) {
-          if (lineInFile <= 1 + meta.importCount) {
+    if (result.exitCode != 0) {
+      final output = '${result.stdout}\n${result.stderr}';
+      final beforeFailuresCount = failures.length;
+
+      for (final line in output.split('\n')) {
+        final trimmed = line.trim();
+        final match = RegExp(
+          r'test/snippet_\d+\.dart:(\d+):(?:\d+:)?\s*Error:\s*(.*)$',
+        ).firstMatch(trimmed);
+
+        if (match != null) {
+          final lineInFile = int.parse(match.group(1)!);
+          final message = match.group(2)!;
+
+          final int originalLine;
+          if (meta.hasImports && !meta.isWrapped) {
             originalLine = meta.startLine + (lineInFile - 1);
+          } else if (meta.hasImports && meta.isWrapped) {
+            if (lineInFile <= 1 + meta.importCount) {
+              originalLine = meta.startLine + (lineInFile - 1);
+            } else {
+              originalLine = meta.startLine +
+                  (lineInFile - meta.headerCount + meta.importCount);
+            }
           } else {
-            originalLine = meta.startLine +
-                (lineInFile - meta.headerCount + meta.importCount);
+            originalLine = meta.startLine + (lineInFile - meta.headerCount);
           }
-        } else {
-          originalLine = meta.startLine + (lineInFile - meta.headerCount);
-        }
 
+          failures.add(
+            _SnippetFailure(
+              file: meta.file,
+              line: originalLine,
+              message: message,
+            ),
+          );
+        } else {
+          final preludeMatch = RegExp(
+            r'readme_prelude\.dart:(\d+):(?:\d+:)?\s*Error:\s*(.*)$',
+          ).firstMatch(trimmed);
+          if (preludeMatch != null) {
+            failures.add(
+              _SnippetFailure(
+                file: 'tool/readme_prelude.dart',
+                line: int.parse(preludeMatch.group(1)!),
+                message: preludeMatch.group(2)!,
+              ),
+            );
+          }
+        }
+      }
+
+      if (failures.length == beforeFailuresCount) {
         failures.add(
           _SnippetFailure(
             file: meta.file,
-            line: originalLine,
-            message: message,
+            line: meta.startLine,
+            message:
+                'Compilation failed with exit code ${result.exitCode}:\n$output',
           ),
         );
       }
     }
   }
+
 
   // Print results
   print('Checked ${readmeFiles.length} README files, '

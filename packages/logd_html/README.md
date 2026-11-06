@@ -77,8 +77,8 @@ class CustomStylesheet extends DefaultHtmlStylesheet {
   @override
   String buildCss(final LogTheme theme) => '''
 ${super.buildCss(theme)}
-:root {
-  --font-mono: 'Fira Code', monospace;
+body {
+  font-family: 'Fira Code', monospace;
 }
 ''';
 }

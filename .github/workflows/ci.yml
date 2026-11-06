@@ -4,9 +4,12 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   packages:
-    name: ${{ matrix.package }}
+    name: ${{ matrix.name || matrix.package }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -14,6 +17,10 @@ jobs:
         include:
           - package: packages/logd
             flutter: true
+          - package: packages/logd
+            name: packages/logd (min SDK 3.6.0)
+            flutter: false
+            sdk: '3.6.0'
           - package: packages/logd_dio
             flutter: false
           - package: packages/logd_html
@@ -38,7 +45,7 @@ jobs:
         if: ${{ !matrix.flutter }}
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: stable
+          sdk: ${{ matrix.sdk || 'stable' }}
 
       - name: Setup Flutter
         if: ${{ matrix.flutter }}
@@ -88,5 +95,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Pub get
+        run: dart pub get
+
       - name: Compile README snippets
         run: dart run tool/check_readme.dart
+

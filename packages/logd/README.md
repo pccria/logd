@@ -76,31 +76,31 @@ Ready-to-use handlers cover common destinations out of the box (with specialized
 
 ```dart
 // Styled terminal output (dark or light theme)
-ConsoleHandler(theme: const DarkTheme())
+ConsoleHandler(theme: const DarkTheme());
 
 // Structured JSON to file (pretty or compact)
-JsonFileHandler(path: 'logs/api.json', pretty: true)
+JsonFileHandler(path: 'logs/api.json', pretty: true);
 
 // Self-contained HTML report (from package:logd_html)
-HtmlFileHandler(path: 'logs/session.html')
+HtmlFileHandler(path: 'logs/session.html');
 
 // Token-efficient format for LLM / AI agent consumption (from package:logd_toon)
-ToonFileHandler(path: 'logs/telemetry.toon')
+ToonFileHandler(path: 'logs/telemetry.toon');
 
 // Plain text to file
-PlainFileHandler(path: 'logs/app.log')
+PlainFileHandler(path: 'logs/app.log');
 
 // GitHub-Flavored Markdown for CI summaries (from package:logd_markdown)
-MarkdownFileHandler(path: 'logs/ci.md')
+MarkdownFileHandler(path: 'logs/ci.md');
 
 // In-memory ring buffer for tests and debug panels
-MemoryHandler(capacity: 200)
+MemoryHandler(capacity: 200);
 
 // Indexed SQLite database storage (from package:logd_sqlite)
-SqliteHandler(path: 'logs/app.db')
+SqliteHandler(path: 'logs/app.db');
 
 // Live browser dashboard via HTTP + WebSocket server (from package:logd_network)
-HttpDashboardHandler(port: 8080)
+HttpDashboardHandler(port: 8080);
 ```
 
 Add `.async()` to any output-bound handler to offload its pipeline to a background isolate:
@@ -241,7 +241,7 @@ Handler(
     maxDepth: 3,     // bounded map recursion
   ),
   sink: FileSink('logs/pipeline.toon'),
-)
+);
 ```
 
 When slicing a TOON file for an LLM sliding-window prompt:
@@ -278,6 +278,7 @@ final handler = Handler(
     'logs/app.log',
     fileRotation: TimeRotation(
       interval: Duration(days: 1),
+      timestamp: Timestamp(formatter: 'yyyy-MM-dd'),
       backupCount: 7,
       compress: true,
     ),
@@ -321,7 +322,7 @@ Handler(
     ConsoleSink(),
     FileSink('logs/app.log'),
   ]),
-)
+);
 ```
 
 ### Atomic Multi-Line Logs
@@ -339,16 +340,27 @@ buffer?.sink(); // flushed as a single atomic LogEntry
 
 ### Filtering
 
-<!-- readme-check: skip -->
 ```dart
 // Level filter — errors only
-Handler(filters: [LevelFilter(LogLevel.error)], ...)
+Handler(
+  formatter: const PlainFormatter(),
+  sink: const ConsoleSink(),
+  filters: [LevelFilter(LogLevel.error)],
+);
 
 // Regex filter — exclude matching messages
-Handler(filters: [RegexFilter(RegExp(r'password|secret|token'), invert: true)], ...)
+Handler(
+  formatter: const PlainFormatter(),
+  sink: const ConsoleSink(),
+  filters: [RegexFilter(RegExp(r'password|secret|token'), invert: true)],
+);
 
 // Context filter — match on MDC key presence or value
-Handler(filters: [ContextFilter('tenantId', value: 'acme')], ...)
+Handler(
+  formatter: const PlainFormatter(),
+  sink: const ConsoleSink(),
+  filters: [ContextFilter('tenantId', value: 'acme')],
+);
 ```
 
 ### Timestamp & Timezone
@@ -374,14 +386,16 @@ Logger.configure('app.audit', timestamp: Timestamp.dateOnly());
 // Size-based
 FileSink('logs/app.log', fileRotation: SizeRotation(
   maxSize: '10 MB', backupCount: 5, compress: true,
-))
+));
 
 // Time-based
 FileSink('logs/app.log', fileRotation: TimeRotation(
   interval: Duration(hours: 1),
+  timestamp: Timestamp(formatter: 'yyyy-MM-dd-HH'),
   backupCount: 24,
-))
+));
 ```
+
 
 ### HTTP Network Interception (`logd_dio`)
 
