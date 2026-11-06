@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  packages:
+    name: ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: packages/logd
+            flutter: true
+          - package: packages/logd_dio
+            flutter: false
+          - package: packages/logd_html
+            flutter: false
+          - package: packages/logd_linters
+            flutter: false
+          - package: packages/logd_markdown
+            flutter: false
+          - package: packages/logd_network
+            flutter: false
+          - package: packages/logd_sqlite
+            flutter: false
+          - package: packages/logd_toon
+            flutter: false
+          - package: packages/benchmarks
+            flutter: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Dart
+        if: ${{ !matrix.flutter }}
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Setup Flutter
+        if: ${{ matrix.flutter }}
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        run: |
+          cd ${{ matrix.package }}
+          if [ "${{ matrix.flutter }}" = "true" ]; then
+            flutter pub get
+          else
+            dart pub get
+          fi
+
+      - name: Analyze
+        run: |
+          cd ${{ matrix.package }}
+          if [ "${{ matrix.flutter }}" = "true" ]; then
+            flutter analyze
+          else
+            dart analyze
+          fi
+
+      - name: Test
+        run: |
+          cd ${{ matrix.package }}
+          if [ -d "test" ]; then
+            if [ "${{ matrix.flutter }}" = "true" ]; then
+              flutter test
+            else
+              dart test
+            fi
+          fi
+
+  check-readme:
+    name: Check README Examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Compile README snippets
+        run: dart run tool/check_readme.dart
