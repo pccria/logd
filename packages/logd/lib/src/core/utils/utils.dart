@@ -425,6 +425,7 @@ final _sgrRegex = RegExp(r'^\x1B\[[0-9;]*m');
 String sanitizeControlCharacters(
   final String input, {
   final bool isRaw = false,
+  final bool allowSgr = false,
 }) {
   if (isRaw || input.isEmpty) {
     return input;
@@ -455,17 +456,20 @@ String sanitizeControlCharacters(
   for (var i = 0; i < input.length; i++) {
     final code = input.codeUnitAt(i);
     if (code == 0x1B) {
-      final match = _sgrRegex.firstMatch(input.substring(i));
-      if (match != null) {
-        // Safe ANSI SGR styling/color code
-        final sgr = match.group(0)!;
-        buffer.write(sgr);
-        i += sgr.length - 1;
-      } else {
-        // Neutralize dangerous escape sequence starter to visible notation
-        buffer.write('^[');
+      if (allowSgr) {
+        final match = _sgrRegex.firstMatch(input.substring(i));
+        if (match != null) {
+          // Safe ANSI SGR styling/color code when explicitly allowed
+          final sgr = match.group(0)!;
+          buffer.write(sgr);
+          i += sgr.length - 1;
+          continue;
+        }
       }
+      // Neutralize dangerous escape sequence starter to visible notation
+      buffer.write('^[');
     } else if (code == 0x0D) {
+
       // Carriage return: normalize to newline to prevent line overwrite forging
       if (i + 1 < input.length && input.codeUnitAt(i + 1) == 0x0A) {
         continue;

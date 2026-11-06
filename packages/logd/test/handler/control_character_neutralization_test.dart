@@ -1,4 +1,5 @@
 import 'package:logd/logd.dart';
+import 'package:logd/src/core/utils/utils.dart';
 import 'package:test/test.dart';
 
 import 'test_helpers.dart';
@@ -155,6 +156,50 @@ void main() {
         expect(lines.first, contains('\x1B[32mGreen\x1B[0m'));
       } finally {
         doc.releaseRecursive(Arena.instance);
+      }
+    });
+
+    test('neutralizes SGR color sequences in untrusted text by default', () {
+      final sanitized =
+          sanitizeControlCharacters('\u001B[30;40mhidden\u001B[0m');
+      expect(sanitized, isNot(contains('\u001B')));
+      expect(sanitized, isNot(contains('\x1B')));
+      expect(sanitized, contains('^[[30;40mhidden^[[0m'));
+    });
+
+    test('preserves ANSI codes added by StyleDecorator and logd themes', () {
+      final arena = Arena.instance;
+      final doc = arena.checkoutDocument();
+      try {
+        final message = arena.checkoutMessage()
+          ..segments.add(const StyledText('Styled Message'));
+        doc.nodes.add(message);
+
+        const decorator = StyleDecorator(DarkTheme());
+        final entry = LogEntry(
+          level: LogLevel.info,
+          message: 'Styled Message',
+          loggerName: 'test',
+          origin: 'test.dart',
+          timestamp: '2026-11-02 00:00:00',
+        );
+
+
+        decorator.decorate(doc, entry, arena);
+
+        const encoder = AnsiEncoder();
+        final context = arena.checkoutContext();
+        try {
+          encoder.encode(entry, doc, LogLevel.info, context, arena);
+          final rendered = String.fromCharCodes(context.takeBytes());
+          // Must contain ANSI escape sequences from StyleDecorator / AnsiEncoder
+          expect(rendered, contains('\x1B['));
+          expect(rendered, contains('Styled Message'));
+        } finally {
+          arena.release(context);
+        }
+      } finally {
+        doc.releaseRecursive(arena);
       }
     });
   });
