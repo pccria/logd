@@ -278,7 +278,6 @@ final handler = Handler(
     'logs/app.log',
     fileRotation: TimeRotation(
       interval: Duration(days: 1),
-      timestamp: Timestamp(formatter: 'yyyy-MM-dd'),
       backupCount: 7,
       compress: true,
     ),
@@ -340,6 +339,7 @@ buffer?.sink(); // flushed as a single atomic LogEntry
 
 ### Filtering
 
+<!-- readme-check: skip -->
 ```dart
 // Level filter — errors only
 Handler(filters: [LevelFilter(LogLevel.error)], ...)
@@ -379,7 +379,6 @@ FileSink('logs/app.log', fileRotation: SizeRotation(
 // Time-based
 FileSink('logs/app.log', fileRotation: TimeRotation(
   interval: Duration(hours: 1),
-  timestamp: Timestamp(formatter: 'yyyy-MM-dd-HH'),
   backupCount: 24,
 ))
 ```
@@ -449,12 +448,12 @@ final sqliteHandler = SqliteHandler(
 Logger.configure('app', handlers: [sqliteHandler]);
 
 // Query stored logs & level breakdown
-final errors = sqliteHandler.queryLogs(
+final errors = sqliteHandler.sqliteSink.queryLogs(
   minLevel: LogLevel.warning,
   search: 'Payment',
   limit: 50,
 );
-final counts = sqliteHandler.fetchLevelCounts();
+final counts = sqliteHandler.sqliteSink.fetchLevelCounts();
 ```
 
 ---
@@ -570,6 +569,7 @@ Logger.fallbackHandler = (entry, error, stackTrace) {
 
 Offload disk I/O to a background worker isolate so 120Hz animations never drop frames, while catching uncaught framework and platform errors:
 
+<!-- readme-check: skip -->
 ```dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -641,10 +641,10 @@ Bind a `requestId` once at the gateway; every downstream async function and data
 
 ```dart
 import 'package:logd/logd.dart';
-import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf.dart' as shelf;
 
-Middleware requestTracingMiddleware() {
-  return (Handler innerHandler) => (Request request) async {
+shelf.Middleware requestTracingMiddleware() {
+  return (shelf.Handler innerHandler) => (shelf.Request request) async {
     final requestId = request.headers['x-request-id'] ?? 'req-${DateTime.now().microsecondsSinceEpoch}';
 
     // LogContext.run binds context to all downstream async calls & microtasks
@@ -720,6 +720,7 @@ void main() {
 
 ## Testing
 
+<!-- readme-check: skip -->
 ```dart
 import 'package:logd/testing.dart';
 

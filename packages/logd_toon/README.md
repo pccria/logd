@@ -50,7 +50,7 @@ import 'package:logd_toon/logd_toon.dart';
 
 void main() async {
   // Synchronous file handler using default compact TOON format
-  final handler = ToonFileHandler('logs/app.toon');
+  final handler = ToonFileHandler(path: 'logs/app.toon');
 
   Logger.configure('app', handlers: [handler]);
   final logger = Logger.get('app');
@@ -68,7 +68,7 @@ Offload TOON formatting, escaping, and file I/O to a background worker isolate:
 
 ```dart
 Logger.configure('app', handlers: [
-  ToonFileHandler.async('logs/production.toon'),
+  ToonFileHandler.async(path: 'logs/production.toon'),
 ]);
 ```
 
@@ -76,7 +76,7 @@ Logger.configure('app', handlers: [
 
 ```dart
 final handler = ToonFileHandler(
-  'logs/pipeline.toon',
+  path: 'logs/pipeline.toon',
   explicitSchema: true,
   dialect: ToonDialect.strict,
   formatter: const ToonFormatter(

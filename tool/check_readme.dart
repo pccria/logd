@@ -10,11 +10,11 @@ void main() async {
     ..sort((final a, final b) => a.path.compareTo(b.path));
 
   final scratchDir = Directory('.dart_tool/readme_scratch');
-  final libDir = Directory('${scratchDir.path}/lib');
-  if (libDir.existsSync()) {
-    libDir.deleteSync(recursive: true);
+  final testDir = Directory('${scratchDir.path}/test');
+  if (testDir.existsSync()) {
+    testDir.deleteSync(recursive: true);
   }
-  libDir.createSync(recursive: true);
+  testDir.createSync(recursive: true);
 
   // Create pubspec.yaml for the scratch package
   File('${scratchDir.path}/pubspec.yaml').writeAsStringSync('''
@@ -95,12 +95,16 @@ analyzer:
     "import 'package:logd_toon/logd_toon.dart';",
   ];
 
+  const preludeImport = "import '../../../tool/readme_prelude.dart';";
+
   final snippetMap = <String, _SnippetMetadata>{};
   var snippetIndex = 0;
+  var skippedCount = 0;
 
   for (final readme in readmeFiles) {
     final lines = readme.readAsLinesSync();
     var inBlock = false;
+    var blockSkipped = false;
     var startLine = 0;
     final blockLines = <String>[];
 
@@ -112,8 +116,28 @@ analyzer:
         inBlock = true;
         startLine = i + 1; // 1-indexed line of ```dart
         blockLines.clear();
+
+        // Check if previous non-empty line was a skip marker
+        blockSkipped = false;
+        for (var j = i - 1; j >= 0; j--) {
+          final prev = lines[j].trim();
+          if (prev.isEmpty) {
+            continue;
+          }
+          if (prev == '<!-- readme-check: skip -->') {
+            blockSkipped = true;
+          }
+          break;
+        }
+
+        if (blockSkipped) {
+          skippedCount++;
+        }
       } else if (inBlock && trimmed == '```') {
         inBlock = false;
+        if (blockSkipped) {
+          continue;
+        }
         snippetIndex++;
 
         final code = blockLines.join('\n');
@@ -146,40 +170,65 @@ analyzer:
 
         if (hasImports) {
           if (hasMain || hasClass || hasFunc) {
-            fileLines.addAll(blockLines);
+            fileLines
+              ..addAll(importLines)
+              ..add(preludeImport)
+              ..addAll(bodyLines);
             headerCount = 1;
             isWrapped = false;
           } else {
             fileLines
               ..addAll(importLines)
+              ..add(preludeImport)
               ..add('void main() async {');
-            headerCount = 1 + importLines.length + 1;
-            fileLines
-              ..addAll(bodyLines)
-              ..add('}');
+            headerCount = 1 + importLines.length + 2;
+            for (final bl in bodyLines) {
+              final trimmedBl = bl.trim();
+              if (trimmedBl.isNotEmpty &&
+                  !trimmedBl.startsWith('//') &&
+                  trimmedBl.endsWith(')') &&
+                  !trimmedBl.endsWith(');')) {
+                fileLines.add('$bl;');
+              } else {
+                fileLines.add(bl);
+              }
+            }
+            fileLines.add('}');
             isWrapped = true;
           }
         } else {
           if (hasMain || hasClass || hasFunc) {
-            fileLines.addAll(defaultImports);
-            headerCount = 1 + defaultImports.length;
+            fileLines
+              ..addAll(defaultImports)
+              ..add(preludeImport);
+            headerCount = 1 + defaultImports.length + 1;
             fileLines.addAll(blockLines);
             isWrapped = false;
           } else {
             fileLines
               ..addAll(defaultImports)
+              ..add(preludeImport)
               ..add('void main() async {');
-            headerCount = 1 + defaultImports.length + 1;
-            fileLines
-              ..addAll(blockLines)
-              ..add('}');
+            headerCount = 1 + defaultImports.length + 2;
+            for (final bl in blockLines) {
+              final trimmedBl = bl.trim();
+              if (trimmedBl.isNotEmpty &&
+                  !trimmedBl.startsWith('//') &&
+                  trimmedBl.endsWith(')') &&
+                  !trimmedBl.endsWith(');')) {
+                fileLines.add('$bl;');
+              } else {
+                fileLines.add(bl);
+              }
+            }
+            fileLines.add('}');
             isWrapped = true;
           }
         }
 
         final fileName =
             'snippet_${snippetIndex.toString().padLeft(3, '0')}.dart';
-        File('${libDir.path}/$fileName')
+        File('${testDir.path}/$fileName')
             .writeAsStringSync('${fileLines.join('\n')}\n');
 
         snippetMap[fileName] = _SnippetMetadata(
@@ -246,15 +295,17 @@ analyzer:
 
   // Print results
   print('Checked ${readmeFiles.length} README files, '
-      '$snippetIndex code blocks.');
+      '$snippetIndex code blocks ($skippedCount skipped).');
 
   if (failures.isEmpty) {
     print('All README code examples compiled successfully.');
+    exit(0);
   } else {
     print('Found ${failures.length} compilation error(s):');
     for (final f in failures) {
       print('${f.file}:${f.line}: ${f.message}');
     }
+    exit(1);
   }
 }
 
