@@ -6,6 +6,9 @@ import 'package:logd/logd.dart';
 import 'package:test/test.dart';
 
 class _CapturingStdout implements Stdout {
+  _CapturingStdout({this.supportsAnsi = true});
+
+  final bool supportsAnsi;
   final List<int> bytes = [];
 
   @override
@@ -30,7 +33,7 @@ class _CapturingStdout implements Stdout {
   bool get hasTerminal => true;
 
   @override
-  bool get supportsAnsiEscapes => true;
+  bool get supportsAnsiEscapes => supportsAnsi;
 
   @override
   int get terminalColumns => 80;
@@ -141,7 +144,10 @@ void main() {
         );
 
         // Default (allowSgr: false)
-        const defaultSink = ConsoleSink(usePrint: true);
+        const defaultSink = ConsoleSink(
+          encoder: AnsiEncoder(allowSgr: false),
+          usePrint: true,
+        );
         final defaultCaptured = <String>[];
         final doc1 = StandardDocument()
           ..nodes.add(MessageNode(segments: [const StyledText(rawAnsi)]));
@@ -159,7 +165,10 @@ void main() {
         expect(defaultCaptured.join('\n'), isNot(contains(rawAnsi)));
 
         // With allowSgr: true
-        const sgrSink = ConsoleSink(allowSgr: true, usePrint: true);
+        const sgrSink = ConsoleSink(
+          encoder: AnsiEncoder(allowSgr: true),
+          usePrint: true,
+        );
         final sgrCaptured = <String>[];
         final doc2 = StandardDocument()
           ..nodes.add(MessageNode(segments: [const StyledText(rawAnsi)]));
@@ -174,6 +183,58 @@ void main() {
           ),
         );
         expect(sgrCaptured.join('\n'), contains(rawAnsi));
+      },
+    );
+
+    test(
+      'with ConsoleSink(allowSgr: true) and a non-terminal stdout '
+      'the default encoder does not emit theme styling codes',
+      () async {
+        final mockStdout = _CapturingStdout(supportsAnsi: false);
+        final capturedPrint = <String>[];
+        const factory = StandardPipelineFactory();
+        final doc = StandardDocument()
+          ..nodes.add(
+            MessageNode(
+              segments: [
+                const StyledText(
+                  'styled error message',
+                  style: LogStyle(color: LogColor.red),
+                ),
+              ],
+            ),
+          );
+        final entry = LogEntry(
+          level: LogLevel.error,
+          message: 'styled error message',
+          loggerName: 'test.nonterminal',
+          origin: 'test',
+          timestamp: '2026-11-07T00:00:00Z',
+        );
+
+        const sink = ConsoleSink(allowSgr: true);
+
+        await IOOverrides.runZoned(
+          () async {
+            await runZoned(
+              () async {
+                await sink.output(doc, entry, LogLevel.error, factory);
+              },
+              zoneSpecification: ZoneSpecification(
+                print: (final self, final parent, final zone, final line) {
+                  capturedPrint.add(line);
+                },
+              ),
+            );
+          },
+          stdout: () => mockStdout,
+        );
+
+        final output = mockStdout.bytes.isNotEmpty
+            ? utf8.decode(mockStdout.bytes)
+            : capturedPrint.join('\n');
+        expect(output, contains('styled error message'));
+        expect(output, isNot(contains('\u001B[')));
       },
     );
 

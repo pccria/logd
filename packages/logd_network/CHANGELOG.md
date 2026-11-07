@@ -2,6 +2,7 @@
 
 ## 0.2.5: Security Hardening, DNS Rebinding Protection & Native Headers
 
+- Minimum Dart SDK is now 3.10.0 (the previous 3.6.0 floor could not be resolved because of dependency requirements)
 - **DNS Rebinding Protection & Host Header Validation (`HttpServerSink`)**:
   - Enforced strict `Host` header validation for the dashboard HTTP server and WebSocket upgrade endpoint. Requests with non-loopback host headers (`localhost`, `127.0.0.1`, `::1`) are rejected with HTTP 403 Forbidden unless explicitly allowed via `allowedHosts`.
   - Added optional `authToken` parameter requiring bearer or query authentication to access the dashboard.

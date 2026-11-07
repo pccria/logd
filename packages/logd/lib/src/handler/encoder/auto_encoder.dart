@@ -17,6 +17,7 @@ abstract base class AutoEncoder implements LogEncoder {
 
   /// Resolves the delegate encoder based on the standard `'logd.encoder'`
   /// metadata contract, or [defaultFallback].
+  @internal
   LogEncoder resolveDelegate(final LogDocument? document) {
     if (document != null && document.metadata.isNotEmpty) {
       final encoder = document.metadata[encoderKey];
@@ -99,7 +100,7 @@ final class AutoConsoleEncoder extends AutoEncoder {
 
   LogEncoder get _defaultConsoleDelegate {
     try {
-      if (io.stdout.supportsAnsiEscapes || allowSgr) {
+      if (io.stdout.supportsAnsiEscapes) {
         return AnsiEncoder(allowSgr: allowSgr);
       }
     } catch (_) {

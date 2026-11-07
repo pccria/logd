@@ -18,9 +18,9 @@ jobs:
           - package: packages/logd
             flutter: false
           - package: packages/logd
-            name: packages/logd (min SDK 3.6.0)
+            name: packages/logd (min SDK 3.10.0)
             flutter: false
-            sdk: '3.6.0'
+            sdk: '3.10.0'
           - package: packages/logd_dio
             flutter: false
           - package: packages/logd_html
@@ -54,10 +54,6 @@ jobs:
           channel: stable
           cache: true
 
-      # packages/benchmarks requires Dart 3.10 and is not part of the published package
-      - name: Exclude benchmarks from workspace for min SDK
-        if: matrix.name == 'packages/logd (min SDK 3.6.0)'
-        run: sed -i '/packages\/benchmarks/d' pubspec.yaml
 
       - name: Pub get
         run: |
