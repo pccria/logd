@@ -8,6 +8,7 @@ import '../../core/context/context.dart';
 import '../../core/context/io/file_system.dart';
 import '../../logger/logger.dart';
 import '../../time/timestamp.dart';
+import '../document/document.dart';
 import '../encoder/encoder.dart';
 import '../engine/engine.dart';
 import '../sink/sink.dart';
@@ -408,18 +409,6 @@ base class FileSink extends EncodingSink {
           ),
         ) {
     _validateBasePath(basePath);
-    if (encoder.wrappingStrategy == WrappingStrategy.document) {
-      final existing = _activeSinks[basePath];
-      if (existing != null &&
-          existing.encoder.wrappingStrategy == WrappingStrategy.document) {
-        InternalLogger.log(
-          LogLevel.warning,
-          'Multiple active FileSinks with document-wrapping encoders created '
-          'for the same path "$basePath". Rotating or concurrent writes may '
-          'corrupt document boundaries.',
-        );
-      }
-    }
     _activeSinks[basePath] = this;
   }
 
@@ -430,6 +419,41 @@ base class FileSink extends EncodingSink {
   final FileRotation? fileRotation;
 
   static final Map<String, FileSink> _activeSinks = {};
+  static final Map<String, Set<FileSink>> _activeWritingWrappedSinks = {};
+  bool _hasWritten = false;
+
+  void _checkWritingWarning(final LogDocument document) {
+    final effectiveStrategy = encoder is AutoEncoder
+        ? (encoder as AutoEncoder).resolveDelegate(document).wrappingStrategy
+        : encoder.wrappingStrategy;
+    if (effectiveStrategy == WrappingStrategy.document && !_hasWritten) {
+      _hasWritten = true;
+      final writers = _activeWritingWrappedSinks.putIfAbsent(
+        basePath,
+        () => <FileSink>{},
+      );
+      if (writers.isNotEmpty && !writers.contains(this)) {
+        InternalLogger.log(
+          LogLevel.warning,
+          'Multiple active FileSinks with document-wrapping encoders wrote to '
+          'the same path "$basePath". Rotating or concurrent writes may '
+          'corrupt document boundaries.',
+        );
+      }
+      writers.add(this);
+    }
+  }
+
+  @override
+  Future<void> output(
+    final LogDocument document,
+    final LogEntry entry,
+    final LogLevel level,
+    final LogPipelineFactory factory,
+  ) async {
+    _checkWritingWarning(document);
+    await super.output(document, entry, level, factory);
+  }
 
   @override
   Future<void> flush() async {
@@ -447,6 +471,10 @@ base class FileSink extends EncodingSink {
     } finally {
       if (identical(_activeSinks[basePath], this)) {
         _activeSinks.remove(basePath);
+      }
+      _activeWritingWrappedSinks[basePath]?.remove(this);
+      if (_activeWritingWrappedSinks[basePath]?.isEmpty ?? false) {
+        _activeWritingWrappedSinks.remove(basePath);
       }
     }
   }

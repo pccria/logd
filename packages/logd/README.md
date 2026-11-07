@@ -215,7 +215,7 @@ Future<void> chargePaymentGateway() async {
 | SQLite | [`logd_sqlite`](https://pub.dev/packages/logd_sqlite) | Queryable persistent storage |
 
 > [!NOTE]
-> **ANSI Escape Neutralization**: For security against terminal log injection, SGR (ANSI color) escape sequences (`\x1B[...m`) in untrusted message text are neutralized by default and shown as visible `^[[...m`. Styling applied by `logd` decorators (`StyleDecorator`, themes) remains fully rendered in ANSI. To preserve raw ANSI color escapes in trusted text, set `LogTag.raw`.
+> **ANSI Escape Neutralization**: For security against terminal log injection, SGR (ANSI color) escape sequences (`\x1B[...m`) in untrusted message text are neutralized by default and shown as visible `^[[...m`. Styling applied by `logd` decorators (`StyleDecorator`, themes) remains fully rendered in ANSI. To allow ANSI color escapes through without neutralization in console output, configure `allowSgr: true` on `ConsoleHandler` or `ConsoleSink` (intended for trusted logs only), or set `LogTag.raw` on individual entries.
 
 ### TOON: Logs Optimized for LLMs
 

@@ -104,24 +104,43 @@ void main() {
     );
 
     test(
-      '(b1) when a second FileSink with a document-wrapping encoder is '
-      'created for a path that already has an active FileSink with a '
-      'wrapping encoder, a warning is logged',
+      '(b1) when a second FileSink with a document-wrapping encoder writes '
+      'while another active FileSink with a wrapping encoder has also written, '
+      'a warning is logged',
       () async {
         final sink1 = FileSink(
           filePath,
           encoder: const _WrappingTestEncoder(),
         );
+        final sink2 = FileSink(
+          filePath,
+          encoder: const _WrappingTestEncoder(),
+        );
 
         final capturedWarnings = <String>[];
-        late FileSink sink2;
 
-        runZoned(
-          () {
-            sink2 = FileSink(
-              filePath,
-              encoder: const _WrappingTestEncoder(),
+        await runZoned(
+          () async {
+            const factory = StandardPipelineFactory();
+            final entry1 = LogEntry(
+              level: LogLevel.info,
+              message: 'First sink writes',
+              loggerName: 'test',
+              origin: 'test',
+              timestamp: '2026-11-07T00:00:00Z',
             );
+            final doc1 = StandardDocument();
+            await sink1.output(doc1, entry1, LogLevel.info, factory);
+
+            final entry2 = LogEntry(
+              level: LogLevel.info,
+              message: 'Second sink writes',
+              loggerName: 'test',
+              origin: 'test',
+              timestamp: '2026-11-07T00:00:00Z',
+            );
+            final doc2 = StandardDocument();
+            await sink2.output(doc2, entry2, LogLevel.info, factory);
           },
           zoneSpecification: ZoneSpecification(
             print: (final self, final parent, final zone, final line) {
@@ -138,12 +157,63 @@ void main() {
               contains('document-wrapping'),
             ),
           ),
-          reason: 'Internal warning should be emitted when multiple wrapping '
-              'FileSinks are active for the same path',
+          reason: 'Internal warning should be emitted when multiple writing '
+              'wrapping FileSinks are active for the same path',
         );
 
         await sink1.dispose();
         await sink2.dispose();
+      },
+    );
+
+    test(
+      '(b3) reconfiguring a logger to a new wrapped FileSink on the same path '
+      'does not emit a warning',
+      () async {
+        final capturedWarnings = <String>[];
+
+        await runZoned(
+          () async {
+            final sink1 = FileSink(
+              filePath,
+              encoder: const _WrappingTestEncoder(),
+            );
+            final handler1 = Handler(
+              formatter: const PlainFormatter(),
+              sink: sink1,
+            );
+            Logger.configure('test.f72.reconfig', handlers: [handler1]);
+            Logger.get('test.f72.reconfig').info('First handler write');
+            await handler1.flush();
+
+            // Reconfiguration: create new handler before disposing old handler
+            final sink2 = FileSink(
+              filePath,
+              encoder: const _WrappingTestEncoder(),
+            );
+            final handler2 = Handler(
+              formatter: const PlainFormatter(),
+              sink: sink2,
+            );
+            await handler1.dispose();
+
+            Logger.configure('test.f72.reconfig', handlers: [handler2]);
+            Logger.get('test.f72.reconfig').info('Second handler write');
+            await handler2.flush();
+            await handler2.dispose();
+          },
+          zoneSpecification: ZoneSpecification(
+            print: (final self, final parent, final zone, final line) {
+              capturedWarnings.add(line);
+            },
+          ),
+        );
+
+        expect(
+          capturedWarnings.where((final l) => l.contains('document-wrapping')),
+          isEmpty,
+          reason: 'No warning should be emitted during normal reconfiguration',
+        );
       },
     );
 

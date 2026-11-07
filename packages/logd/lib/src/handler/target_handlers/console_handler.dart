@@ -18,17 +18,24 @@ import '../handler.dart';
 @immutable
 class ConsoleHandler extends Handler {
   /// Creates a synchronous [ConsoleHandler].
+  ///
+  /// Set [allowSgr] to `true` to allow safe ANSI SGR styling/color codes through
+  /// without neutralization. Intended for trusted logs only.
   ConsoleHandler({
     final LogTheme? theme,
     final int? lineLength,
     final LogFormatter? formatter,
     final List<LogDecorator>? decorators,
+    final bool allowSgr = false,
     super.filters = const [],
     super.engine = const StandardEngine(),
     super.timeout,
   }) : super(
           formatter: formatter ?? const StructuredFormatter(),
-          sink: ConsoleSink(lineLength: lineLength),
+          sink: ConsoleSink(
+            lineLength: lineLength,
+            allowSgr: allowSgr,
+          ),
           decorators: decorators ??
               [
                 StyleDecorator(theme ?? const LogTheme.dark()),
@@ -37,18 +44,25 @@ class ConsoleHandler extends Handler {
 
   /// Creates an asynchronous [ConsoleHandler] offloaded to a background
   /// isolate.
+  ///
+  /// Set [allowSgr] to `true` to allow safe ANSI SGR styling/color codes through
+  /// without neutralization. Intended for trusted logs only.
   static AsyncHandler async({
     final LogTheme? theme,
     final int? lineLength,
     final LogFormatter? formatter,
     final List<LogDecorator>? decorators,
+    final bool allowSgr = false,
     final List<LogFilter> filters = const [],
     final LogEngine engine = const StandardEngine(),
     final Duration? timeout,
   }) =>
       AsyncHandler(
         formatter: formatter ?? const StructuredFormatter(),
-        sink: ConsoleSink(lineLength: lineLength),
+        sink: ConsoleSink(
+          lineLength: lineLength,
+          allowSgr: allowSgr,
+        ),
         decorators: decorators ??
             [
               StyleDecorator(theme ?? const LogTheme.dark()),
