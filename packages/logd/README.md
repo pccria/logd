@@ -214,6 +214,9 @@ Future<void> chargePaymentGateway() async {
 | Plain text | `PlainFileHandler` / `PlainFormatter` | Simple file logs |
 | SQLite | [`logd_sqlite`](https://pub.dev/packages/logd_sqlite) | Queryable persistent storage |
 
+> [!NOTE]
+> **ANSI Escape Neutralization**: For security against terminal log injection, SGR (ANSI color) escape sequences (`\x1B[...m`) in untrusted message text are neutralized by default and shown as visible `^[[...m`. Styling applied by `logd` decorators (`StyleDecorator`, themes) remains fully rendered in ANSI. To preserve raw ANSI color escapes in trusted text, set `LogTag.raw`.
+
 ### TOON: Logs Optimized for LLMs
 
 Token-Oriented Object Notation emits the column schema once, then tab-delimited rows — **30–50% fewer tokens than JSON** for the same data (provided by [`package:logd_toon`](https://pub.dev/packages/logd_toon)):

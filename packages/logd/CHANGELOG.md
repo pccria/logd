@@ -31,6 +31,7 @@ This patch release hardens log retention, rotation, hierarchy invalidation, and 
 - ### Terminal Layout & Security
   - **Log Injection & Escape Code Neutralization**: Neutralized non-SGR terminal control sequences (screen clears, cursor repositioning, OSC commands) to visible notation (`^[`) and stripped destructive C0 controls (`\x00`, `\x07`, `\x08`, `\x7F`). Carriage returns are normalized to line feeds to prevent visual line forgery in terminal logs, with a fast ASCII path to maintain zero layout overhead.
   - **Comprehensive Control Code & Bidi Neutralization**: Extended `sanitizeControlCharacters` to normalize C1 Next Line (`U+0085`) and Unicode line/paragraph separators (`U+2028`, `U+2029`) into newlines, while stripping C1 control characters (`U+0080` to `U+009F`) and Unicode bidirectional override codes (`U+200E`, `U+200F`, `U+202A` to `U+202E`, `U+2066` to `U+2069`).
+  - **SGR (ANSI Color) Neutralization**: SGR (ANSI color) sequences in untrusted message text (`\x1B[...m`) are now shown as visible `^[[...m` by default to prevent terminal log injection and deceptive color manipulation. Styling applied by `logd` itself (`StyleDecorator`, themes) remains unaffected. To keep colors for trusted text, tag the node or document with `LogTag.raw`.
   - **Raw Output Opt-Out**: Introduced `LogTag.raw` bitmask flag allowing handlers to bypass neutralization when raw ANSI output is explicitly intended.
 
 - ### Encoders & Serialization

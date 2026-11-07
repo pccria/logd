@@ -408,6 +408,18 @@ base class FileSink extends EncodingSink {
           ),
         ) {
     _validateBasePath(basePath);
+    if (encoder.wrappingStrategy == WrappingStrategy.document) {
+      final existing = _activeSinks[basePath];
+      if (existing != null &&
+          existing.encoder.wrappingStrategy == WrappingStrategy.document) {
+        InternalLogger.log(
+          LogLevel.warning,
+          'Multiple active FileSinks with document-wrapping encoders created '
+          'for the same path "$basePath". Rotating or concurrent writes may '
+          'corrupt document boundaries.',
+        );
+      }
+    }
     _activeSinks[basePath] = this;
   }
 

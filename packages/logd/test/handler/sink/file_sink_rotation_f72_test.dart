@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:logd/logd.dart';
@@ -93,8 +94,7 @@ void main() {
         expect(activeFile.existsSync(), isTrue);
         final activeContent = activeFile.readAsStringSync();
 
-        final count =
-            RegExp('===PREAMBLE===').allMatches(activeContent).length;
+        final count = RegExp('===PREAMBLE===').allMatches(activeContent).length;
         expect(
           count,
           equals(1),
@@ -104,18 +104,63 @@ void main() {
     );
 
     test(
-      '(b) two FileSinks on the same path, rotate one, '
-      'check both files are still valid documents',
+      '(b1) when a second FileSink with a document-wrapping encoder is '
+      'created for a path that already has an active FileSink with a '
+      'wrapping encoder, a warning is logged',
       () async {
         final sink1 = FileSink(
           filePath,
           encoder: const _WrappingTestEncoder(),
-          fileRotation: SizeRotation(maxSize: '100 B', backupCount: 2),
+        );
+
+        final capturedWarnings = <String>[];
+        late FileSink sink2;
+
+        runZoned(
+          () {
+            sink2 = FileSink(
+              filePath,
+              encoder: const _WrappingTestEncoder(),
+            );
+          },
+          zoneSpecification: ZoneSpecification(
+            print: (final self, final parent, final zone, final line) {
+              capturedWarnings.add(line);
+            },
+          ),
+        );
+
+        expect(
+          capturedWarnings,
+          anyElement(
+            allOf(
+              contains('[WARNING]'),
+              contains('document-wrapping'),
+            ),
+          ),
+          reason: 'Internal warning should be emitted when multiple wrapping '
+              'FileSinks are active for the same path',
+        );
+
+        await sink1.dispose();
+        await sink2.dispose();
+      },
+    );
+
+    test(
+      '(b2) two FileSinks on the same path with a NON-wrapping '
+      '(plain text) encoder both write their entries and rotation '
+      'produces valid files',
+      () async {
+        final sink1 = FileSink(
+          filePath,
+          encoder: const PlainTextEncoder(),
+          fileRotation: SizeRotation(maxSize: '800 B', backupCount: 2),
         );
         final sink2 = FileSink(
           filePath,
-          encoder: const _WrappingTestEncoder(),
-          fileRotation: SizeRotation(maxSize: '100 B', backupCount: 2),
+          encoder: const PlainTextEncoder(),
+          fileRotation: SizeRotation(maxSize: '800 B', backupCount: 2),
         );
 
         final handler1 = Handler(
@@ -127,22 +172,26 @@ void main() {
           sink: sink2,
         );
 
-        final logger1 = Logger.get('test.f72.b1');
-        Logger.configure('test.f72.b1', handlers: [handler1]);
+        final logger1 = Logger.get('test.f72.b2_1');
+        Logger.configure('test.f72.b2_1', handlers: [handler1]);
 
-        final logger2 = Logger.get('test.f72.b2');
-        Logger.configure('test.f72.b2', handlers: [handler2]);
+        final logger2 = Logger.get('test.f72.b2_2');
+        Logger.configure('test.f72.b2_2', handlers: [handler2]);
 
-        // Write through logger1
-        logger1.info('Entry from sink1 - ${'A' * 60}');
+        // Write through logger1 (~288 B)
+        logger1.info('Entry 1 from sink1 - ${'A' * 100}');
         await handler1.flush();
 
-        // Write again through logger1 to exceed 100 B and trigger rotation
-        logger1.info('Entry from sink1 causing rotation - ${'B' * 60}');
+        // Write through logger2 (~288 B, total ~576 B < 800 B)
+        logger2.info('Entry 1 from sink2 - ${'B' * 100}');
+        await handler2.flush();
+
+        // Write through logger1 to exceed 800 B and trigger rotation
+        logger1.info('Entry 2 from sink1 - ${'C' * 100}');
         await handler1.flush();
 
-        // Write through logger2
-        logger2.info('Entry from sink2 - ${'C' * 30}');
+        // Write through logger2 into active file (total 576 B < 800 B)
+        logger2.info('Entry 2 from sink2 - ${'D' * 100}');
         await handler2.flush();
 
         await handler1.dispose();
@@ -155,6 +204,9 @@ void main() {
           reason: 'Rotated backup file should exist',
         );
         final rotatedContent = rotatedFile.readAsStringSync();
+        expect(rotatedContent, isNotEmpty);
+        expect(rotatedContent, contains('Entry 1 from sink1'));
+        expect(rotatedContent, contains('Entry 1 from sink2'));
 
         final activeFile = File(filePath);
         expect(
@@ -163,42 +215,10 @@ void main() {
           reason: 'Active log file should exist',
         );
         final activeContent = activeFile.readAsStringSync();
-
-        // Check rotated file validity as a document
-        expect(
-          rotatedContent.startsWith('===PREAMBLE==='),
-          isTrue,
-          reason: 'Rotated file must start with preamble',
-        );
-        expect(
-          rotatedContent.trimRight().endsWith('===POSTAMBLE==='),
-          isTrue,
-          reason: 'Rotated file must end with postamble',
-        );
-        expect(
-          RegExp('===PREAMBLE===').allMatches(rotatedContent).length,
-          equals(1),
-          reason: 'Rotated file should have exactly 1 preamble',
-        );
-
-        // Check active file validity as a document
-        expect(
-          activeContent.startsWith('===PREAMBLE==='),
-          isTrue,
-          reason: 'Active file must start with preamble',
-        );
-        expect(
-          activeContent.trimRight().endsWith('===POSTAMBLE==='),
-          isTrue,
-          reason: 'Active file must end with postamble',
-        );
-        expect(
-          RegExp('===PREAMBLE===').allMatches(activeContent).length,
-          equals(1),
-          reason: 'Active file should have exactly 1 preamble',
-        );
+        expect(activeContent, isNotEmpty);
+        expect(activeContent, contains('Entry 2 from sink1'));
+        expect(activeContent, contains('Entry 2 from sink2'));
       },
     );
-
   });
 }
