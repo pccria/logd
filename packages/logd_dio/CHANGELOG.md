@@ -2,6 +2,7 @@
 
 ## 0.1.6: Security Sanitization & Key Normalization Hardening
 
+- Requires logd ^0.10.6.
 - Minimum Dart SDK is now 3.10.0 (the previous 3.6.0 floor could not be resolved because of dependency requirements)
 - **Key Normalization Across Casing Styles**:
   - Enhanced `LogdSanitizer` to normalize keys across camelCase, snake_case, and kebab-case. Keys such as `accessToken`, `refreshToken`, `apiKey`, and `clientSecret` are now reliably matched and redacted against configured security patterns.
