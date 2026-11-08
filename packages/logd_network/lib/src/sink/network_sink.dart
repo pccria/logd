@@ -12,6 +12,7 @@ import 'package:meta/meta.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../compression/gzip_compressor.dart';
+import 'socket_connector.dart';
 
 /// Defines the behavior when the network buffer reaches its maximum capacity.
 enum DropPolicy {
@@ -279,7 +280,7 @@ abstract base class NetworkSink extends EncodingSink {
 
   /// Returns and clears the current buffer.
   @protected
-  List<Uint8List> flush() {
+  List<Uint8List> takeBuffer() {
     final buffer = _state.buffer;
     final lines = buffer.toList();
     buffer.clear();
@@ -456,6 +457,11 @@ base class HttpSink extends NetworkSink {
     }
   }
 
+  @override
+  Future<void> flush() async {
+    await _flush();
+  }
+
   /// Triggers an asynchronous flush of the current buffer.
   void _triggerFlush() {
     scheduleMicrotask(_flush);
@@ -498,7 +504,7 @@ base class HttpSink extends NetworkSink {
           }
         }
 
-        final batch = flush();
+        final batch = takeBuffer();
         if (batch.isEmpty) {
           break;
         }
@@ -624,7 +630,8 @@ base class HttpSink extends NetworkSink {
         // ignore: invalid_use_of_internal_member
         InternalLogger.log(
           LogLevel.warning,
-          'HttpSink endpoint $previousUrl failed. Failing over to $nextUrl.',
+          'HttpSink endpoint ${_sanitizeEndpoint(previousUrl)} failed. '
+          'Failing over to ${_sanitizeEndpoint(nextUrl)}.',
         );
         continue;
       }
@@ -649,6 +656,31 @@ base class HttpSink extends NetworkSink {
     return false;
   }
 
+  static String _sanitizeEndpoint(final String url) {
+    try {
+      final uri = Uri.parse(url);
+      final portPart = (uri.hasPort && uri.port != 80 && uri.port != 443)
+          ? ':${uri.port}'
+          : '';
+      return '${uri.scheme}://${uri.host}$portPart${uri.path}';
+    } catch (_) {
+      return url.split('?').first;
+    }
+  }
+
+  static Object _sanitizeError(final Object error) {
+    final text = error.toString();
+    final sanitized =
+        text.replaceAllMapped(RegExp(r'https?://[^\s",<>]+'), (final match) {
+      final rawUrl = match.group(0)!;
+      return _sanitizeEndpoint(rawUrl);
+    });
+    if (sanitized != text) {
+      return sanitized;
+    }
+    return error;
+  }
+
   void _handleFailure(final List<Uint8List> batch, final Object error) {
     // ignore: invalid_use_of_internal_member
     LoggerMetrics.incrementDroppedBatches();
@@ -670,7 +702,7 @@ base class HttpSink extends NetworkSink {
       LogLevel.error,
       'HttpSink failed to send batch of ${batch.length} logs after '
       '$maxRetries attempts',
-      error: error,
+      error: _sanitizeError(error),
     );
   }
 
@@ -732,6 +764,7 @@ base class SocketSink extends NetworkSink {
   const SocketSink({
     required this.url,
     this.headers = const {},
+    this.protocols,
     this.reconnectInterval = const Duration(seconds: 15),
     this.heartbeatInterval = const Duration(seconds: 30),
     this.heartbeatTimeout = const Duration(seconds: 10),
@@ -747,8 +780,11 @@ base class SocketSink extends NetworkSink {
   /// The WebSocket server URL.
   final String url;
 
-  /// Optional protocols/headers for the connection.
+  /// Optional HTTP headers sent during the WebSocket handshake (VM/native platforms).
   final Map<String, String> headers;
+
+  /// Optional WebSocket subprotocols.
+  final Iterable<String>? protocols;
 
   /// Delay before attempting reconnection.
   final Duration reconnectInterval;
@@ -811,11 +847,16 @@ base class SocketSink extends NetworkSink {
     }
   }
 
+  @override
+  Future<void> flush() async {
+    _drainBuffer();
+  }
+
   void _drainBuffer() {
     if (!hasBufferedLogs) {
       return;
     }
-    final batch = flush();
+    final batch = takeBuffer();
     for (final line in batch) {
       _send(line);
     }
@@ -830,7 +871,11 @@ base class SocketSink extends NetworkSink {
     try {
       final uri = _socketState.uri ??= Uri.parse(url);
       _socketState.channel = channel ??
-          WebSocketChannel.connect(uri, protocols: headers.keys.toList());
+          connectWebSocket(
+            uri,
+            headers: headers.isNotEmpty ? headers : null,
+            protocols: protocols,
+          );
       await _socketState.channel?.ready;
       _socketState.isConnected = true;
       _socketState.isConnecting = false;

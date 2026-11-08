@@ -99,6 +99,21 @@ class LogEntry {
     _hierarchyDepthCache = null;
   }
 
+  /// Creates an independent clone of this [LogEntry] detached from any object
+  /// pool.
+  LogEntry clone() => LogEntry(
+        loggerName: loggerName,
+        origin: origin,
+        level: level,
+        message: message,
+        timestamp: timestamp,
+        stackFrames:
+            stackFrames != null ? List<CallbackInfo>.of(stackFrames!) : null,
+        error: error,
+        stackTrace: stackTrace,
+        context: context != null ? Map<String, dynamic>.from(context!) : null,
+      ).._hierarchyDepthCache = _hierarchyDepthCache;
+
   /// Creates a copy of this entry with optional overrides.
   /// Note: copyWith does not preserve the cached hierarchy depth,
   /// as the new instance will recompute it on first access.

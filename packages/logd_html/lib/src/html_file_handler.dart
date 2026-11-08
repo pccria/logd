@@ -40,7 +40,7 @@ class HtmlFileHandler extends Handler {
               ),
           sink: FileSink(
             path,
-            encoder: const AutoTextEncoder(),
+            encoder: _createEncoder(title, stylesheet),
             fileRotation: fileRotation,
             lineLength: lineLength,
           ),
@@ -73,7 +73,7 @@ class HtmlFileHandler extends Handler {
             ),
         sink: FileSink(
           path,
-          encoder: const AutoTextEncoder(),
+          encoder: _createEncoder(title, stylesheet),
           fileRotation: fileRotation,
           lineLength: lineLength,
         ),
@@ -84,5 +84,14 @@ class HtmlFileHandler extends Handler {
         filters: filters,
         engine: engine,
         timeout: timeout,
+      );
+
+  static HtmlEncoder _createEncoder(
+    final String? title,
+    final HtmlStylesheet? stylesheet,
+  ) =>
+      HtmlEncoder(
+        title: title ?? 'logd Session',
+        stylesheet: stylesheet ?? const DefaultHtmlStylesheet(),
       );
 }

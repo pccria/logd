@@ -71,17 +71,22 @@ void main() async {
 Customize typography, colors, padding, and layout by providing a custom `HtmlStylesheet`:
 
 ```dart
-final customStylesheet = DefaultHtmlStylesheet().copyWith(
-  fontFamily: 'Fira Code, monospace',
-  fontSize: '13px',
-);
+class CustomStylesheet extends DefaultHtmlStylesheet {
+  const CustomStylesheet();
+
+  @override
+  String buildCss(final LogTheme theme) => '''
+${super.buildCss(theme)}
+body {
+  font-family: 'Fira Code', monospace;
+}
+''';
+}
 
 final handler = HtmlFileHandler(
   path: 'logs/custom.html',
-  formatter: HtmlFormatter(
-    title: 'Custom Styled Logs',
-    stylesheet: customStylesheet,
-  ),
+  title: 'Custom Styled Logs',
+  stylesheet: const CustomStylesheet(),
 );
 ```
 

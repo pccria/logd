@@ -30,6 +30,8 @@ base class AsyncHandler extends Handler {
   /// - [decorators]: Optional decorators for document layout enrichment.
   /// - [engine]: The execution engine to run (defaults to [StandardEngine]).
   /// - [timeout]: Optional timeout boundary.
+  /// - [maxQueueSize]: Maximum pending entries allowed in queue (defaults to
+  ///   10,000).
   const AsyncHandler({
     required super.formatter,
     required super.sink,
@@ -37,7 +39,11 @@ base class AsyncHandler extends Handler {
     super.decorators = const [],
     super.engine = const StandardEngine(),
     super.timeout,
+    this.maxQueueSize = 10000,
   });
+
+  /// Maximum pending entries allowed in queue before drops occur.
+  final int maxQueueSize;
 
   /// A future that completes immediately on Web as no background isolate
   /// is started.
@@ -49,4 +55,10 @@ base class AsyncHandler extends Handler {
     await sink.dispose();
     await super.dispose();
   }
+
+  @override
+  bool operator ==(final Object other) => identical(this, other);
+
+  @override
+  int get hashCode => identityHashCode(this);
 }

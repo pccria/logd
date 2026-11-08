@@ -1,6 +1,6 @@
 name: logd_dio
 description: Seamless Dio HTTP logging interceptor for logd with cURL generation, security redaction, and ambient distributed tracing.
-version: 0.1.5
+version: 0.1.6
 repository: https://github.com/pccria/logd
 homepage: https://github.com/pccria/logd
 documentation: https://github.com/pccria/logd
@@ -15,7 +15,7 @@ topics:
 
 license: BSD-3-Clause
 environment:
-  sdk: '>=3.6.0 <4.0.0'
+  sdk: '^3.10.0'
 
 platforms:
   android:
@@ -29,7 +29,7 @@ resolution: workspace
 
 dependencies:
   dio: ^5.2.0
-  logd: ^0.10.2
+  logd: ^0.10.6
   meta: ^1.18.0
 
 dev_dependencies:

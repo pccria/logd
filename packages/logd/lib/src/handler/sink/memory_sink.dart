@@ -59,13 +59,8 @@ base class MemorySink extends LogSink<LogDocument> {
   }
 
   @override
-  bool operator ==(final Object other) =>
-      identical(this, other) ||
-      other is MemorySink &&
-          runtimeType == other.runtimeType &&
-          capacity == other.capacity &&
-          enabled == other.enabled;
+  bool operator ==(final Object other) => identical(this, other);
 
   @override
-  int get hashCode => Object.hash(runtimeType, capacity, enabled);
+  int get hashCode => identityHashCode(this);
 }

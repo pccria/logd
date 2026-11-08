@@ -5,16 +5,18 @@ import 'package:logd/src/handler/handler.dart';
 LogDocument createTestDocument(
   final List<String> lines, {
   final LogPipelineFactory? factory,
+  final int tags = 0,
 }) {
   final f = factory ?? Arena.instance;
   final doc = f.checkoutDocument();
   for (final line in lines) {
     doc.nodes.add(
-      f.checkoutMessage()..segments.add(StyledText(line)),
+      f.checkoutMessage()..segments.add(StyledText(line, tags: tags)),
     );
   }
   return doc;
 }
+
 
 /// Helper for testing formatters: checks out a doc, formats it, and returns it.
 /// REMEMBER: The caller must release the document.

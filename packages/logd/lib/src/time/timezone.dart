@@ -14,18 +14,12 @@ class Timezone {
   /// System time zone.
   ///
   /// Tries to resolve to a DST-aware timezone based on the platform.
-  /// If failed, falls back to fixed time zone with current system time zone.
-  /// System time zone.
-  ///
-  /// Tries to resolve to a DST-aware timezone based on the platform.
-  /// If failed, falls back to fixed time zone with current system time zone.
+  /// If failed or when the platform returns an abbreviation or numeric offset,
+  /// falls back to a fixed offset matching the system clock.
   factory Timezone.local() {
     if (_localCache != null) {
       return _localCache!;
     }
-
-    // Ensure initialized if not already, to make sure we can find locations.
-    _ensureInitializedImplicitly();
 
     final systemTime = Context.clock.now;
     String? systemTimezoneName;
@@ -34,41 +28,69 @@ class Timezone {
           Context.clock.timezoneName ?? systemTime.timeZoneName;
     } catch (e, s) {
       InternalLogger.log(
-        LogLevel.error,
+        LogLevel.warning,
         'Platform timezone fetch failed',
         error: e,
         stackTrace: s,
       );
     }
 
-    if (systemTimezoneName != null) {
-      final ianaName = windowsToIana[systemTimezoneName] ?? systemTimezoneName;
+    // 1. Fast Path: UTC or empty timezone name
+    if (systemTimezoneName == null || systemTimezoneName.isEmpty) {
+      return _localCache = Timezone._fixed(
+        systemTime.timeZoneOffset,
+        name: 'UTC',
+      );
+    }
+
+    final upper = systemTimezoneName.toUpperCase();
+    if (upper == 'UTC' || upper == 'ETC/UTC' || upper == 'Z') {
+      return _localCache = Timezone.utc();
+    }
+
+    // 2. Fast Path: Numeric offset format (e.g. "+0330", "+03:30", "-0500")
+    if (_offsetPattern.hasMatch(systemTimezoneName)) {
+      return _localCache = Timezone._fixed(
+        systemTime.timeZoneOffset,
+        name: systemTimezoneName,
+      );
+    }
+
+    // 3. Resolve Windows or candidate IANA timezone
+    final ianaName = windowsToIana[systemTimezoneName] ?? systemTimezoneName;
+    final isCandidateIana =
+        ianaName.contains('/') || _ianaNonSlashZones.contains(ianaName);
+
+    if (isCandidateIana) {
+      _ensureInitializedImplicitly();
       try {
         final location = tz.getLocation(ianaName);
         return _localCache = Timezone._(location);
+      } on tz.LocationNotFoundException {
+        final systemTimezoneOffset = systemTime.timeZoneOffset;
+        InternalLogger.log(
+          LogLevel.warning,
+          'Timezone "$systemTimezoneName" (resolved to "$ianaName") '
+          'not found in database. Using fixed offset '
+          '${systemTimezoneOffset.formatOffset}. '
+          'DST transitions will not be handled automatically.',
+        );
       } catch (e, s) {
         InternalLogger.log(
-          LogLevel.error,
-          'Timezone "$systemTimezoneName" (resolved to "$ianaName") '
-          'not found in database.',
+          LogLevel.warning,
+          'Timezone "$systemTimezoneName" resolution error',
           error: e,
           stackTrace: s,
         );
       }
     }
 
+    // 4. Fallback for abbreviations (e.g. "EDT", "EST", "PST") and unmapped
+    // names
     final systemTimezoneOffset = systemTime.timeZoneOffset;
-
-    InternalLogger.log(
-        LogLevel.warning,
-        'Timezone "$systemTimezoneName" not found in database. '
-        'Using fixed offset ${systemTimezoneOffset.formatOffset}. '
-        'DST transitions will not be handled automatically. '
-        'Ensure Timezone.ensureInitialized() is called or the name is valid.');
-
     return _localCache = Timezone._fixed(
       systemTimezoneOffset,
-      name: systemTimezoneName ?? 'UTC',
+      name: systemTimezoneName,
     );
   }
 
@@ -87,11 +109,12 @@ class Timezone {
         'Timezone name cannot be empty or blank.',
       );
     }
-    if (name.toUpperCase() == 'UTC') {
+    final trimmed = name.trim();
+    if (trimmed.toUpperCase() == 'UTC' || trimmed.toUpperCase() == 'ETC/UTC') {
       return Timezone.utc();
     }
     _ensureInitializedImplicitly();
-    return Timezone._(tz.getLocation(name));
+    return Timezone._(tz.getLocation(trimmed));
   }
 
   /// Creates a fixed offset timezone.
@@ -120,6 +143,16 @@ class Timezone {
   }
 
   const Timezone._(this._location);
+
+  static final RegExp _offsetPattern = RegExp(r'^[+-]\d{2}(?::?\d{2})?$');
+
+  static const Set<String> _ianaNonSlashZones = {
+    'CST6CDT',
+    'EST5EDT',
+    'Factory',
+    'MST7MDT',
+    'PST8PDT',
+  };
 
   /// Ensures the timezone database is initialized.
   ///

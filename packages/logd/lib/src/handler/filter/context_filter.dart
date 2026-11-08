@@ -1,6 +1,7 @@
 part of 'filter.dart';
 
 /// A [LogFilter] that filters log entries based on their structured context.
+@immutable
 class ContextFilter implements LogFilter {
   /// Creates a [ContextFilter].
   ///
@@ -32,4 +33,16 @@ class ContextFilter implements LogFilter {
 
     return exclude ? !matches : matches;
   }
+
+  @override
+  bool operator ==(final Object other) =>
+      identical(this, other) ||
+      other is ContextFilter &&
+          runtimeType == other.runtimeType &&
+          key == other.key &&
+          value == other.value &&
+          exclude == other.exclude;
+
+  @override
+  int get hashCode => Object.hash(key, value, exclude);
 }

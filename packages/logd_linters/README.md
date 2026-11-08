@@ -41,7 +41,12 @@ Fires when a `LogDocument` or `LogNode` is stored in an instance field or captur
 *   **Bad:**
     ```dart
     class LeakyFormatter implements LogFormatter {
+      @override
+      Set<LogMetadata> get metadata => const {};
+
       LogDocument? _cachedDoc;
+
+      @override
       void format(LogEntry entry, LogDocument doc, LogPipelineFactory f) {
         _cachedDoc = doc; // Violation
       }
@@ -58,6 +63,7 @@ Fires when a `LogDocument` or `LogNode` is stored in an instance field or captur
 Ensures that custom `LogEngine` implementations wrap the pipeline execution in `try-finally` and call `document.releaseRecursive(factory)` in the `finally` block to prevent pool exhaustion.
 
 *   **Bad:**
+    <!-- readme-check: skip -->
     ```dart
     Future<void> execute(...) async {
       final doc = factory.checkoutDocument();
@@ -67,6 +73,7 @@ Ensures that custom `LogEngine` implementations wrap the pipeline execution in `
     }
     ```
 *   **Good:**
+    <!-- readme-check: skip -->
     ```dart
     Future<void> execute(...) async {
       final doc = factory.checkoutDocument();
@@ -120,10 +127,12 @@ Formatters and decorators must operate strictly on the Semantic IR (`LogDocument
 `LogTag` constants are integers representing bitmasks. Direct equality comparisons (`==`, `!=`) will not match compound tags. Use bitwise `&`.
 
 *   **Bad:**
+    <!-- readme-check: skip -->
     ```dart
     if (entry.tags == LogTag.error) { ... }
     ```
 *   **Good:**
+    <!-- readme-check: skip -->
     ```dart
     if (entry.tags & LogTag.error != 0) { ... }
     ```
@@ -136,11 +145,11 @@ High-throughput isolate sinks require `engine: ArenaEngine()` to bypass GC press
 
 *   **Bad:**
     ```dart
-    final handler = Handler(sink: IsolateSink(worker)); // Missing engine
+    final handler = Handler(formatter: const PlainFormatter(), sink: IsolateSink(worker)); // Missing engine
     ```
 *   **Good:**
     ```dart
-    final handler = Handler(sink: IsolateSink(worker), engine: ArenaEngine());
+    final handler = Handler(formatter: const PlainFormatter(), sink: IsolateSink(worker), engine: ArenaEngine());
     ```
 
 #### 11. `logd_metadata_set_duplicate` (Info)

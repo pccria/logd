@@ -93,6 +93,9 @@ class Handler {
   /// in the exact order specified.
   final List<LogDecorator> decorators;
 
+  /// Pre-compiled decorator pipeline for zero-allocation decorator composition.
+  DecoratorPipeline get decoratorPipeline => DecoratorPipeline.of(decorators);
+
   /// The maximum duration permitted for processing a single log entry.
   ///
   /// If specified, caps the time spent executing [LogEngine.execute] to
@@ -114,20 +117,39 @@ class Handler {
     }
 
     if (timeout != null) {
+      final effectiveEntry = entry.clone();
       await engine
-          .execute(entry, formatter, decorators, sink)
+          .execute(effectiveEntry, formatter, decorators, sink)
           .timeout(timeout!);
     } else {
       await engine.execute(entry, formatter, decorators, sink);
     }
   }
 
-  /// Disposes of any resources held by this handler.
+  /// Flushes any pending log operations in this handler's pipeline and sink.
+  @mustCallSuper
+  Future<void> flush() async {
+    await sink.flush();
+  }
+
+  /// Disposes of any resources held by this handler, including its underlying
+  /// [sink].
   ///
   /// Subclasses that manage stateful resources (such as background isolates
   /// or file handles) should override this method to clean up resources.
   @mustCallSuper
-  Future<void> dispose() async {}
+  Future<void> dispose() async {
+    try {
+      await sink.dispose();
+    } catch (e, s) {
+      InternalLogger.log(
+        LogLevel.error,
+        'Handler sink disposal failed for ${sink.runtimeType}',
+        error: e,
+        stackTrace: s,
+      );
+    }
+  }
 
   @override
   bool operator ==(final Object other) =>

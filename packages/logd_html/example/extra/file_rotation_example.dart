@@ -28,6 +28,6 @@ void main() async {
     logger.info('Simulating heavy HTML log entry #${i + 1}');
   }
 
-  await Future.delayed(const Duration(milliseconds: 100));
+  await Logger.shutdown();
   print('Logs rotated successfully in logs/');
 }

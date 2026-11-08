@@ -62,6 +62,7 @@ class IsolateWorker {
         entryPoint,
         [receivePort.sendPort, initArg],
         onError: errPort.sendPort,
+        errorsAreFatal: false,
       );
 
       if (_isDisposed) {
@@ -125,7 +126,7 @@ class IsolateWorker {
       final callback = ReceivePort();
       try {
         port.send(IsolateCommand.stop(callback.sendPort));
-        await callback.first;
+        await callback.first.timeout(const Duration(seconds: 5));
       } catch (_) {
         // Safe fallback if worker died/failed to respond
         _isolate?.kill();

@@ -9,30 +9,26 @@ import 'package:logd/logd.dart';
 void main() async {
   print('=== Logd / Wrapping Showcase ===\n');
 
-  // SCENARIO 1: Unwrapped JSON (Default)
-  // JsonFormatter produces one long line. Box expands to fit it.
+  // SCENARIO 1: Unwrapped Text (Wide Line)
   const rawHandler = Handler(
-    formatter: JsonFormatter(metadata: {}),
-    decorators: [
-      BoxDecorator(borderStyle: BorderStyle.rounded),
-    ],
-    sink: ConsoleSink(lineLength: 40),
+    formatter: PlainFormatter(metadata: {}),
+    sink: ConsoleSink(lineLength: 80),
   );
 
   Logger.configure('raw', handlers: [rawHandler]);
-  print('--- 1. Raw JSON (Expands Box) ---');
+  print('--- 1. Raw Text (Wide Line) ---');
   Logger.get('raw').info(
-    'This is a very long message that will force the box to expand beyond the '
-    'requested 40 chars width limit.',
+    'This is a very long message that demonstrates how text looks before '
+    'wrapping constraints are applied.',
   );
 
   print('\n${'=' * 60}\n');
 
   // SCENARIO 2: Implicitly Wrapped Box
-  // BoxDecorator enforces the 40 char limit by splitting the JSON string
-  // automatically.
+  // BoxDecorator enforces the 40 char limit by wrapping the content
+  // automatically inside the rounded box.
   const wrappedHandler = Handler(
-    formatter: JsonFormatter(metadata: {}),
+    formatter: PlainFormatter(metadata: {}),
     decorators: [
       BoxDecorator(borderStyle: BorderStyle.rounded),
     ],
@@ -40,18 +36,18 @@ void main() async {
   );
 
   Logger.configure('wrapped', handlers: [wrappedHandler]);
-  print('--- 2. Wrapped JSON (Respects Width) ---');
+  print('--- 2. Wrapped Text Inside Box (40 chars) ---');
   Logger.get('wrapped').info(
-    'This is the same long message, but now it wraps gracefully '
-    'inside the box.',
+    'This is a long message that wraps gracefully '
+    'inside the 40-character rounded box.',
   );
 
   print('\n${'=' * 60}\n');
 
   // SCENARIO 3: Wrapped + Suffix (Sidebar Effect)
-  // SuffixDecorator (aligned) ensures content fits first.
+  // SuffixDecorator (aligned) ensures content fits and suffix aligns on every line.
   const sidebarHandler = Handler(
-    formatter: JsonFormatter(metadata: {}),
+    formatter: PlainFormatter(metadata: {}),
     decorators: [
       SuffixDecorator(' [SIDEBAR]', aligned: true),
       BoxDecorator(borderStyle: BorderStyle.rounded),

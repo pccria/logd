@@ -81,31 +81,90 @@ base class IsolateSink extends LogSink<Uint8List> {
   }
 
   @override
+  Future<void> flush() async {
+    if (!enabled || _worker.isDisposed) {
+      return;
+    }
+    if (!_worker.isReady) {
+      await _worker.ready;
+    }
+    final port = _worker.commandPort;
+    if (port != null) {
+      final callback = ReceivePort();
+      try {
+        port.send(IsolateCommand.flush(callback.sendPort));
+        await callback.first.timeout(const Duration(seconds: 5));
+      } catch (_) {
+        // Fallback if timeout or worker error
+      } finally {
+        callback.close();
+      }
+    }
+  }
+
+  @override
   Future<void> dispose() async {
+    await flush();
     await _worker.dispose();
     await super.dispose();
   }
 
   static void _spawnWorker(final List<dynamic> args) {
-    final sendPort = args[0] as SendPort;
-    final target = args[1] as LogSink<Uint8List>;
+    unawaited(
+      () async {
+        final sendPort = args[0] as SendPort;
+        final target = args[1] as LogSink<Uint8List>;
 
-    final receivePort = ReceivePort();
-    sendPort.send(receivePort.sendPort);
+        final receivePort = ReceivePort();
+        sendPort.send(receivePort.sendPort);
 
-    receivePort.listen((final message) async {
-      if (message is IsolateLog) {
-        final data = message.data.materialize().asUint8List();
-        const factory = StandardPipelineFactory();
-        await target.output(data, message.entry, message.level, factory);
-      } else if (message is IsolateCommand) {
-        if (message.type == IsolateCommandType.stop) {
-          await target.dispose();
-          message.replyPort?.send(null);
-          receivePort.close();
+        await for (final message in receivePort) {
+          if (message is IsolateLog) {
+            try {
+              final data = message.data.materialize().asUint8List();
+              const factory = StandardPipelineFactory();
+              await target.output(data, message.entry, message.level, factory);
+            } catch (e, s) {
+              InternalLogger.log(
+                LogLevel.error,
+                'IsolateSink target output failed',
+                error: e,
+                stackTrace: s,
+              );
+            }
+          } else if (message is IsolateCommand) {
+            if (message.type == IsolateCommandType.flush) {
+              try {
+                await target.flush();
+              } catch (e, s) {
+                InternalLogger.log(
+                  LogLevel.error,
+                  'IsolateSink target flush failed',
+                  error: e,
+                  stackTrace: s,
+                );
+              } finally {
+                message.replyPort?.send(null);
+              }
+            } else if (message.type == IsolateCommandType.stop) {
+              try {
+                await target.dispose();
+              } catch (e, s) {
+                InternalLogger.log(
+                  LogLevel.error,
+                  'IsolateSink target disposal failed',
+                  error: e,
+                  stackTrace: s,
+                );
+              } finally {
+                message.replyPort?.send(null);
+                receivePort.close();
+              }
+            }
+          }
         }
-      }
-    });
+      }(),
+    );
   }
 }
 
@@ -280,7 +339,30 @@ base class NativeIsolateSink extends LogSink<dynamic> {
   }
 
   @override
+  Future<void> flush() async {
+    if (!enabled || _workerDead || _worker.isDisposed) {
+      return;
+    }
+    if (!_worker.isReady) {
+      await _worker.ready;
+    }
+    final port = _worker.commandPort;
+    if (port != null) {
+      final callback = ReceivePort();
+      try {
+        port.send(IsolateCommand.flush(callback.sendPort));
+        await callback.first.timeout(const Duration(seconds: 5));
+      } catch (_) {
+        // Fallback if timeout or worker error
+      } finally {
+        callback.close();
+      }
+    }
+  }
+
+  @override
   Future<void> dispose() async {
+    await flush();
     _isDisposed = true;
     await _worker.dispose();
     for (final msg in _buffer) {
