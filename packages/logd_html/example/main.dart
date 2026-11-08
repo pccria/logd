@@ -32,7 +32,7 @@ void main() async {
     );
   }
 
-  // Dispose the handler to flush the isolate cleanly
-  await Future.delayed(const Duration(milliseconds: 100));
+  // Shut down the logger and flush the background isolate cleanly
+  await Logger.shutdown();
   print('HTML logs generated at: logs/app_logs.html');
 }
