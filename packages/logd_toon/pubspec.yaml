@@ -1,6 +1,6 @@
 name: logd_toon
 description: Tab-Oriented Object Notation (TOON) formatter, encoder, and file handler satellite package for logd.
-version: 0.1.6
+version: 0.1.7
 repository: https://github.com/pccria/logd
 homepage: https://github.com/pccria/logd
 documentation: https://github.com/pccria/logd

@@ -1,4 +1,4 @@
-## 0.1.10
+## 0.1.11
 
 - Requires logd ^0.10.6.
 - Minimum Dart SDK is now 3.10.0 (the previous 3.6.0 floor could not be resolved because of dependency requirements)
