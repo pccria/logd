@@ -3,7 +3,7 @@ description: >
   Custom lint rules for the logd logging library. Surfaces arena lifecycle
   constraints, formatter/decorator purity invariants, and consumer usage
   best-practices as static analysis warnings with IDE quick-fixes.
-version: 0.1.6
+version: 0.1.7
 repository: https://github.com/pccria/logd
 homepage: https://github.com/pccria/logd
 documentation: https://github.com/pccria/logd
@@ -16,7 +16,7 @@ topics:
 
 license: BSD-3-Clause
 environment:
-  sdk: '>=3.6.0 <4.0.0'
+  sdk: '^3.10.0'
 
 platforms:
   android:

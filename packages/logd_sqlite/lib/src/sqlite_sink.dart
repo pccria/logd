@@ -286,6 +286,7 @@ base class SqliteSink extends LogSink<LogDocument> {
   }
 
   /// Flushes all pending in-memory log entries to disk in a single transaction.
+  @override
   Future<void> flush() async {
     _flushSync();
   }

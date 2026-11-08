@@ -24,7 +24,10 @@ base class TestEncodingSink extends EncodingSink {
 
   static void staticWrite(final Uint8List data) {
     if (data.length == 1 && data.first == 255) {
-      throw Exception('Simulated crash in worker delegate');
+      Future.microtask(
+        () => throw Exception('Simulated crash in worker delegate'),
+      );
+      return;
     }
     activeSendPort?.send(data);
   }

@@ -51,11 +51,18 @@ base class EncodingSink extends LogSink<LogDocument> {
   final int? preferredWidth;
 
   static final Expando<bool> _preambleFlags = Expando();
+  static final Expando<Uint8List> _rememberedPreambles = Expando();
 
   @protected
   bool get isPreambleWritten => _preambleFlags[this] ?? false;
   @protected
   set isPreambleWritten(final bool value) => _preambleFlags[this] = value;
+
+  /// The exact preamble bytes written when the first record was output.
+  Uint8List? get rememberedPreamble => _rememberedPreambles[this];
+  @protected
+  set rememberedPreamble(final Uint8List? value) =>
+      _rememberedPreambles[this] = value;
 
   @override
   Future<void> output(
@@ -73,7 +80,22 @@ base class EncodingSink extends LogSink<LogDocument> {
     try {
       // Trigger preamble if needed
       if (strategy == WrappingStrategy.document && !isPreambleWritten) {
-        encoder.preamble(context, level, factory, document: document);
+        final preambleContext = factory.checkoutContext();
+        try {
+          encoder.preamble(
+            preambleContext,
+            level,
+            factory,
+            document: document,
+          );
+          final preambleBytes = preambleContext.takeBytes();
+          rememberedPreamble = preambleBytes;
+          if (preambleBytes.isNotEmpty) {
+            context.add(preambleBytes);
+          }
+        } finally {
+          factory.release(preambleContext);
+        }
         isPreambleWritten = true;
       }
 
@@ -105,6 +127,7 @@ base class EncodingSink extends LogSink<LogDocument> {
   @mustCallSuper
   Future<void> dispose() async {
     if (strategy == WrappingStrategy.document && isPreambleWritten) {
+      isPreambleWritten = false;
       const factory = StandardPipelineFactory();
       final context = factory.checkoutContext();
       try {
@@ -119,6 +142,7 @@ base class EncodingSink extends LogSink<LogDocument> {
         }
       } finally {
         factory.release(context);
+        rememberedPreamble = null;
       }
     }
     await super.dispose();

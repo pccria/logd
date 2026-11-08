@@ -9,6 +9,7 @@ part 'regex_filter.dart';
 
 /// Abstract base for filtering log entries before processing.
 //ignore: one_member_abstracts
+@immutable
 abstract class LogFilter {
   const LogFilter();
 

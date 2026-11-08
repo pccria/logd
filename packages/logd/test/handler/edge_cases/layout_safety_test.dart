@@ -49,7 +49,7 @@ void main() {
 
       // Colored message
       final lines = ['\x1B[31mThis is red\x1B[0m'];
-      final doc = createTestDocument(lines);
+      final doc = createTestDocument(lines, tags: LogTag.raw);
       try {
         box.decorate(doc, entry, Arena.instance);
 

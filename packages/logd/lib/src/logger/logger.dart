@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:meta/meta.dart';
 
 import '../core/log_level.dart';
@@ -847,6 +849,7 @@ class Logger {
     final stagedUpdates = <String, LoggerConfig>{};
     final changedLoggers = <String>{};
     final loggersToRegister = <String>{};
+    final oldCandidateHandlers = <Handler>{};
 
     for (final entry in configurations.entries) {
       final name = entry.key;
@@ -855,6 +858,11 @@ class Logger {
 
       if (!_registry.containsKey(normalized)) {
         loggersToRegister.add(normalized);
+      }
+
+      if (_registry.containsKey(normalized) &&
+          _registry[normalized]!.handlers != null) {
+        oldCandidateHandlers.addAll(_registry[normalized]!.handlers!);
       }
 
       final existingConfig = _registry[normalized] ?? const LoggerConfig();
@@ -1057,8 +1065,33 @@ class Logger {
     }
     _registry.addAll(stagedUpdates);
 
+    if (oldCandidateHandlers.isNotEmpty) {
+      _disposeOrphanedHandlers(oldCandidateHandlers);
+    }
+
     if (changedLoggers.isNotEmpty) {
       LoggerCache.invalidateMultiple(changedLoggers);
+    }
+  }
+
+  static void _disposeOrphanedHandlers(final Iterable<Handler> candidates) {
+    for (final handler in candidates) {
+      final isStillReferenced = _registry.values.any(
+        (final config) => config.handlers?.contains(handler) ?? false,
+      );
+      if (isStillReferenced) {
+        continue;
+      }
+      final sinkIsStillUsed = _registry.values.any(
+        (final config) =>
+            config.handlers?.any(
+              (final h) => identical(h.sink, handler.sink),
+            ) ??
+            false,
+      );
+      if (!sinkIsStillUsed) {
+        unawaited(handler.dispose());
+      }
     }
   }
 
@@ -1222,20 +1255,20 @@ class Logger {
   /// This registers all configurations, merging/overwriting any existing ones
   /// and invalidating cache keys.
   static void importConfig(final Map<String, dynamic> configData) {
+    final stagedRegistry = <String, LoggerConfig>{};
     final registryMap = configData['registry'] as Map<dynamic, dynamic>?;
     if (registryMap != null) {
       for (final entry in registryMap.entries) {
-        final name = entry.key as String;
+        final name = _normalizeName(entry.key as String);
         final configJson = entry.value as Map<dynamic, dynamic>;
-        final config =
+        stagedRegistry[name] =
             LoggerConfig.fromJson(Map<String, dynamic>.from(configJson));
-        _registry[name] = config;
       }
     }
 
+    final stagedRules = <_PatternRule>[];
     final patternRulesList = configData['patternRules'] as List<dynamic>?;
     if (patternRulesList != null) {
-      _patternRules.clear();
       for (final ruleObj in patternRulesList) {
         final ruleMap = ruleObj as Map<dynamic, dynamic>;
         final pattern = ruleMap['pattern'] as String;
@@ -1243,7 +1276,7 @@ class Logger {
         final config =
             LoggerConfig.fromJson(Map<String, dynamic>.from(configJson));
         final regExp = _patternToRegExp(pattern);
-        _patternRules.add(
+        stagedRules.add(
           _PatternRule(
             pattern: pattern,
             regExp: regExp,
@@ -1253,7 +1286,27 @@ class Logger {
       }
     }
 
+    _patternRules
+      ..clear()
+      ..addAll(stagedRules);
+
+    final oldCandidateHandlers = <Handler>{};
+    for (final config in _registry.values) {
+      if (config.handlers != null) {
+        oldCandidateHandlers.addAll(config.handlers!);
+      }
+    }
+
+    _registry.addAll(stagedRegistry);
+
     LoggerCache.clear();
+    for (final name in _registry.keys) {
+      LoggerCache._registerDescendant(name);
+    }
+
+    if (oldCandidateHandlers.isNotEmpty) {
+      _disposeOrphanedHandlers(oldCandidateHandlers);
+    }
   }
 
   /// Internal: Checks if a name is a descendant of parent.
@@ -1269,6 +1322,15 @@ class Logger {
 
   /// The minimum level to log (events below this are dropped).
   LogLevel get logLevel => LoggerCache.logLevel(name);
+
+  /// Returns whether a log message at the specified [level] will be
+  /// processed.
+  ///
+  /// Returns `false` if this logger is disabled or if [level] is below
+  /// [logLevel].
+  @pragma('vm:prefer-inline')
+  bool isLoggable(final LogLevel level) =>
+      enabled && level.index >= logLevel.index;
 
   /// Resolves the effective [includeFileLineInHeader] for this logger.
   bool get includeFileLineInHeader => LoggerCache.includeFileLineInHeader(name);
@@ -1560,6 +1622,11 @@ class Logger {
     }
   }
 
+  /// Flushes all pending log operations across this logger's handlers.
+  Future<void> flushHandlers() async {
+    await Future.wait(handlers.map((final h) => h.flush()));
+  }
+
   /// The set of fields that have been explicitly configured on this logger.
   Set<String> get explicitFields {
     final config = _registry[name];
@@ -1838,11 +1905,16 @@ class Logger {
     final Map<String, dynamic>? context,
     final Object? error,
     final StackTrace? stackTrace,
-  }) =>
-      logInternal(LogLevel.trace, message, error, stackTrace, context)
-          .catchError((final e) {
-        InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
-      });
+  }) {
+    if (!isLoggable(LogLevel.trace)) {
+      LoggerMetrics.incrementDrops();
+      return;
+    }
+    logInternal(LogLevel.trace, message, error, stackTrace, context)
+        .catchError((final e) {
+      InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
+    });
+  }
 
   /// Logs a debug-level message.
   ///
@@ -1856,11 +1928,16 @@ class Logger {
     final Map<String, dynamic>? context,
     final Object? error,
     final StackTrace? stackTrace,
-  }) =>
-      logInternal(LogLevel.debug, message, error, stackTrace, context)
-          .catchError((final e) {
-        InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
-      });
+  }) {
+    if (!isLoggable(LogLevel.debug)) {
+      LoggerMetrics.incrementDrops();
+      return;
+    }
+    logInternal(LogLevel.debug, message, error, stackTrace, context)
+        .catchError((final e) {
+      InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
+    });
+  }
 
   /// Logs an info-level message.
   ///
@@ -1874,11 +1951,16 @@ class Logger {
     final Map<String, dynamic>? context,
     final Object? error,
     final StackTrace? stackTrace,
-  }) =>
-      logInternal(LogLevel.info, message, error, stackTrace, context)
-          .catchError((final e) {
-        InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
-      });
+  }) {
+    if (!isLoggable(LogLevel.info)) {
+      LoggerMetrics.incrementDrops();
+      return;
+    }
+    logInternal(LogLevel.info, message, error, stackTrace, context)
+        .catchError((final e) {
+      InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
+    });
+  }
 
   /// Logs a warning-level message.
   ///
@@ -1892,11 +1974,16 @@ class Logger {
     final Map<String, dynamic>? context,
     final Object? error,
     final StackTrace? stackTrace,
-  }) =>
-      logInternal(LogLevel.warning, message, error, stackTrace, context)
-          .catchError((final e) {
-        InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
-      });
+  }) {
+    if (!isLoggable(LogLevel.warning)) {
+      LoggerMetrics.incrementDrops();
+      return;
+    }
+    logInternal(LogLevel.warning, message, error, stackTrace, context)
+        .catchError((final e) {
+      InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
+    });
+  }
 
   /// Logs an error-level message.
   ///
@@ -1910,11 +1997,16 @@ class Logger {
     final Map<String, dynamic>? context,
     final Object? error,
     final StackTrace? stackTrace,
-  }) =>
-      logInternal(LogLevel.error, message, error, stackTrace, context)
-          .catchError((final e) {
-        InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
-      });
+  }) {
+    if (!isLoggable(LogLevel.error)) {
+      LoggerMetrics.incrementDrops();
+      return;
+    }
+    logInternal(LogLevel.error, message, error, stackTrace, context)
+        .catchError((final e) {
+      InternalLogger.log(LogLevel.error, 'Logging failure', error: e);
+    });
+  }
 
   /// Internal: Processes a log event, creating and dispatching a LogEntry.
   ///
@@ -1937,8 +2029,8 @@ class Logger {
     final StackTrace? stackTrace, [
     final Map<String, dynamic>? context,
   ]) async {
-    if (!enabled || level.index < logLevel.index) {
-      LoggerMetrics._drops++;
+    if (!isLoggable(level)) {
+      LoggerMetrics.incrementDrops();
       return;
     }
     final frameCount = stackMethodCount[level] ?? 0;
@@ -1961,14 +2053,15 @@ class Logger {
       }
       final parsed = stackTraceParser.parse(
         stackTrace: trace,
-        skipFrames: _logMethodSkipFrames,
+        skipFrames: hasExplicitTrace ? 0 : _logMethodSkipFrames,
         maxFrames: frameCount,
       );
       if (shouldExtractOrigin) {
-        if (parsed.caller == null) {
-          return;
+        if (parsed.caller != null) {
+          origin = _buildOrigin(parsed.caller!);
+        } else {
+          origin = 'unknown';
         }
-        origin = _buildOrigin(parsed.caller!);
       } else {
         origin = '';
       }
@@ -2095,22 +2188,78 @@ class Logger {
     final name =
         loggerName == null ? _globalLoggerName : _normalizeName(loggerName);
     if (name == _globalLoggerName) {
+      final allHandlers = <Handler>{};
+      for (final config in _registry.values) {
+        if (config.handlers != null) {
+          allHandlers.addAll(config.handlers!);
+        }
+      }
       _registry.clear();
       _patternRules.clear();
       LoggerCache.clear();
       _warnedDeepLoggers.clear();
       _warnedHandlerTypes.clear();
+      for (final handler in allHandlers) {
+        unawaited(handler.dispose());
+      }
     } else {
+      final removedHandlers = <Handler>{};
+      final config = _registry[name];
+      if (config?.handlers != null) {
+        removedHandlers.addAll(config!.handlers!);
+      }
       LoggerCache.invalidate(name);
       _registry.remove(name);
       LoggerCache._unregisterLogger(name);
       for (final key in _registry.keys.toList()) {
         if (_isDescendant(key, name)) {
+          final descConfig = _registry[key];
+          if (descConfig?.handlers != null) {
+            removedHandlers.addAll(descConfig!.handlers!);
+          }
           _registry.remove(key);
           LoggerCache._unregisterLogger(key);
         }
       }
+      if (removedHandlers.isNotEmpty) {
+        _disposeOrphanedHandlers(removedHandlers);
+      }
     }
+  }
+
+  /// Flushes all pending log entries across all registered loggers and
+  /// handlers.
+  ///
+  /// Call this before process exit (e.g. at the end of `main()` or before
+  /// `exit(0)`) to ensure all asynchronous background writes and buffered
+  /// sinks are fully flushed to disk, network, or console.
+  static Future<void> flush() async {
+    final handlers = <Handler>{};
+    for (final config in _registry.values) {
+      if (config.handlers != null) {
+        handlers.addAll(config.handlers!);
+      }
+    }
+    for (final resolved in LoggerCache._cache.values) {
+      handlers.addAll(resolved.handlers);
+    }
+    await Future.wait(handlers.map((final h) => h.flush()));
+  }
+
+  /// Flushes all pending log entries and gracefully disposes all registered
+  /// handlers.
+  static Future<void> shutdown() async {
+    final handlers = <Handler>{};
+    for (final config in _registry.values) {
+      if (config.handlers != null) {
+        handlers.addAll(config.handlers!);
+      }
+    }
+    for (final resolved in LoggerCache._cache.values) {
+      handlers.addAll(resolved.handlers);
+    }
+    await Future.wait(handlers.map((final h) => h.flush()));
+    await Future.wait(handlers.map((final h) => h.dispose()));
   }
 
   static void _defaultFallbackHandler(
@@ -2168,6 +2317,8 @@ class LoggerMetrics {
   static void incrementHandlerFailures() => _handlerFailures++;
   @internal
   static void incrementDroppedBatches() => _droppedBatches++;
+  @internal
+  static void incrementDrops() => _drops++;
 
   static int _cacheHits = 0;
   static int _cacheMisses = 0;

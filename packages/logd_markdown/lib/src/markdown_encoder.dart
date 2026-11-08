@@ -383,8 +383,71 @@ class MarkdownEncoder implements LogEncoder {
       ..writeString('\n$fence\n');
   }
 
-  String _renderContent(final ContentNode node) =>
-      node.segments.map((final s) => s.text).join();
+  String _escapeMarkdown(final String text, {final bool isRaw = false}) {
+    if (isRaw || text.isEmpty) {
+      return text;
+    }
+    final buffer = StringBuffer();
+    bool atLineStart = true;
+    for (int i = 0; i < text.length; i++) {
+      final code = text.codeUnitAt(i);
+      if (code == 0x0D) {
+        if (i + 1 < text.length && text.codeUnitAt(i + 1) == 0x0A) {
+          continue;
+        }
+        buffer.write('\n');
+        atLineStart = true;
+      } else if (code == 0x85 || code == 0x2028 || code == 0x2029) {
+        buffer.write('\n');
+        atLineStart = true;
+      } else if (code == 0x0A) {
+        buffer.write('\n');
+        atLineStart = true;
+      } else if (code == 0x09) {
+        buffer.write('\t');
+        atLineStart = false;
+      } else if (code < 0x20 ||
+          code == 0x7F ||
+          (code >= 0x80 && code <= 0x9F) ||
+          code == 0x200E ||
+          code == 0x200F ||
+          (code >= 0x202A && code <= 0x202E) ||
+          (code >= 0x2066 && code <= 0x2069)) {
+        continue;
+      } else if (code == 0x26) {
+        buffer.write('&amp;');
+        atLineStart = false;
+      } else if (code == 0x3C) {
+        buffer.write('&lt;');
+        atLineStart = false;
+      } else if (code == 0x3E) {
+        if (atLineStart) {
+          buffer.write(r'\>');
+        } else {
+          buffer.write('&gt;');
+        }
+        atLineStart = false;
+      } else if (atLineStart && code == 0x23) {
+        buffer.write(r'\#');
+        atLineStart = false;
+      } else {
+        buffer.writeCharCode(code);
+        if (code != 0x20) {
+          atLineStart = false;
+        }
+      }
+    }
+    return buffer.toString();
+  }
+
+  String _renderContent(final ContentNode node) {
+    final isRawNode = (node.tags & (LogTag.raw | LogTag.stackFrame)) != 0;
+    return node.segments.map((final s) {
+      final isRaw =
+          isRawNode || (s.tags & (LogTag.raw | LogTag.stackFrame)) != 0;
+      return _escapeMarkdown(s.text, isRaw: isRaw);
+    }).join();
+  }
 
   String _levelEmoji(final LogLevel level) => switch (level) {
         LogLevel.trace => '🧬',

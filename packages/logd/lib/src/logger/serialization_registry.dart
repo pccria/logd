@@ -81,8 +81,14 @@ class LoggerSerializationRegistry {
     // --- Sinks ---
     registerSink<ConsoleSink>(
       type: 'ConsoleSink',
-      fromJson: (final json) => const ConsoleSink(),
-      toJson: (final val) => <String, dynamic>{},
+      fromJson: (final json) => ConsoleSink(
+        lineLength: json['lineLength'] as int?,
+        allowSgr: json['allowSgr'] as bool? ?? false,
+      ),
+      toJson: (final val) => <String, dynamic>{
+        if (val.lineLength != null) 'lineLength': val.lineLength,
+        if (val.allowSgr) 'allowSgr': val.allowSgr,
+      },
     );
     registerSink<PrintSink>(
       type: 'PrintSink',

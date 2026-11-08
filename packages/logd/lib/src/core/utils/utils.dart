@@ -416,3 +416,83 @@ String resolveFileUris(final String input) {
     return absoluteUriStr;
   });
 }
+
+final _sgrRegex = RegExp(r'^\x1B\[[0-9;]*m');
+
+/// Neutralizes destructive control characters and terminal escape codes
+/// in untrusted text to prevent log injection and terminal hijacking.
+@internal
+String sanitizeControlCharacters(
+  final String input, {
+  final bool isRaw = false,
+  final bool allowSgr = false,
+}) {
+  if (isRaw || input.isEmpty) {
+    return input;
+  }
+
+  // Fast-path: check if any character requires neutralization
+  bool hasControls = false;
+  for (var i = 0; i < input.length; i++) {
+    final code = input.codeUnitAt(i);
+    if ((code < 0x20 && code != 0x09 && code != 0x0A) ||
+        code == 0x7F ||
+        (code >= 0x80 && code <= 0x9F) ||
+        code == 0x2028 ||
+        code == 0x2029 ||
+        code == 0x200E ||
+        code == 0x200F ||
+        (code >= 0x202A && code <= 0x202E) ||
+        (code >= 0x2066 && code <= 0x2069)) {
+      hasControls = true;
+      break;
+    }
+  }
+  if (!hasControls) {
+    return input;
+  }
+
+  final buffer = StringBuffer();
+  for (var i = 0; i < input.length; i++) {
+    final code = input.codeUnitAt(i);
+    if (code == 0x1B) {
+      if (allowSgr) {
+        final match = _sgrRegex.firstMatch(input.substring(i));
+        if (match != null) {
+          // Safe ANSI SGR styling/color code when explicitly allowed
+          final sgr = match.group(0)!;
+          buffer.write(sgr);
+          i += sgr.length - 1;
+          continue;
+        }
+      }
+      // Neutralize dangerous escape sequence starter to visible notation
+      buffer.write('^[');
+    } else if (code == 0x0D) {
+
+      // Carriage return: normalize to newline to prevent line overwrite forging
+      if (i + 1 < input.length && input.codeUnitAt(i + 1) == 0x0A) {
+        continue;
+      }
+      buffer.write('\n');
+    } else if (code == 0x85 || code == 0x2028 || code == 0x2029) {
+      // Normalize C1 Next Line (NEL) and Unicode line/paragraph separators to newline
+      buffer.write('\n');
+    } else if (code == 0x09 || code == 0x0A) {
+      // Preserve tab and newline
+      buffer.writeCharCode(code);
+    } else if (code < 0x20 ||
+        code == 0x7F ||
+        (code >= 0x80 && code <= 0x9F) ||
+        code == 0x200E ||
+        code == 0x200F ||
+        (code >= 0x202A && code <= 0x202E) ||
+        (code >= 0x2066 && code <= 0x2069)) {
+      // Strip other destructive C0/C1 control codes and Unicode bidi overrides
+      continue;
+    } else {
+      buffer.writeCharCode(code);
+    }
+  }
+  return buffer.toString();
+}

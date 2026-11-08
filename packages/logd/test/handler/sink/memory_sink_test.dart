@@ -88,14 +88,13 @@ void main() {
       expect(sink.entries, isEmpty);
     });
 
-    test('equality and hashcode', () {
+    test('equality and hashcode (identity equality for stateful sink)', () {
       final sink1 = MemorySink(capacity: 100);
       final sink2 = MemorySink(capacity: 100);
-      final sink3 = MemorySink(capacity: 200);
 
-      expect(sink1, equals(sink2));
-      expect(sink1.hashCode, equals(sink2.hashCode));
-      expect(sink1, isNot(equals(sink3)));
+      expect(sink1, equals(sink1));
+      expect(sink1.hashCode, equals(sink1.hashCode));
+      expect(sink1, isNot(equals(sink2)));
     });
   });
 }

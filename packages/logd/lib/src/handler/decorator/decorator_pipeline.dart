@@ -8,10 +8,68 @@ part of 'decorator.dart';
 @internal
 class DecoratorPipeline {
   /// Creates a [DecoratorPipeline].
-  const DecoratorPipeline(this.decorators);
+  const DecoratorPipeline(this.decorators) : _sorted = null;
+
+  const DecoratorPipeline._cached(this.decorators, this._sorted);
 
   /// The list of decorators to apply.
   final List<LogDecorator> decorators;
+
+  final List<LogDecorator>? _sorted;
+
+  static final Expando<DecoratorPipeline> _instances = Expando();
+  static final Expando<List<LogDecorator>> _sortedCache = Expando();
+
+  /// Obtains a cached [DecoratorPipeline] for the given [decorators] list.
+  static DecoratorPipeline of(final List<LogDecorator> decorators) {
+    if (decorators.isEmpty) {
+      return const DecoratorPipeline([]);
+    }
+    final cached = _instances[decorators];
+    if (cached != null) {
+      return cached;
+    }
+    final sorted = _sort(decorators);
+    final pipeline = DecoratorPipeline._cached(decorators, sorted);
+    _instances[decorators] = pipeline;
+    _sortedCache[decorators] = sorted;
+    return pipeline;
+  }
+
+  static List<LogDecorator> _sort(final List<LogDecorator> decorators) {
+    if (decorators.isEmpty) {
+      return const [];
+    }
+    final uniqueDecorators = decorators.toSet().toList();
+    final indexedDecorators = uniqueDecorators.asMap().entries.toList()
+      ..sort((final a, final b) {
+        final priorityComparison =
+            _priority(a.value).compareTo(_priority(b.value));
+        if (priorityComparison != 0) {
+          return priorityComparison;
+        }
+        // Stability: preserve original order for same-priority items.
+        return a.key.compareTo(b.key);
+      });
+
+    return List.unmodifiable(
+      indexedDecorators.map((final e) => e.value),
+    );
+  }
+
+  /// The pre-sorted, deduplicated decorators ordered by structural priority.
+  List<LogDecorator> get sortedDecorators {
+    if (_sorted != null) {
+      return _sorted;
+    }
+    final cached = _sortedCache[decorators];
+    if (cached != null) {
+      return cached;
+    }
+    final sorted = _sort(decorators);
+    _sortedCache[decorators] = sorted;
+    return sorted;
+  }
 
   /// Applies the decorators to the [document].
   ///
@@ -30,27 +88,9 @@ class DecoratorPipeline {
       return;
     }
 
-    // Auto-sort to ensure correct visual composition.
-    // Stable sort: Priority first, then original index.
-    //
-    // Deduplicate while preserving order to capture original indices.
-    final uniqueDecorators = decorators.toSet().toList();
-    final indexedDecorators = uniqueDecorators.asMap().entries.toList()
-      ..sort((final a, final b) {
-        final priorityComparison =
-            _priority(a.value).compareTo(_priority(b.value));
-        if (priorityComparison != 0) {
-          return priorityComparison;
-        }
-        // Stability: preserve original order for same-priority items.
-        return a.key.compareTo(b.key);
-      });
-
-    final sortedDecorators =
-        indexedDecorators.map((final e) => e.value).toList();
-
-    for (final decorator in sortedDecorators) {
-      decorator.decorate(document, entry, factory);
+    final activeDecorators = sortedDecorators;
+    for (var i = 0; i < activeDecorators.length; i++) {
+      activeDecorators[i].decorate(document, entry, factory);
     }
   }
 
@@ -59,8 +99,9 @@ class DecoratorPipeline {
   /// This is used to determine the effective available width for the content.
   int calculateTotalPadding(final LogEntry entry) {
     var total = 0;
-    for (final decorator in decorators) {
-      total += decorator.paddingWidth(entry);
+    final active = sortedDecorators;
+    for (var i = 0; i < active.length; i++) {
+      total += active[i].paddingWidth(entry);
     }
     return total;
   }
@@ -71,7 +112,9 @@ class DecoratorPipeline {
   /// visual decorators which might just add ANSI codes without taking up space.
   int calculateStructuralPadding(final LogEntry entry) {
     var total = 0;
-    for (final decorator in decorators) {
+    final active = sortedDecorators;
+    for (var i = 0; i < active.length; i++) {
+      final decorator = active[i];
       if (decorator is StructuralDecorator) {
         total += decorator.paddingWidth(entry);
       }
@@ -79,7 +122,7 @@ class DecoratorPipeline {
     return total;
   }
 
-  int _priority(final LogDecorator decorator) {
+  static int _priority(final LogDecorator decorator) {
     if (decorator is ContentDecorator) {
       return 0;
     }

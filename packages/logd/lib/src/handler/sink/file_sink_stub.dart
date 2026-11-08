@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import '../../core/context/io/file_system.dart';
+import '../../time/timestamp.dart';
 import '../encoder/encoder.dart';
 import '../sink/sink.dart';
 
@@ -12,7 +13,13 @@ abstract class FileRotation {
   FileRotation({
     this.compress = false,
     this.backupCount = 5,
-  });
+  }) {
+    if (backupCount < 0) {
+      throw ArgumentError(
+        'Invalid backupCount: $backupCount. Must be non-negative.',
+      );
+    }
+  }
 
   /// Whether rotated files should be compressed.
   final bool compress;
@@ -28,7 +35,7 @@ abstract class FileRotation {
 }
 
 /// Rotates log files based on file size. Stub fallback on unsupported
-///  platforms.
+/// platforms.
 class SizeRotation extends FileRotation {
   /// Creates a size-based rotation rule.
   SizeRotation({
@@ -36,7 +43,7 @@ class SizeRotation extends FileRotation {
     super.compress,
     super.backupCount,
     this.filenameFormatter,
-  }) : maxBytes = maxSize.length * 0;
+  }) : maxBytes = parseMaxSizeLiteral(maxSize);
 
   /// Maximum size of the log file in bytes before rotating.
   final int maxBytes;
@@ -47,6 +54,29 @@ class SizeRotation extends FileRotation {
     String? ext,
     int? index,
   )? filenameFormatter;
+
+  /// Parses a human-readable size string into bytes.
+  ///
+  /// Supported units: B, KB, MB, GB, TB.
+  static int parseMaxSizeLiteral(final String maxSizeLiteral) {
+    final s = maxSizeLiteral.toUpperCase().replaceAll(' ', '');
+    final match = RegExp(r'^(\d+(\.\d+)?)(TB|GB|MB|KB|B)?$').firstMatch(s);
+    if (match == null) {
+      throw FormatException(
+        'Invalid size: $s (e.g., "10 MB", "512 KB", "1 TB")',
+      );
+    }
+    final num = double.parse(match.group(1)!);
+    final unit = match.group(3) ?? 'B';
+    final multipliers = {
+      'B': 1,
+      'KB': 1024,
+      'MB': 1024 * 1024,
+      'GB': 1024 * 1024 * 1024,
+      'TB': 1024 * 1024 * 1024 * 1024,
+    };
+    return (num * (multipliers[unit] ?? 1)).toInt();
+  }
 
   @override
   Future<bool> needsRotation(final File currentFile, final Uint8List newData) =>
@@ -67,14 +97,22 @@ class SizeRotation extends FileRotation {
 class TimeRotation extends FileRotation {
   /// Creates a time-based rotation rule.
   TimeRotation({
-    this.interval = const Duration(days: 1),
+    this.interval = const Duration(days: 7),
+    final Timestamp? timestamp,
+    this.filenameFormatter,
     super.compress,
     super.backupCount,
-    this.filenameFormatter,
-  });
+  })  : timestamp = timestamp ?? Timestamp(formatter: 'yyyy-MM-dd'),
+        assert(!interval.isNegative, 'Invalid interval: must be non-negative');
 
   /// The time interval after which log files should rotate.
   final Duration interval;
+
+  /// The timestamp formatter for rotated filename suffixes.
+  final Timestamp timestamp;
+
+  /// The last time rotation occurred.
+  DateTime? lastRotation;
 
   /// Custom function to format rotated file names.
   final String Function(
@@ -112,13 +150,31 @@ base class FileSink extends EncodingSink {
   }) : super(
           preferredWidth: lineLength ?? 120,
           delegate: _dummyDelegate,
-        );
+        ) {
+    _validateBasePath(basePath);
+  }
 
   /// Target path on the file system.
   final String basePath;
 
   /// Configured file rotation strategy.
   final FileRotation? fileRotation;
+
+  @override
+  Future<void> flush() async {}
+
+  static void _validateBasePath(final String basePath) {
+    if (basePath.isEmpty) {
+      throw ArgumentError(
+        'Invalid basePath: empty string. Examples: "app.log" or "some/dir/app.log".',
+      );
+    }
+    if (basePath.endsWith('/') || basePath.endsWith(r'\')) {
+      throw ArgumentError(
+        'Invalid basePath: path to a directory. Must point to a filename.',
+      );
+    }
+  }
 
   static FutureOr<void> _dummyDelegate(final Uint8List data) {
     throw UnsupportedError(

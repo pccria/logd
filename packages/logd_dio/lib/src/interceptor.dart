@@ -10,7 +10,7 @@ const String _stopwatchExtraKey = '_logd_dio_sw';
 ///
 /// Features:
 /// - Monotonic latency measurement using [Stopwatch] (immune to system clock drifts).
-/// - Automatic security sanitization for tokens, cookies, and sensitive headers (SOC2/GDPR compliance).
+/// - Automatic security sanitization for tokens, cookies, and sensitive headers.
 /// - Clean request cancellation handling (distinguishes user aborts from operational failures).
 /// - Optional cURL command generation for fast debugging and Postman reproduction.
 /// - Ambient distributed tracing support: automatically forwards `LogContext` request IDs.
@@ -197,10 +197,17 @@ class LogdDioInterceptor extends Interceptor {
         if (errorBody != null) 'responseBody': errorBody,
       };
 
+      final rawError = err.error ?? err.message;
+      final sanitizedError = LogdSanitizer.sanitizeError(
+        rawError,
+        options.sensitiveQueryParams,
+        options.redactedPlaceholder,
+      );
+
       _dispatchLog(
         options.errorLevel,
         message,
-        error: err.error ?? err.message,
+        error: sanitizedError,
         stackTrace: err.stackTrace,
         context: context,
       );

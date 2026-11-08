@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.6: Security Sanitization & Key Normalization Hardening
+
+- Requires logd ^0.10.6.
+- Minimum Dart SDK is now 3.10.0 (the previous 3.6.0 floor could not be resolved because of dependency requirements)
+- **Key Normalization Across Casing Styles**:
+  - Enhanced `LogdSanitizer` to normalize keys across camelCase, snake_case, and kebab-case. Keys such as `accessToken`, `refreshToken`, `apiKey`, and `clientSecret` are now reliably matched and redacted against configured security patterns.
+- **Form-Encoded Payload Redaction**:
+  - Added support for sanitizing `application/x-www-form-urlencoded` request bodies. Sensitive credentials passed in form-encoded strings (e.g., login and OAuth token requests) are redacted before logging.
+- **URI UserInfo Redaction**:
+  - Enhanced `LogdSanitizer.sanitizeUri` to redact embedded credentials in `Uri.userInfo` (`user:pass@host`), preventing plain-text password leakage in URLs.
+- **Error Diagnostic Sanitization**:
+  - Added automatic scrubbing of sensitive URLs and query parameters from error messages and exception text in `LogdDioInterceptor.onError`.
+- **Default Sensitive Key Expansion**:
+  - Expanded `defaultSensitiveHeaders` to include `x-auth-token`, `x-csrf-token`, `x-access-token`, and `api-key`.
+  - Expanded `defaultSensitiveBodyKeys` to include `client_secret` and `id_token`.
+
 ## 0.1.5
 
 - **Maintenance**: Update repository, issue tracker, documentation, and raw asset URLs to reflect account migration to `pccria`.

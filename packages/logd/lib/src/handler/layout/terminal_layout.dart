@@ -1,5 +1,7 @@
 part of 'layout.dart';
 
+final _sgrRegex = RegExp(r'\x1B\[[0-9;]*m');
+
 /// An internal engine for calculating physical terminal geometry.
 ///
 /// [TerminalLayout] flattens the logical [LogDocument] tree into a sequence
@@ -12,6 +14,7 @@ class TerminalLayout {
   const TerminalLayout({
     required this.width,
     required this.factory,
+    this.allowSgr = false,
   });
 
   /// The target physical width in characters.
@@ -19,6 +22,9 @@ class TerminalLayout {
 
   /// The factory used to checkout physical layout objects.
   final LogPipelineFactory factory;
+
+  /// Whether safe ANSI SGR styling/color codes are allowed through without neutralization.
+  final bool allowSgr;
 
   /// Lays out a [LogDocument] into a [PhysicalDocument].
   PhysicalDocument layout(final LogDocument document, final LogLevel level) {
@@ -233,10 +239,15 @@ class TerminalLayout {
         continue;
       }
       final resolvedText = resolveFileUris(segment.text);
+      final sanitizedText = sanitizeControlCharacters(
+        resolvedText,
+        isRaw: (segment.tags & LogTag.raw) != 0,
+        allowSgr: allowSgr,
+      );
       // If segment is tagged noWrap, we bypass width constraints.
       if ((segment.tags & LogTag.noWrap) != 0) {
         // Just append the whole text. If there are newlines, respect them.
-        final physicalLines = resolvedText.split('\n');
+        final physicalLines = sanitizedText.split('\n');
         for (var l = 0; l < physicalLines.length; l++) {
           if (l > 0) {
             commitLine();
@@ -254,7 +265,7 @@ class TerminalLayout {
         continue;
       }
 
-      final physicalLines = resolvedText.split('\n');
+      final physicalLines = sanitizedText.split('\n');
 
       for (var l = 0; l < physicalLines.length; l++) {
         if (l > 0) {
@@ -715,8 +726,9 @@ class TerminalLayout {
   }
 
   int _getVisibleLength(final String text, [final int startX = 0]) {
+    final cleanText = allowSgr ? text.replaceAll(_sgrRegex, '') : text;
     var x = startX;
-    for (final char in text.characters) {
+    for (final char in cleanText.characters) {
       if (char == '\t') {
         x += 8 - (x % 8);
       } else {

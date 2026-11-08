@@ -5,9 +5,19 @@ part of 'encoder.dart';
 /// This encoder uses [TerminalLayout] to calculate the physical geometry of the
 /// log and applies [LogStyle]s present on the segments using ANSI escape
 /// sequences.
+@immutable
 class AnsiEncoder implements LogEncoder {
   /// Creates an [AnsiEncoder].
-  const AnsiEncoder();
+  ///
+  /// Set [allowSgr] to `true` to allow safe ANSI SGR styling/color codes
+  /// through without neutralization. Intended for trusted logs only.
+  const AnsiEncoder({this.allowSgr = false});
+
+  /// Whether safe ANSI SGR styling/color codes are allowed through without
+  /// neutralization.
+  ///
+  /// Intended for trusted logs only.
+  final bool allowSgr;
 
   @override
   WrappingStrategy get wrappingStrategy => WrappingStrategy.none;
@@ -42,7 +52,11 @@ class AnsiEncoder implements LogEncoder {
 
     // 1. Calculate physical layout
     final totalWidth = width ?? 80;
-    final layoutEngine = TerminalLayout(width: totalWidth, factory: factory);
+    final layoutEngine = TerminalLayout(
+      width: totalWidth,
+      factory: factory,
+      allowSgr: allowSgr,
+    );
     final physicalDoc = layoutEngine.layout(document, level);
 
     LogStyle? activeStyle;
@@ -143,4 +157,14 @@ class AnsiEncoder implements LogEncoder {
       LogColor.brightWhite => base + 67,
     };
   }
+
+  @override
+  bool operator ==(final Object other) =>
+      identical(this, other) ||
+      other is AnsiEncoder &&
+          runtimeType == other.runtimeType &&
+          allowSgr == other.allowSgr;
+
+  @override
+  int get hashCode => Object.hash(runtimeType, allowSgr);
 }

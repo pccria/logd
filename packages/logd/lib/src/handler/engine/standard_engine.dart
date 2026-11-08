@@ -32,7 +32,7 @@ class StandardEngine implements LogEngine {
 
       // 2. Decorate
       if (decorators.isNotEmpty) {
-        DecoratorPipeline(decorators).apply(document, entry, factory);
+        DecoratorPipeline.of(decorators).apply(document, entry, factory);
       }
 
       // 3. Output

@@ -76,31 +76,31 @@ Ready-to-use handlers cover common destinations out of the box (with specialized
 
 ```dart
 // Styled terminal output (dark or light theme)
-ConsoleHandler(theme: const DarkTheme())
+ConsoleHandler(theme: const DarkTheme());
 
 // Structured JSON to file (pretty or compact)
-JsonFileHandler('logs/api.json', pretty: true)
+JsonFileHandler(path: 'logs/api.json', pretty: true);
 
 // Self-contained HTML report (from package:logd_html)
-HtmlFileHandler('logs/session.html')
+HtmlFileHandler(path: 'logs/session.html');
 
 // Token-efficient format for LLM / AI agent consumption (from package:logd_toon)
-ToonFileHandler('logs/telemetry.toon')
+ToonFileHandler(path: 'logs/telemetry.toon');
 
 // Plain text to file
-PlainFileHandler('logs/app.log')
+PlainFileHandler(path: 'logs/app.log');
 
 // GitHub-Flavored Markdown for CI summaries (from package:logd_markdown)
-MarkdownFileHandler('logs/ci.md')
+MarkdownFileHandler(path: 'logs/ci.md');
 
 // In-memory ring buffer for tests and debug panels
-MemoryHandler(capacity: 200)
+MemoryHandler(capacity: 200);
 
 // Indexed SQLite database storage (from package:logd_sqlite)
-SqliteHandler('logs/app.db')
+SqliteHandler(path: 'logs/app.db');
 
 // Live browser dashboard via HTTP + WebSocket server (from package:logd_network)
-HttpDashboardHandler(port: 8080)
+HttpDashboardHandler(port: 8080);
 ```
 
 Add `.async()` to any output-bound handler to offload its pipeline to a background isolate:
@@ -108,9 +108,9 @@ Add `.async()` to any output-bound handler to offload its pipeline to a backgrou
 ```dart
 Logger.configure('app', handlers: [
   ConsoleHandler.async(),
-  JsonFileHandler.async('logs/production.json'),
-  HtmlFileHandler.async('logs/report.html'),
-  SqliteHandler.async('logs/app.db'),
+  JsonFileHandler.async(path: 'logs/production.json'),
+  HtmlFileHandler.async(path: 'logs/report.html'),
+  SqliteHandler.async(path: 'logs/app.db'),
   HttpDashboardHandler.async(port: 8080),
 ]);
 ```
@@ -214,6 +214,9 @@ Future<void> chargePaymentGateway() async {
 | Plain text | `PlainFileHandler` / `PlainFormatter` | Simple file logs |
 | SQLite | [`logd_sqlite`](https://pub.dev/packages/logd_sqlite) | Queryable persistent storage |
 
+> [!NOTE]
+> **ANSI Escape Neutralization**: For security against terminal log injection, SGR (ANSI color) escape sequences (`\x1B[...m`) in untrusted message text are neutralized by default and shown as visible `^[[...m`. Styling applied by `logd` decorators (`StyleDecorator`, themes) remains fully rendered in ANSI. To allow ANSI color escapes through without neutralization in console output, configure `allowSgr: true` on `ConsoleHandler` or `ConsoleSink` (intended for trusted logs only), or set `LogTag.raw` on individual entries.
+
 ### TOON: Logs Optimized for LLMs
 
 Token-Oriented Object Notation emits the column schema once, then tab-delimited rows — **30–50% fewer tokens than JSON** for the same data (provided by [`package:logd_toon`](https://pub.dev/packages/logd_toon)):
@@ -227,7 +230,7 @@ import 'package:logd/logd.dart';
 import 'package:logd_toon/logd_toon.dart';
 
 Logger.configure('ai.agent', handlers: [
-  ToonFileHandler('logs/agent.toon'),
+  ToonFileHandler(path: 'logs/agent.toon'),
 ]);
 ```
 
@@ -241,7 +244,7 @@ Handler(
     maxDepth: 3,     // bounded map recursion
   ),
   sink: FileSink('logs/pipeline.toon'),
-)
+);
 ```
 
 When slicing a TOON file for an LLM sliding-window prompt:
@@ -318,11 +321,11 @@ Or fan out a single formatter to multiple sinks:
 ```dart
 Handler(
   formatter: const PlainFormatter(),
-  sink: MultiSink(sinks: [
+  sink: MultiSink([
     ConsoleSink(),
     FileSink('logs/app.log'),
   ]),
-)
+);
 ```
 
 ### Atomic Multi-Line Logs
@@ -342,13 +345,25 @@ buffer?.sink(); // flushed as a single atomic LogEntry
 
 ```dart
 // Level filter — errors only
-Handler(filters: [LevelFilter(LogLevel.error)], ...)
+Handler(
+  formatter: const PlainFormatter(),
+  sink: const ConsoleSink(),
+  filters: [LevelFilter(LogLevel.error)],
+);
 
-// Regex filter — exclude sensitive fields
-Handler(filters: [RegexFilter(r'password|secret|token', exclude: true)], ...)
+// Regex filter — exclude matching messages
+Handler(
+  formatter: const PlainFormatter(),
+  sink: const ConsoleSink(),
+  filters: [RegexFilter(RegExp(r'password|secret|token'), invert: true)],
+);
 
 // Context filter — match on MDC key presence or value
-Handler(filters: [ContextFilter(key: 'tenantId', value: 'acme')], ...)
+Handler(
+  formatter: const PlainFormatter(),
+  sink: const ConsoleSink(),
+  filters: [ContextFilter('tenantId', value: 'acme')],
+);
 ```
 
 ### Timestamp & Timezone
@@ -365,7 +380,7 @@ Logger.configure('app', timestamp: timestamp);
 For high-frequency or daily aggregate logs, bypass sub-second calculations entirely with date-only formatting:
 
 ```dart
-Logger.configure('app.audit', timestamp: Timestamp.dateOnly('yyyy-MM-dd'));
+Logger.configure('app.audit', timestamp: Timestamp.dateOnly());
 ```
 
 ### File Rotation
@@ -374,15 +389,16 @@ Logger.configure('app.audit', timestamp: Timestamp.dateOnly('yyyy-MM-dd'));
 // Size-based
 FileSink('logs/app.log', fileRotation: SizeRotation(
   maxSize: '10 MB', backupCount: 5, compress: true,
-))
+));
 
 // Time-based
 FileSink('logs/app.log', fileRotation: TimeRotation(
   interval: Duration(hours: 1),
-  timestamp: Timestamp(formatter: 'yyyy-MM-dd_HH'),
+  timestamp: Timestamp(formatter: 'yyyy-MM-dd-HH'),
   backupCount: 24,
-))
+));
 ```
+
 
 ### HTTP Network Interception (`logd_dio`)
 
@@ -439,23 +455,22 @@ import 'package:logd/logd.dart';
 import 'package:logd_sqlite/logd_sqlite.dart';
 
 final sqliteHandler = SqliteHandler(
-  dbPath: 'app_logs.db',
+  path: 'app_logs.db',
   maxEntries: 10000,
   maxAge: const Duration(days: 7),
   batchSize: 50,
   flushInterval: const Duration(seconds: 2),
-  walMode: true,
 );
 
 Logger.configure('app', handlers: [sqliteHandler]);
 
 // Query stored logs & level breakdown
-final errors = sqliteHandler.queryLogs(
+final errors = sqliteHandler.sqliteSink.queryLogs(
   minLevel: LogLevel.warning,
   search: 'Payment',
   limit: 50,
 );
-final counts = sqliteHandler.fetchLevelCounts();
+final counts = sqliteHandler.sqliteSink.fetchLevelCounts();
 ```
 
 ---
@@ -536,7 +551,7 @@ final config = Logger.exportConfig();
 Logger.importConfig(config);
 ```
 
-Custom formatters and sinks are mapped via `LoggerSerializationRegistry.register`.
+Custom components are mapped via `LoggerSerializationRegistry` (`registerFormatter`, `registerSink`, `registerFilter`, `registerDecorator`, and `registerEngine`).
 
 ---
 
@@ -571,6 +586,7 @@ Logger.fallbackHandler = (entry, error, stackTrace) {
 
 Offload disk I/O to a background worker isolate so 120Hz animations never drop frames, while catching uncaught framework and platform errors:
 
+<!-- readme-check: skip -->
 ```dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -586,7 +602,7 @@ void main() async {
     handlers: [
       if (kDebugMode) ConsoleHandler(theme: const DarkTheme()),
       // Background worker isolate — disk writes never hitch the UI thread:
-      JsonFileHandler.async('${dir.path}/app_logs.json'),
+      JsonFileHandler.async(path: '${dir.path}/app_logs.json'),
     ],
   );
 
@@ -642,10 +658,10 @@ Bind a `requestId` once at the gateway; every downstream async function and data
 
 ```dart
 import 'package:logd/logd.dart';
-import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf.dart' as shelf;
 
-Middleware requestTracingMiddleware() {
-  return (Handler innerHandler) => (Request request) async {
+shelf.Middleware requestTracingMiddleware() {
+  return (shelf.Handler innerHandler) => (shelf.Request request) async {
     final requestId = request.headers['x-request-id'] ?? 'req-${DateTime.now().microsecondsSinceEpoch}';
 
     // LogContext.run binds context to all downstream async calls & microtasks
@@ -699,7 +715,7 @@ import 'package:logd_toon/logd_toon.dart';
 
 void main() {
   Logger.configure('agent', handlers: [
-    ToonFileHandler('logs/agent_session.toon'),
+    ToonFileHandler(path: 'logs/agent_session.toon'),
   ]);
 
   final logger = Logger.get('agent');
@@ -721,19 +737,17 @@ void main() {
 
 ## Testing
 
+<!-- readme-check: skip -->
 ```dart
 import 'package:logd/testing.dart';
 
 test('logs warning on failure', () async {
-  final logger = TestLogger.get('app');
-  final capture = CaptureSink();
-  logger.configure(handlers: [
-    Handler(formatter: const PlainFormatter(), sink: capture),
-  ]);
+  final testLogger = TestLogger('app');
+  addTearDown(() => testLogger.dispose());
 
-  performAction(logger);
+  performAction(testLogger.logger);
 
-  expect(capture, hasLog(
+  expect(testLogger, hasLog(
     message: contains('action failed'),
     level: LogLevel.warning,
   ));

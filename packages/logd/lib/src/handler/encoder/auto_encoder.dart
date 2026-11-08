@@ -3,6 +3,7 @@ part of 'encoder.dart';
 /// Base class for encoders that automatically detect protocol encoders attached
 /// to [LogDocument.metadata] under the standard `'logd.encoder'` key, falling
 /// back to a medium-specific default encoder when no encoder is specified.
+@immutable
 abstract base class AutoEncoder implements LogEncoder {
   /// Abstract const constructor for [AutoEncoder].
   const AutoEncoder();
@@ -16,7 +17,7 @@ abstract base class AutoEncoder implements LogEncoder {
 
   /// Resolves the delegate encoder based on the standard `'logd.encoder'`
   /// metadata contract, or [defaultFallback].
-  @protected
+  @internal
   LogEncoder resolveDelegate(final LogDocument? document) {
     if (document != null && document.metadata.isNotEmpty) {
       final encoder = document.metadata[encoderKey];
@@ -79,9 +80,19 @@ abstract base class AutoEncoder implements LogEncoder {
 /// metadata (e.g. TOON or JSON) and delegates to protocol-specific encoders
 /// (such as [JsonEncoder]), falling back to terminal capabilities
 /// ([AnsiEncoder] vs [PlainTextEncoder]).
+@immutable
 final class AutoConsoleEncoder extends AutoEncoder {
   /// Creates an [AutoConsoleEncoder].
-  const AutoConsoleEncoder();
+  ///
+  /// Set [allowSgr] to `true` to allow safe ANSI SGR styling/color codes through
+  /// without neutralization. Intended for trusted logs only.
+  const AutoConsoleEncoder({this.allowSgr = false});
+
+  /// Whether safe ANSI SGR styling/color codes are allowed through without
+  /// neutralization.
+  ///
+  /// Intended for trusted logs only.
+  final bool allowSgr;
 
   @override
   @protected
@@ -90,19 +101,30 @@ final class AutoConsoleEncoder extends AutoEncoder {
   LogEncoder get _defaultConsoleDelegate {
     try {
       if (io.stdout.supportsAnsiEscapes) {
-        return const AnsiEncoder();
+        return AnsiEncoder(allowSgr: allowSgr);
       }
     } catch (_) {
       // Accessing stdout in some environments might throw
     }
     return const PlainTextEncoder();
   }
+
+  @override
+  bool operator ==(final Object other) =>
+      identical(this, other) ||
+      other is AutoConsoleEncoder &&
+          runtimeType == other.runtimeType &&
+          allowSgr == other.allowSgr;
+
+  @override
+  int get hashCode => Object.hash(runtimeType, allowSgr);
 }
 
 /// An encoder for non-terminal sinks (Files, Network) that automatically
 /// detects document protocol metadata (e.g. TOON or JSON) and delegates to
 /// protocol-specific encoders (such as [JsonEncoder]), falling back to
 /// [PlainTextEncoder] for standard plain text.
+@immutable
 final class AutoTextEncoder extends AutoEncoder {
   /// Creates an [AutoTextEncoder].
   const AutoTextEncoder();

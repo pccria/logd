@@ -37,7 +37,7 @@ final class MockSink extends LogSink<LogDocument> {
 }
 
 class MockFilter extends LogFilter {
-  MockFilter(this.shouldLogFn);
+  const MockFilter(this.shouldLogFn);
   final bool Function(LogEntry) shouldLogFn;
   @override
   bool shouldLog(final LogEntry entry) => shouldLogFn(entry);

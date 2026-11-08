@@ -8,7 +8,9 @@ import '../../core/context/context.dart';
 import '../../core/context/io/file_system.dart';
 import '../../logger/logger.dart';
 import '../../time/timestamp.dart';
+import '../document/document.dart';
 import '../encoder/encoder.dart';
+import '../engine/engine.dart';
 import '../sink/sink.dart';
 
 /// Base interface for file rotation policies.
@@ -172,10 +174,34 @@ class SizeRotation extends FileRotation {
       final dir = file.parent;
       final entities = await dir.list().toList();
       final backupFiles = <File>[];
+      final targetStem = filenamePart.substring(
+        0,
+        filenamePart.length - (ext?.length ?? 0),
+      );
       for (final e in entities) {
-        if (e is File &&
-            e.path.startsWith(baseWithoutExt) &&
-            e.path.endsWith(extension)) {
+        if (e is! File || e.path == basePath) {
+          continue;
+        }
+        final name = e.path.split(pathSeparator).last;
+        if (compress && !name.endsWith('.gz')) {
+          continue;
+        }
+        if (!compress && name.endsWith('.gz')) {
+          continue;
+        }
+        final n = compress ? name.substring(0, name.length - 3) : name;
+        if (!n.startsWith('$targetStem.')) {
+          continue;
+        }
+        final extPart = ext ?? '';
+        if (extPart.isNotEmpty && !n.endsWith(extPart)) {
+          continue;
+        }
+        final indexPart = n.substring(
+          targetStem.length + 1,
+          n.length - extPart.length,
+        );
+        if (int.tryParse(indexPart) != null) {
           backupFiles.add(e);
         }
       }
@@ -289,13 +315,37 @@ class TimeRotation extends FileRotation {
       // Cleanup: Find rotated files, sort by mod time, delete oldest
       final dir = file.parent;
       final entities = await dir.list().toList();
-      final extension = compress ? '.gz' : '';
+      final targetStem = filenamePart.substring(
+        0,
+        filenamePart.length - (ext?.length ?? 0),
+      );
       final logFiles = entities
           .where(
-            (final e) =>
-                e is File &&
-                e.path.startsWith('$baseWithoutExt-') &&
-                e.path.endsWith(extension),
+            (final e) {
+              if (e is! File || e.path == basePath) {
+                return false;
+              }
+              final name = e.path.split(pathSeparator).last;
+              if (compress && !name.endsWith('.gz')) {
+                return false;
+              }
+              if (!compress && name.endsWith('.gz')) {
+                return false;
+              }
+              final n = compress ? name.substring(0, name.length - 3) : name;
+              if (!n.startsWith('$targetStem-')) {
+                return false;
+              }
+              final extPart = ext ?? '';
+              if (extPart.isNotEmpty && !n.endsWith(extPart)) {
+                return false;
+              }
+              final middle = n.substring(
+                targetStem.length + 1,
+                n.length - extPart.length,
+              );
+              return middle.isNotEmpty;
+            },
           )
           .cast<File>()
           .toList()
@@ -353,9 +403,13 @@ base class FileSink extends EncodingSink {
             basePath,
             data,
             fileRotation,
+            encoder: encoder,
+            strategy: encoder.wrappingStrategy,
+            getPreamble: () => _activeSinks[basePath]?.rememberedPreamble,
           ),
         ) {
     _validateBasePath(basePath);
+    _activeSinks[basePath] = this;
   }
 
   /// The path to the active log file (e.g., 'logs/app.log').
@@ -363,6 +417,67 @@ base class FileSink extends EncodingSink {
 
   /// The rotation policy applied to this sink (null for no rotation).
   final FileRotation? fileRotation;
+
+  static final Map<String, FileSink> _activeSinks = {};
+  static final Map<String, Set<FileSink>> _activeWritingWrappedSinks = {};
+  bool _hasWritten = false;
+
+  void _checkWritingWarning(final LogDocument document) {
+    final effectiveStrategy = encoder is AutoEncoder
+        ? (encoder as AutoEncoder).resolveDelegate(document).wrappingStrategy
+        : encoder.wrappingStrategy;
+    if (effectiveStrategy == WrappingStrategy.document && !_hasWritten) {
+      _hasWritten = true;
+      final writers = _activeWritingWrappedSinks.putIfAbsent(
+        basePath,
+        () => <FileSink>{},
+      );
+      if (writers.isNotEmpty && !writers.contains(this)) {
+        InternalLogger.log(
+          LogLevel.warning,
+          'Multiple active FileSinks with document-wrapping encoders wrote to '
+          'the same path "$basePath". Rotating or concurrent writes may '
+          'corrupt document boundaries.',
+        );
+      }
+      writers.add(this);
+    }
+  }
+
+  @override
+  Future<void> output(
+    final LogDocument document,
+    final LogEntry entry,
+    final LogLevel level,
+    final LogPipelineFactory factory,
+  ) async {
+    _checkWritingWarning(document);
+    await super.output(document, entry, level, factory);
+  }
+
+  @override
+  Future<void> flush() async {
+    final lock = _locks[basePath];
+    if (lock != null) {
+      await lock;
+    }
+  }
+
+  @override
+  Future<void> dispose() async {
+    try {
+      await flush();
+      await super.dispose();
+    } finally {
+      if (identical(_activeSinks[basePath], this)) {
+        _activeSinks.remove(basePath);
+      }
+      _activeWritingWrappedSinks[basePath]?.remove(this);
+      if (_activeWritingWrappedSinks[basePath]?.isEmpty ?? false) {
+        _activeWritingWrappedSinks.remove(basePath);
+      }
+    }
+  }
 
   static void _validateBasePath(final String basePath) {
     if (basePath.isEmpty) {
@@ -389,8 +504,11 @@ base class FileSink extends EncodingSink {
   static Future<void> _staticWrite(
     final String basePath,
     final Uint8List data,
-    final FileRotation? fileRotation,
-  ) async {
+    final FileRotation? fileRotation, {
+    final LogEncoder? encoder,
+    final WrappingStrategy? strategy,
+    final Uint8List? Function()? getPreamble,
+  }) async {
     final lock = _locks[basePath];
     final completer = Completer<void>();
     _locks[basePath] = completer.future;
@@ -414,8 +532,45 @@ base class FileSink extends EncodingSink {
       if (fileRotation != null &&
           await fileRotation.needsRotation(file, data)) {
         try {
+          final shouldWrap = strategy == WrappingStrategy.document &&
+              encoder != null &&
+              await file.exists() &&
+              await file.length() > 0;
+
+          if (shouldWrap) {
+            const factory = StandardPipelineFactory();
+            final postContext = factory.checkoutContext();
+            try {
+              encoder.postamble(postContext, LogLevel.info, factory);
+              final postBytes = postContext.takeBytes();
+              if (postBytes.isNotEmpty) {
+                final oldRaf = file.openSync(mode: LogFileMode.append);
+                try {
+                  oldRaf.writeFromSync(postBytes, 0, postBytes.length);
+                } finally {
+                  oldRaf.closeSync();
+                }
+              }
+            } finally {
+              factory.release(postContext);
+            }
+          }
+
           await fileRotation.rotate(basePath);
           targetFile = Context.fileSystem.file(basePath);
+
+          if (shouldWrap) {
+            final preBytes = getPreamble?.call() ??
+                _activeSinks[basePath]?.rememberedPreamble;
+            if (preBytes != null && preBytes.isNotEmpty) {
+              final newRaf = targetFile.openSync(mode: LogFileMode.append);
+              try {
+                newRaf.writeFromSync(preBytes, 0, preBytes.length);
+              } finally {
+                newRaf.closeSync();
+              }
+            }
+          }
         } catch (rotationError, rotationStack) {
           InternalLogger.log(
             LogLevel.warning,
@@ -435,13 +590,6 @@ base class FileSink extends EncodingSink {
         );
       } finally {
         raf.closeSync();
-      }
-
-      if (fileRotation is TimeRotation) {
-        final timeRotation = fileRotation;
-        if (await targetFile.exists()) {
-          timeRotation.lastRotation = await targetFile.lastModified();
-        }
       }
     } finally {
       if (_locks[basePath] == completer.future) {
