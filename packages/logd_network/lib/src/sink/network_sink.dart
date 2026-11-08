@@ -952,8 +952,8 @@ base class SocketSink extends NetworkSink {
           'Connection assumed lost, reconnecting...',
         );
         _onConnectionLost(TimeoutException('WebSocket heartbeat timed out'));
-        return;
       }
+      return;
     }
 
     try {
