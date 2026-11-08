@@ -10,13 +10,22 @@
 
 import 'package:logd/logd.dart';
 
+/// Custom LogFilter to demonstrate filtering by loggerName.
+class LoggerNameFilter implements LogFilter {
+  const LoggerNameFilter(this.regex);
+  final RegExp regex;
+
+  @override
+  bool shouldLog(final LogEntry entry) => regex.hasMatch(entry.loggerName);
+}
+
 void main() async {
-  // Filter by logger name pattern
+  // Filter by logger name pattern using a custom LogFilter
   final nameFilter = Handler(
     formatter: const PlainFormatter(),
     sink: const ConsoleSink(),
     filters: [
-      RegexFilter(RegExp(r'^example\.(auth|user)')),
+      LoggerNameFilter(RegExp(r'^example\.(auth|user)')),
     ],
   );
 
