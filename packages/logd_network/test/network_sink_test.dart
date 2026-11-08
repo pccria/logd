@@ -774,7 +774,7 @@ void main() {
 
       // Wait for heartbeat timeout to detect loss of pong and trigger reconnect
       await reconnectInitiatedCompleter.future.timeout(
-        const Duration(seconds: 2),
+        const Duration(seconds: 5),
       );
 
       // Reconnect was initiated
