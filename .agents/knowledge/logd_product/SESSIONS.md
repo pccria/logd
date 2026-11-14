@@ -4,6 +4,79 @@
 
 ---
 
+## 2026-11-14 | v0.10.6 | Core Resilience & Serialization Stabilization
+
+- **Focus**: Process exit safety, log injection neutralization, timezone fast-paths, zero-allocation pre-flight filtering, and monorepo CI/CD.
+- **Key Deliverables**:
+  - Obfuscated stack frame fallback origin resolution preventing drops in stripped/obfuscated binaries.
+  - Lifecycle flush and drain contracts (`flush()`, `shutdown()`) across `LogSink`, `Handler`, and `AsyncHandler`.
+  - Sequential worker event loops in isolate sinks with `errorsAreFatal: false` and bounded queues.
+  - Zero-allocation pre-flight log level checks (`isLoggable`) bypassing async dispatch and future allocation.
+  - Terminal control sequence neutralization (ANSI escape codes, C0/C1, and bidi override neutralization) with `LogTag.raw` / `allowSgr` opt-ins.
+  - Safe indexed and timestamp-based retention rotation in `FileSink`.
+  - Monorepo GitHub Actions CI matrix ([`.github/workflows/ci.yml`](file://.github/workflows/ci.yml)) testing all 7 packages, benchmarks, minimum SDK, and web stub parity.
+- **PR**: #89, #90, #91, #92, #93, #94, #95, #96, #97, #98, #99 merged to `master`.
+
+---
+
+## 2026-10-20 | v0.10.2 | Native Engine Memory Safety & Layout Stabilization
+
+- **Focus**: SIMD memory safety, dynamic arena slab expansion, and cross-terminal box border alignment.
+- **Key Deliverables**:
+  - Bounded Binary IR parsing checking `totalLength` header across all opcodes.
+  - Dynamic Arena slab expansion beyond 64 KB capacity.
+  - Terminal tab stop expansion (8 columns) in `TerminalLayout` and `BinaryAnsiEncoder`.
+  - Satellite package security hardening (Dio cURL injection patch, Network CSWSH origin check, SQLite transaction batching, Markdown code fence scaling).
+
+---
+
+## 2026-10-15 | v0.10.1 | Production Cookbook, API Reference & logd_dio Launch
+
+- **Focus**: Launch `packages/logd_dio` and comprehensive production documentation.
+- **Key Deliverables**:
+  - Published `packages/logd_dio` (v0.1.0) with cURL generation, body/header redaction, and `LogContext` ambient tracing.
+  - Authored production cookbook (`doc/cookbook.md`) and complete public API reference (`doc/api_reference.md`).
+
+---
+
+## 2026-10-02 | v0.10.0 | Pure Semantic Engine & Hard Deprecation Removal
+
+- **Focus**: Permanent removal of deprecated network files from core, achieving zero external network dependencies.
+- **Key Deliverables**:
+  - Permanently deleted soft-deprecated network sinks (`NetworkSink`, `HttpSink`, `SocketSink`, `HttpServerSink`, `HttpDashboardHandler`) and legacy format shims.
+  - Dropped `package:http` and `package:web_socket_channel` dependencies from `packages/logd/pubspec.yaml`.
+  - Core handlers streamlined to 4 essential targets (`Console`, `JsonFile`, `PlainFile`, `Memory`).
+
+---
+
+## 2026-09-20 | v0.9.7 | Core Decoupling & Satellite Package Expansion (ADR-008)
+
+- **Focus**: Standalone satellite packages and direct isolate transfer.
+- **Key Deliverables**:
+  - Extracted `packages/logd_toon`, `packages/logd_html`, and `packages/logd_markdown` into independent packages.
+  - Enabled direct SendPort transfer of `@immutable` formatters without JSON serialization.
+
+---
+
+## 2026-09-05 | v0.9.6 | Serialization Diagnostics & AsyncHandler Leak Safety
+
+- **Focus**: Actionable isolate serialization errors and Finalizer lifecycle safety.
+- **Key Deliverables**:
+  - Clear `ArgumentError` citing missing types and registration methods in `LoggerSerializationRegistry`.
+  - Proactive startup validation helpers (`verifyFormatter`, `verifySink`).
+  - Dart `Finalizer` kill-safeguards attached to `AsyncHandler`.
+
+---
+
+## 2026-08-25 | v0.9.5 | Satellite Extraction (logd_network) & Core Deprecations (ADR-007)
+
+- **Focus**: Decouple network sinks into standalone `packages/logd_network`.
+- **Key Deliverables**:
+  - Scaffolded `packages/logd_network` with dedicated unit/integration tests and interactive showcases.
+  - Marked core network classes as `@Deprecated` targeting removal in `v0.10.0`.
+
+---
+
 ## 2026-08-19 | v0.9.4 | Hot-Path Origin Bypass & Ambient Structured Context (MDC)
 
 - **Focus**: Performance optimization and Mapped Diagnostic Context (MDC).

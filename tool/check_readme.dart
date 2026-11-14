@@ -1,13 +1,14 @@
 import 'dart:io';
 
 void main() async {
-  final readmeFiles = Directory('packages')
-      .listSync()
-      .whereType<Directory>()
-      .map((final d) => File('${d.path}/README.md'))
-      .where((final f) => f.existsSync())
-      .toList()
-    ..sort((final a, final b) => a.path.compareTo(b.path));
+  final readmeFiles =
+      Directory('packages')
+          .listSync()
+          .whereType<Directory>()
+          .map((final d) => File('${d.path}/README.md'))
+          .where((final f) => f.existsSync())
+          .toList()
+        ..sort((final a, final b) => a.path.compareTo(b.path));
 
   final scratchDir = Directory('.dart_tool/readme_scratch');
   final testDir = Directory('${scratchDir.path}/test');
@@ -70,11 +71,10 @@ analyzer:
 ''');
 
   // Resolve dependencies in the scratch package
-  final pubGet = await Process.run(
-    'dart',
-    ['pub', 'get'],
-    workingDirectory: scratchDir.path,
-  );
+  final pubGet = await Process.run('dart', [
+    'pub',
+    'get',
+  ], workingDirectory: scratchDir.path);
   if (pubGet.exitCode != 0) {
     stderr
       ..writeln('Failed to resolve scratch package dependencies:')
@@ -212,11 +212,11 @@ analyzer:
           }
         }
 
-
         final fileName =
             'snippet_${snippetIndex.toString().padLeft(3, '0')}.dart';
-        File('${testDir.path}/$fileName')
-            .writeAsStringSync('${fileLines.join('\n')}\n');
+        File(
+          '${testDir.path}/$fileName',
+        ).writeAsStringSync('${fileLines.join('\n')}\n');
 
         snippetMap[fileName] = _SnippetMetadata(
           file: readme.path,
@@ -240,17 +240,13 @@ analyzer:
     final meta = entry.value;
     final dillFile = File('${scratchDir.path}/test/$fileName.dill');
 
-    final result = await Process.run(
-      'dart',
-      [
-        'compile',
-        'kernel',
-        'test/$fileName',
-        '-o',
-        'test/$fileName.dill',
-      ],
-      workingDirectory: scratchDir.path,
-    );
+    final result = await Process.run('dart', [
+      'compile',
+      'kernel',
+      'test/$fileName',
+      '-o',
+      'test/$fileName.dill',
+    ], workingDirectory: scratchDir.path);
 
     if (dillFile.existsSync()) {
       try {
@@ -279,7 +275,8 @@ analyzer:
             if (lineInFile <= 1 + meta.importCount) {
               originalLine = meta.startLine + (lineInFile - 1);
             } else {
-              originalLine = meta.startLine +
+              originalLine =
+                  meta.startLine +
                   (lineInFile - meta.headerCount + meta.importCount);
             }
           } else {
@@ -315,17 +312,19 @@ analyzer:
             file: meta.file,
             line: meta.startLine,
             message:
-                'Compilation failed with exit code ${result.exitCode}:\n$output',
+                'Compilation failed with exit code '
+                '${result.exitCode}:\n$output',
           ),
         );
       }
     }
   }
 
-
   // Print results
-  print('Checked ${readmeFiles.length} README files, '
-      '$snippetIndex code blocks ($skippedCount skipped).');
+  print(
+    'Checked ${readmeFiles.length} README files, '
+    '$snippetIndex code blocks ($skippedCount skipped).',
+  );
 
   if (failures.isEmpty) {
     print('All README code examples compiled successfully.');

@@ -1,11 +1,11 @@
 # logd Product — Status
-> Current as of: v0.9.4 | Updated: 2026-08-19
+> Current as of: v0.10.6 | Updated: 2026-11-14
 
 ---
 
 ## Active Product Focus
 
-v0.9.4 active development. Stack Trace Origin Bypass and Ambient Structured Context (MDC / `LogContext`) are implemented, validated, and documented.
+v0.10.6 released. Core Resilience & Serialization Stabilization completed. Monorepo CI/CD established. Planning v0.11.0 satellite telemetry expansion and formal multi-isolate model maturation.
 
 ---
 
@@ -20,19 +20,26 @@ v0.9.4 active development. Stack Trace Origin Bypass and Ambient Structured Cont
 | **v0.9.0–v0.9.2 (API Hardening)** | Symbol audit, semver contract, logd_sqlite satellite package launch | ✅ Released |
 | **v0.9.3 (Target Handlers)** | Pre-wired TargetHandler subclasses, dual-mode `.async()`, `advanced.dart` | ✅ Released |
 | **v0.9.4 (MDC & Performance)** | Hot-path caller origin bypass, ambient structured context (`LogContext.run`) | ✅ Released |
-| **v0.9.5 (logd_network Satellite)** | Decouple HTTP/WS dependencies to satellite package, core soft deprecations | ✅ Complete |
-| **v0.10.0 (Zero-Network Core & Isolates)** | Permanent removal of deprecated network files from core, multi-isolate architecture | 🔲 Next |
+| **v0.9.5 (logd_network Satellite)** | Decouple HTTP/WS dependencies to satellite package, core soft deprecations | ✅ Released |
+| **v0.9.6 (Diagnostics & Safety)** | Serialization error diagnostics, verify helpers, Finalizer leak safety | ✅ Released |
+| **v0.9.7 (Core Decoupling)** | Standalone satellite packages (TOON, HTML, Markdown), direct isolate transfer | ✅ Released |
+| **v0.10.0 (Zero-Network Core)** | Hard deprecation removal, network-free core, pure semantic engine | ✅ Released |
+| **v0.10.1 (Cookbook & Dio)** | Production cookbook, API reference, launch `packages/logd_dio` | ✅ Released |
+| **v0.10.2 (Native Safety)** | Bounded Binary IR, dynamic Arena slabs, box decorator tab alignment | ✅ Released |
+| **v0.10.6 (Core Resilience)** | Obfuscated frames, process drain/flush contracts, ANSI neutralization, CI matrix | ✅ Released |
+| **v0.11.0 (Satellite Telemetry)** | SQLite FTS5 search, HTML client filter/search, network stream compression, Dio W3C tracing | 🔲 Next |
+| **v0.12.0 (Native Phase 2)** | SIMD-accelerated colorization, vectorized layout, zero-copy pointer transfer | 🔲 Queued |
 | **v1.0.0 (API Freeze & Stability)** | Full stability declaration, breaking-change policy lock, deprecation guides | 🔲 Future |
 
 ---
 
 ## Current Core Package State
 
-- **Version**: `0.9.4`
-- **Dart SDK**: `>=3.6.0 <4.0.0`
-- **Direct Dependencies**: `characters`, `ffi`, `http`, `matcher`, `meta`, `timezone`, `source_maps`, `source_span`, `web_socket_channel`
-- **Tests**: All 2,513 unit and integration tests passing.
-- **Lints**: Zero analyzer warnings across all packages.
+- **Version**: `0.10.6`
+- **Dart SDK**: `^3.10.0`
+- **Direct Dependencies**: `characters`, `ffi`, `matcher`, `meta`, `timezone`, `source_maps`, `source_span` (zero external network dependencies)
+- **Tests**: All 2,054 core unit and integration tests passing; 100% ecosystem validation passing.
+- **Lints**: Zero analyzer warnings across entire workspace.
 
 ---
 
