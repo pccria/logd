@@ -2,6 +2,7 @@ import 'package:logd/logd.dart';
 import 'package:meta/meta.dart';
 
 import 'html_stylesheet.dart';
+import 'html_view.dart';
 
 /// An encoder that transforms [LogDocument] into HTML markup.
 ///
@@ -13,9 +14,12 @@ class HtmlEncoder implements LogEncoder {
   ///
   /// - [title]: The title of the generated HTML document.
   /// - [stylesheet]: The stylesheet used for HTML CSS/JS injection.
+  /// - [view]: An optional modular [HtmlView] definition controlling components
+  ///   and layout.
   const HtmlEncoder({
     this.title = 'Log Output',
     this.stylesheet = const DefaultHtmlStylesheet(),
+    this.view,
   });
 
   @override
@@ -27,6 +31,36 @@ class HtmlEncoder implements LogEncoder {
   /// The CSS/JS stylesheet provider.
   final HtmlStylesheet stylesheet;
 
+  /// An optional modular [HtmlView] definition controlling components and
+  /// layout.
+  final HtmlView? view;
+
+  /// Resolves the active [HtmlView].
+  HtmlView get effectiveView =>
+      view ?? HtmlView(title: title, stylesheet: stylesheet);
+
+  /// The marker comment emitted before closing the document container.
+  ///
+  /// Used by `HtmlFileSink` to safely rewind and truncate prior postambles
+  /// when appending to an existing document across restarts.
+  static const String documentCloseMarker = '<!-- LOGD_DOCUMENT_CLOSE -->';
+
+  /// Emits a visual session resumption delimiter when appending to an existing
+  /// log document across application restarts.
+  static void writeSessionDelimiter(
+    final HandlerContext context, {
+    final DateTime? timestamp,
+    final String? label,
+  }) {
+    final ts = (timestamp ?? DateTime.now()).toString().split('.')[0];
+    final sub = label != null ? ' &bull; ${_escapeHtml(label)}' : '';
+    context.writeString('''
+<div class="log-session-delimiter">
+  <span class="log-session-pill">Session Resumed &bull; $ts$sub</span>
+</div>
+''');
+  }
+
   @override
   void preamble(
     final HandlerContext context,
@@ -34,75 +68,89 @@ class HtmlEncoder implements LogEncoder {
     final LogPipelineFactory factory, {
     final LogDocument? document,
   }) {
-    final t = _escapeHtml(title);
-    final headerDate = DateTime.now().toString().split('.')[0];
+    final v = effectiveView;
+    final t = _escapeHtml(v.title);
+    final headerDate = DateTime.now();
     final theme =
         (document?.metadata['logd.theme'] as LogTheme?) ?? const DarkTheme();
 
-    context.writeString('''
+    if (v.isStandalone) {
+      final fontLinks = v.includeExternalFonts
+          ? '''
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@300;400;500;600;700" rel="stylesheet">\n'''
+          : '';
+
+      context.writeString('''
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>$t</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@300;400;500;600;700" rel="stylesheet">
-  <style>
-${stylesheet.buildCss(theme)}
+  <title>$t</title>$fontLinks  <style>
+${v.stylesheet.buildCss(theme)}
   </style>
 </head>
 <body>
 <div class="log-container">
-  <header class="log-session-header">
-    <div class="log-session-branding">
-      <span class="log-session-logo">LOGD</span>
-      <span class="log-session-divider">|</span>
-      <span class="log-session-title">$t</span>
-    </div>
-    <div class="log-session-meta">
-      <span class="log-session-date">Session started: $headerDate</span>
-    </div>
-  </header>
-  <div class="log-control-panel">
-    <div class="log-controls-row">
-      <div class="log-search-wrapper">
-        <input type="text" id="log-search-input" placeholder="Search logs..." autocomplete="off">
-      </div>
-      <div class="log-level-filters">
-        <button class="log-filter-btn active" data-level="trace" id="filter-trace">Trace <span class="log-level-count" id="count-trace">0</span></button>
-        <button class="log-filter-btn active" data-level="debug" id="filter-debug">Debug <span class="log-level-count" id="count-debug">0</span></button>
-        <button class="log-filter-btn active" data-level="info" id="filter-info">Info <span class="log-level-count" id="count-info">0</span></button>
-        <button class="log-filter-btn active" data-level="warning" id="filter-warning">Warning <span class="log-level-count" id="count-warning">0</span></button>
-        <button class="log-filter-btn active" data-level="error" id="filter-error">Error <span class="log-level-count" id="count-error">0</span></button>
-      </div>
-    </div>
-    <div class="log-controls-row secondary-controls">
-      <button class="log-action-btn" id="btn-expand-all">Expand All</button>
-      <button class="log-action-btn" id="btn-collapse-all">Collapse All</button>
-    </div>
-  </div>
 ''');
+    } else {
+      context.writeString('''
+<div class="log-container log-embedded">
+  <style>
+${v.stylesheet.buildCss(theme)}
+  </style>
+''');
+    }
+
+    if (v.header != null) {
+      context.writeString(
+        v.header!.render(
+          title: v.title,
+          sessionStart: headerDate,
+          theme: theme,
+        ),
+      );
+    }
+
+    if (v.controlPanel != null) {
+      context.writeString(v.controlPanel!.render(theme: theme));
+    }
   }
 
   @override
   void postamble(
     final HandlerContext context,
     final LogLevel level,
-    final LogPipelineFactory factory,
-  ) {
-    context.writeString('''
-</div>
-<footer class="log-page-footer">
-  Generated by <a href="https://github.com/pccria/logd">Logd</a>
-</footer>
+    final LogPipelineFactory factory, {
+    final LogDocument? document,
+  }) {
+    final v = effectiveView;
+    final theme =
+        (document?.metadata['logd.theme'] as LogTheme?) ?? const DarkTheme();
+
+    if (v.isStandalone) {
+      context.writeString('$documentCloseMarker\n');
+    }
+
+    context.writeString('</div>\n');
+
+    if (v.footer != null) {
+      context.writeString(v.footer!.render(theme: theme));
+    }
+
+    if (v.injectScripts) {
+      context.writeString('''
 <script>
-${stylesheet.buildJs()}
+${v.stylesheet.buildJs()}
 </script>
-</body>
-</html>
 ''');
+    }
+
+    if (v.isStandalone) {
+      context.writeString('</body>\n</html>\n');
+    }
   }
 
   @override
@@ -268,8 +316,9 @@ ${stylesheet.buildJs()}
           }
           gridCols = 'repeat($maxCols, 1fr)';
         } else {
-          gridCols =
-              widths.map((final w) => w <= 0 ? '1fr' : '${w}fr').join(' ');
+          gridCols = widths
+              .map((final w) => w <= 0 ? '1fr' : '${w}fr')
+              .join(' ');
         }
         context.writeString(
           '<div class="log-table" style="display: grid; '
@@ -320,8 +369,9 @@ ${stylesheet.buildJs()}
       if (titleClasses.isNotEmpty) {
         context.writeString(' class="$titleClasses"');
       }
-      context
-          .writeString('$styleAttr>${_escapeHtml(node.title!.text)}</legend>');
+      context.writeString(
+        '$styleAttr>${_escapeHtml(node.title!.text)}</legend>',
+      );
     }
 
     final headerCount = _countHeaders(node.children);
@@ -479,8 +529,9 @@ ${stylesheet.buildJs()}
     final String? extraClasses,
   }) {
     final classes = _getClasses(tags);
-    final combinedClasses =
-        extraClasses != null ? '$classes $extraClasses' : classes;
+    final combinedClasses = extraClasses != null
+        ? '$classes $extraClasses'
+        : classes;
     context.writeString('<$tagName');
     if (combinedClasses.trim().isNotEmpty) {
       context.writeString(' class="${combinedClasses.trim()}"');
@@ -804,25 +855,25 @@ ${stylesheet.buildJs()}
   }
 
   String _colorToCss(final LogColor color) => switch (color) {
-        LogColor.black => '#000000',
-        LogColor.red => '#ef4444',
-        LogColor.green => '#22c55e',
-        LogColor.yellow => '#eab308',
-        LogColor.blue => '#3b82f6',
-        LogColor.magenta => '#a855f7',
-        LogColor.cyan => '#06b6d4',
-        LogColor.white => '#f1f5f9',
-        LogColor.brightBlack => '#374151',
-        LogColor.brightRed => '#f87171',
-        LogColor.brightGreen => '#4ade80',
-        LogColor.brightYellow => '#fde047',
-        LogColor.brightBlue => '#60a5fa',
-        LogColor.brightMagenta => '#c084fc',
-        LogColor.brightCyan => '#22d3ee',
-        LogColor.brightWhite => '#f8fafc',
-      };
+    LogColor.black => '#000000',
+    LogColor.red => '#ef4444',
+    LogColor.green => '#22c55e',
+    LogColor.yellow => '#eab308',
+    LogColor.blue => '#3b82f6',
+    LogColor.magenta => '#a855f7',
+    LogColor.cyan => '#06b6d4',
+    LogColor.white => '#f1f5f9',
+    LogColor.brightBlack => '#374151',
+    LogColor.brightRed => '#f87171',
+    LogColor.brightGreen => '#4ade80',
+    LogColor.brightYellow => '#fde047',
+    LogColor.brightBlue => '#60a5fa',
+    LogColor.brightMagenta => '#c084fc',
+    LogColor.brightCyan => '#22d3ee',
+    LogColor.brightWhite => '#f8fafc',
+  };
 
-  String _escapeHtml(final String text) => text
+  static String _escapeHtml(final String text) => text
       .replaceAll('&', '&amp;')
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;')

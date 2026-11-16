@@ -21,10 +21,7 @@ void main() {
     });
 
     test('synchronous handler writes HTML to file', () async {
-      final handler = HtmlFileHandler(
-        path: testLogPath,
-        title: 'Sync Test',
-      );
+      final handler = HtmlFileHandler(path: testLogPath, title: 'Sync Test');
 
       Logger.configure('test.sync', handlers: [handler]);
 

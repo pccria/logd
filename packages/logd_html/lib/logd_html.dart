@@ -13,8 +13,10 @@ import 'src/html_stylesheet.dart';
 
 export 'src/html_encoder.dart';
 export 'src/html_file_handler.dart';
+export 'src/html_file_sink.dart';
 export 'src/html_formatter.dart';
 export 'src/html_stylesheet.dart';
+export 'src/html_view.dart';
 
 /// Registers HTML components into logd's [LoggerSerializationRegistry].
 ///
@@ -34,8 +36,6 @@ void registerLogdHtmlSerializers() {
       // isolates
       stylesheet: const DefaultHtmlStylesheet(),
     ),
-    toJson: (final val) => <String, dynamic>{
-      'title': val.title,
-    },
+    toJson: (final val) => <String, dynamic>{'title': val.title},
   );
 }

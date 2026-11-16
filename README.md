@@ -69,6 +69,9 @@ dart run packages/logd/example/main.dart
 
 # Dio HTTP logging interceptor showcase gallery
 dart run packages/logd_dio/example/showcase_gallery.dart
+
+# HTML interactive diagnostics & distributed tracing showcase
+dart run packages/logd_html/example/enterprise_distributed_trace.dart
 ```
 
 ## Documentation Source of Truth

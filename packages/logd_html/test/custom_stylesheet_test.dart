@@ -8,7 +8,8 @@ class CustomStylesheet extends DefaultHtmlStylesheet {
   const CustomStylesheet();
 
   @override
-  String buildCss(final LogTheme theme) => '''
+  String buildCss(final LogTheme theme) =>
+      '''
 ${super.buildCss(theme)}
 body {
   font-family: 'Fira Code', monospace;
@@ -18,8 +19,9 @@ body {
 
 void main() {
   group('CustomStylesheet', () {
-    final tempDir =
-        Directory.systemTemp.createTempSync('logd_html_custom_css_');
+    final tempDir = Directory.systemTemp.createTempSync(
+      'logd_html_custom_css_',
+    );
     final logFile = File('${tempDir.path}/custom.html');
 
     tearDownAll(() {

@@ -1,6 +1,7 @@
 // ignore_for_file: depend_on_referenced_packages, camel_case_types
 // ignore_for_file: avoid_classes_with_only_static_members
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+// ignore_for_file: prefer_final_parameters
 
 import 'dart:io' as io_lib;
 import 'dart:typed_data';
@@ -12,7 +13,7 @@ import 'package:sqlite3/sqlite3.dart';
 
 export 'dart:isolate' show SendPort;
 
-abstract class _AuthManager {
+abstract class AuthManager {
   Future<String> getFreshAccessToken();
 }
 
@@ -21,13 +22,12 @@ late Logger logger;
 Object e = '';
 StackTrace st = StackTrace.empty;
 late Dio dio;
-final ({int id}) user = (id: 1);
-final ({String ip}) request = (ip: '127.0.0.1');
+const ({int id}) user = (id: 1);
+const ({String ip}) request = (ip: '127.0.0.1');
 Uint8List bytes = Uint8List(0);
-Database? get _dummyDb => null;
 late Database existingDb;
 late SqliteHandler sqliteHandler;
-late _AuthManager authManager;
+late AuthManager authManager;
 Map<String, dynamic> exportedJson = {};
 late LogSink<Uint8List> worker;
 late LogEntry entry;
@@ -41,8 +41,7 @@ List<String> sliceLines(
   Uint8List b, {
   int? last,
   int? count,
-}) =>
-    [];
+}) => [];
 void performAction(Logger logger) {}
 
 // Namespace for snippets that access io.stdout:
@@ -51,4 +50,3 @@ abstract final class io {
   static io_lib.IOSink get stderr => io_lib.stderr;
   static io_lib.Stdin get stdin => io_lib.stdin;
 }
-

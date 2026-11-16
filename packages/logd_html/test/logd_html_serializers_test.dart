@@ -9,17 +9,16 @@ void main() {
     });
 
     test('round-trips HtmlFormatter with properties intact', () {
-      const original = HtmlFormatter(
-        title: 'Custom HTML Output',
-      );
+      const original = HtmlFormatter(title: 'Custom HTML Output');
 
       final json = LoggerSerializationRegistry.serializeFormatter(original);
 
       expect(json['type'], 'HtmlFormatter');
       expect((json['config'] as Map)['title'], 'Custom HTML Output');
 
-      final deserialized =
-          LoggerSerializationRegistry.deserializeFormatter(json);
+      final deserialized = LoggerSerializationRegistry.deserializeFormatter(
+        json,
+      );
       expect(deserialized, isA<HtmlFormatter>());
       expect((deserialized as HtmlFormatter).title, 'Custom HTML Output');
     });

@@ -23,10 +23,7 @@ abstract class FileRotation {
   /// - [compress]: Whether to gzip compress rotated backup files.
   /// - [backupCount]: The number of backup files to keep.
   /// If 0, no backups are kept.
-  FileRotation({
-    this.compress = false,
-    this.backupCount = 5,
-  }) {
+  FileRotation({this.compress = false, this.backupCount = 5}) {
     if (backupCount < 0) {
       throw ArgumentError(
         'Invalid backupCount: $backupCount. Must be non-negative.',
@@ -44,6 +41,13 @@ abstract class FileRotation {
   /// Determines if rotation is necessary before appending
   /// [newData] to [currentFile].
   Future<bool> needsRotation(final File currentFile, final Uint8List newData);
+
+  /// Evaluates whether rotation is required for the file at [basePath] before
+  /// writing [newData].
+  Future<bool> checkNeedsRotation(
+    final String basePath,
+    final Uint8List newData,
+  ) => needsRotation(Context.fileSystem.file(basePath), newData);
 
   /// Performs the rotation of the file at [basePath].
   ///
@@ -74,11 +78,8 @@ class SizeRotation extends FileRotation {
   ///
   /// Takes the base name without extension, the extension, and the
   /// backup index. Returns the relative filename.
-  final String Function(
-    String baseWithoutExt,
-    String? ext,
-    int? index,
-  )? filenameFormatter;
+  final String Function(String baseWithoutExt, String? ext, int? index)?
+  filenameFormatter;
 
   String _defaultNameFormatter(
     final String baseWithoutExt,
@@ -122,8 +123,9 @@ class SizeRotation extends FileRotation {
     final File currentFile,
     final Uint8List newData,
   ) async {
-    final currentLength =
-        await currentFile.exists() ? await currentFile.length() : 0;
+    final currentLength = await currentFile.exists()
+        ? await currentFile.length()
+        : 0;
     return currentLength + newData.length > maxBytes;
   }
 
@@ -135,8 +137,9 @@ class SizeRotation extends FileRotation {
     }
 
     final pathSeparator = io.Platform.pathSeparator;
-    final normalizedPath =
-        basePath.replaceAll('\\', pathSeparator).replaceAll('/', pathSeparator);
+    final normalizedPath = basePath
+        .replaceAll('\\', pathSeparator)
+        .replaceAll('/', pathSeparator);
     final lastSepIndex = normalizedPath.lastIndexOf(pathSeparator);
     final filenamePart = lastSepIndex != -1
         ? normalizedPath.substring(lastSepIndex + 1)
@@ -145,8 +148,10 @@ class SizeRotation extends FileRotation {
     final ext = extIndex != -1 && extIndex < filenamePart.length - 1
         ? filenamePart.substring(extIndex)
         : null;
-    final baseWithoutExt =
-        basePath.substring(0, basePath.length - (ext?.length ?? 0));
+    final baseWithoutExt = basePath.substring(
+      0,
+      basePath.length - (ext?.length ?? 0),
+    );
 
     final formatter = filenameFormatter ?? _defaultNameFormatter;
 
@@ -233,8 +238,8 @@ class TimeRotation extends FileRotation {
     this.filenameFormatter,
     super.compress,
     super.backupCount,
-  })  : timestamp = timestamp ?? Timestamp(formatter: 'yyyy-MM-dd'),
-        assert(!interval.isNegative, 'Invalid interval: must be non-negative');
+  }) : timestamp = timestamp ?? Timestamp(formatter: 'yyyy-MM-dd'),
+       assert(!interval.isNegative, 'Invalid interval: must be non-negative');
 
   /// A custom function for formatting rotated filenames.
   ///
@@ -244,14 +249,16 @@ class TimeRotation extends FileRotation {
     String baseWithoutExt,
     String? ext,
     DateTime rotationTime,
-  )? filenameFormatter;
+  )?
+  filenameFormatter;
 
   String _defaultNameFormatter(
     final String baseWithoutExt,
     final String? ext,
     final DateTime rotationTime,
   ) {
-    final ts = timestamp.formatter.format(rotationTime) ??
+    final ts =
+        timestamp.formatter.format(rotationTime) ??
         rotationTime.toIso8601String().split('T')[0];
     return '$baseWithoutExt-$ts${ext != null && ext.isNotEmpty ? ext : ''}';
   }
@@ -287,8 +294,9 @@ class TimeRotation extends FileRotation {
     }
 
     final pathSeparator = io.Platform.pathSeparator;
-    final normalizedPath =
-        basePath.replaceAll('\\', pathSeparator).replaceAll('/', pathSeparator);
+    final normalizedPath = basePath
+        .replaceAll('\\', pathSeparator)
+        .replaceAll('/', pathSeparator);
     final lastSepIndex = normalizedPath.lastIndexOf(pathSeparator);
     final filenamePart = lastSepIndex != -1
         ? normalizedPath.substring(lastSepIndex + 1)
@@ -297,8 +305,10 @@ class TimeRotation extends FileRotation {
     final ext = extIndex != -1 && extIndex < filenamePart.length - 1
         ? filenamePart.substring(extIndex)
         : null;
-    final baseWithoutExt =
-        basePath.substring(0, basePath.length - (ext?.length ?? 0));
+    final baseWithoutExt = basePath.substring(
+      0,
+      basePath.length - (ext?.length ?? 0),
+    );
 
     final rotationTime = lastRotation!;
     final formatter = filenameFormatter ?? _defaultNameFormatter;
@@ -319,40 +329,39 @@ class TimeRotation extends FileRotation {
         0,
         filenamePart.length - (ext?.length ?? 0),
       );
-      final logFiles = entities
-          .where(
-            (final e) {
-              if (e is! File || e.path == basePath) {
-                return false;
-              }
-              final name = e.path.split(pathSeparator).last;
-              if (compress && !name.endsWith('.gz')) {
-                return false;
-              }
-              if (!compress && name.endsWith('.gz')) {
-                return false;
-              }
-              final n = compress ? name.substring(0, name.length - 3) : name;
-              if (!n.startsWith('$targetStem-')) {
-                return false;
-              }
-              final extPart = ext ?? '';
-              if (extPart.isNotEmpty && !n.endsWith(extPart)) {
-                return false;
-              }
-              final middle = n.substring(
-                targetStem.length + 1,
-                n.length - extPart.length,
-              );
-              return middle.isNotEmpty;
-            },
-          )
-          .cast<File>()
-          .toList()
-        ..sort(
-          (final a, final b) =>
-              a.lastModifiedSync().compareTo(b.lastModifiedSync()),
-        ); // Oldest first
+      final logFiles =
+          entities
+              .where((final e) {
+                if (e is! File || e.path == basePath) {
+                  return false;
+                }
+                final name = e.path.split(pathSeparator).last;
+                if (compress && !name.endsWith('.gz')) {
+                  return false;
+                }
+                if (!compress && name.endsWith('.gz')) {
+                  return false;
+                }
+                final n = compress ? name.substring(0, name.length - 3) : name;
+                if (!n.startsWith('$targetStem-')) {
+                  return false;
+                }
+                final extPart = ext ?? '';
+                if (extPart.isNotEmpty && !n.endsWith(extPart)) {
+                  return false;
+                }
+                final middle = n.substring(
+                  targetStem.length + 1,
+                  n.length - extPart.length,
+                );
+                return middle.isNotEmpty;
+              })
+              .cast<File>()
+              .toList()
+            ..sort(
+              (final a, final b) =>
+                  a.lastModifiedSync().compareTo(b.lastModifiedSync()),
+            ); // Oldest first
       while (logFiles.length > backupCount) {
         await logFiles.removeAt(0).delete();
       }
@@ -398,16 +407,16 @@ base class FileSink extends EncodingSink {
     final int? lineLength,
     super.enabled = true,
   }) : super(
-          preferredWidth: lineLength ?? 120,
-          delegate: (final data) async => _staticWrite(
-            basePath,
-            data,
-            fileRotation,
-            encoder: encoder,
-            strategy: encoder.wrappingStrategy,
-            getPreamble: () => _activeSinks[basePath]?.rememberedPreamble,
-          ),
-        ) {
+         preferredWidth: lineLength ?? 120,
+         delegate: (final data) async => _staticWrite(
+           basePath,
+           data,
+           fileRotation,
+           encoder: encoder,
+           strategy: encoder.wrappingStrategy,
+           getPreamble: () => _activeSinks[basePath]?.rememberedPreamble,
+         ),
+       ) {
     _validateBasePath(basePath);
     _activeSinks[basePath] = this;
   }
@@ -481,19 +490,24 @@ base class FileSink extends EncodingSink {
 
   static void _validateBasePath(final String basePath) {
     if (basePath.isEmpty) {
-      throw ArgumentError('Invalid basePath: empty string. '
-          'Examples: "app.log" or "some/dir/app.log".');
+      throw ArgumentError(
+        'Invalid basePath: empty string. '
+        'Examples: "app.log" or "some/dir/app.log".',
+      );
     }
 
     final pathSeparator = io.Platform.pathSeparator;
 
-    final normalizedPath =
-        basePath.replaceAll('\\', pathSeparator).replaceAll('/', pathSeparator);
+    final normalizedPath = basePath
+        .replaceAll('\\', pathSeparator)
+        .replaceAll('/', pathSeparator);
 
     if (normalizedPath.endsWith(pathSeparator)) {
-      throw ArgumentError('Invalid basePath: path to a directory. '
-          'Must point to a filename (not empty or end in path separator). '
-          'Examples: "app.log" or "some/dir/app.log".');
+      throw ArgumentError(
+        'Invalid basePath: path to a directory. '
+        'Must point to a filename (not empty or end in path separator). '
+        'Examples: "app.log" or "some/dir/app.log".',
+      );
     }
   }
 
@@ -530,9 +544,10 @@ base class FileSink extends EncodingSink {
 
       File targetFile = file;
       if (fileRotation != null &&
-          await fileRotation.needsRotation(file, data)) {
+          await fileRotation.checkNeedsRotation(basePath, data)) {
         try {
-          final shouldWrap = strategy == WrappingStrategy.document &&
+          final shouldWrap =
+              strategy == WrappingStrategy.document &&
               encoder != null &&
               await file.exists() &&
               await file.length() > 0;
@@ -560,7 +575,8 @@ base class FileSink extends EncodingSink {
           targetFile = Context.fileSystem.file(basePath);
 
           if (shouldWrap) {
-            final preBytes = getPreamble?.call() ??
+            final preBytes =
+                getPreamble?.call() ??
                 _activeSinks[basePath]?.rememberedPreamble;
             if (preBytes != null && preBytes.isNotEmpty) {
               final newRaf = targetFile.openSync(mode: LogFileMode.append);
@@ -583,11 +599,7 @@ base class FileSink extends EncodingSink {
 
       final raf = targetFile.openSync(mode: LogFileMode.append);
       try {
-        raf.writeFromSync(
-          data,
-          0,
-          data.length,
-        );
+        raf.writeFromSync(data, 0, data.length);
       } finally {
         raf.closeSync();
       }

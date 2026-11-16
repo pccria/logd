@@ -192,9 +192,10 @@ This ensures that indentation always perfectly mirrors the actual logger hierarc
   - **Durability**: Employs `flush: true` on every write to minimize data loss during crashes.
   - **Auto-Provisioning**: Automatically creates parent directories if they don't exist.
 - **HtmlFileHandler** *(from `package:logd_html`)*: 
-  - Encapsulates `HtmlEncoder` + `FileSink` to produce self-contained documents with embedded CSS for high-fidelity browser viewing.
-  - Session-managed: Safely coordinates multiple sink instances writing to the same file path.
-  - Built-in dynamic dark/light mode support.
+  - Encapsulates `HtmlFormatter`, `HtmlEncoder`, and `HtmlFileSink` to produce self-contained documents with embedded CSS for high-fidelity browser viewing.
+  - Supports modular shells via `HtmlView` (custom headers, dynamic control panels with search/filters/export, custom action buttons, and footers) as well as embedded fragment output (`HtmlView.embedded`).
+  - Session-managed via `HtmlFileMode.appendSession` and `_SharedHtmlFileCoordinator`: safely coordinates multiple loggers, rewinds previous document closing tags, and injects session delimiters without duplicate DOCTYPEs or broken markup.
+  - Built-in in-memory search index, dynamic subsystem filtering, context value correlation (`.log-val` click-to-isolate), and zero-CDN dynamic dark/light mode support.
 - **MultiSink**: 
   - **Broadcast Engine**: Dispatches logs to child sinks in parallel using `Future.wait`.
   - **Error Isolation**: Failure in one child sink (e.g., a network timeout) does not prevent other sinks from completing.
