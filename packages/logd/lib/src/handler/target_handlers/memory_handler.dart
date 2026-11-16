@@ -1,5 +1,3 @@
-// ignore_for_file: comment_references
-
 library;
 
 import 'package:meta/meta.dart';
