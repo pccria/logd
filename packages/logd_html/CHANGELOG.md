@@ -1,3 +1,7 @@
+## 0.2.1
+
+- **Fix**: Replace `checkNeedsRotation` call in `HtmlFileSink` with standard `FileRotation.needsRotation(Context.fileSystem.file(path), data)` to guarantee compatibility with `package:logd` 0.10.6 on pub.dev and restore full 160/160 pub points (platform support, downgrade analysis, and static analysis).
+
 ## 0.2.0
 
 - **Single-Document Integrity & Smart Rewind**:
