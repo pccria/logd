@@ -503,9 +503,7 @@ void main() async {
   // =========================================================================
   // SESSION 2: Self-Healing, Cluster Resumption, and Trace Recovery
   // =========================================================================
-  print(
-    '\n\x1B[1m--> STAGE 2: Session 2 (Resumption & Post-Mortem)...\x1B[0m',
-  );
+  print('\n\x1B[1m--> STAGE 2: Session 2 (Resumption & Post-Mortem)...\x1B[0m');
 
   final handler2 = HtmlFileHandler(
     path: reportPath,
@@ -595,10 +593,12 @@ void main() async {
   final headMatches = '<head>'.allMatches(html).length;
   final bodyMatches = '<body'.allMatches(html).length;
   final htmlCloseMatches = '</html>'.allMatches(html).length;
-  final delimiterMatches =
-      '<div class="log-session-delimiter">'.allMatches(html).length;
-  final footerMatches =
-      '<footer class="log-page-footer">'.allMatches(html).length;
+  final delimiterMatches = '<div class="log-session-delimiter">'
+      .allMatches(html)
+      .length;
+  final footerMatches = '<footer class="log-page-footer">'
+      .allMatches(html)
+      .length;
 
   print('  File size: ${file.lengthSync()} bytes');
   print('  <!DOCTYPE html>: $doctypeMatches (Expected: 1)');
