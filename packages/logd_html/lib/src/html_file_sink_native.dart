@@ -4,8 +4,6 @@ import 'dart:typed_data';
 
 import 'package:logd/logd.dart';
 // ignore: implementation_imports
-import 'package:logd/src/core/context/context.dart';
-// ignore: implementation_imports
 import 'package:logd/src/logger/internal_logger.dart';
 
 import 'html_encoder.dart';
@@ -188,11 +186,7 @@ class _SharedHtmlFileCoordinator {
         // Check file rotation
         if (fileRotation != null &&
             file.existsSync() &&
-            await fileRotation!.needsRotation(
-              // ignore: invalid_use_of_internal_member
-              Context.fileSystem.file(path),
-              data,
-            )) {
+            await fileRotation!.shouldRotate(path, data)) {
           try {
             if (isPreambleWritten && view.isStandalone) {
               final postContext = factory.checkoutContext();

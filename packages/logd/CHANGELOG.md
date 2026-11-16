@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.7
+
+- ### File Rotation Contract Unification & Deprecation Pathway
+  - **Path-First `shouldRotate`**: Introduced `Future<bool> shouldRotate(final String path, final Uint8List newData)` on `FileRotation`, allowing sinks to evaluate file rotation criteria directly from a file path without leaking internal virtual file system abstractions.
+  - **Soft Deprecation of `needsRotation` & `checkNeedsRotation`**: Marked `needsRotation(File, Uint8List)` and `checkNeedsRotation(String, Uint8List)` as `@Deprecated('Scheduled for removal in logd 0.11.0')`.
+  - **Bidirectional Backward Compatibility Bridge**: `shouldRotate` delegates to `needsRotation(Context.fileSystem.file(path), newData)` by default, preserving full backward compatibility for existing custom subclasses that override `needsRotation`.
+  - **Built-in Policy Migration**: Updated `SizeRotation` and `TimeRotation` to implement `shouldRotate` natively across native and stub platforms.
+  - **Internal Sink Alignment**: Updated `FileSink._staticWrite` to invoke `shouldRotate(basePath, data)`.
+
 ## 0.10.6: Core Resilience & Serialization Stabilization
 
 This patch release hardens log retention, rotation, hierarchy invalidation, and serialization across the core logging engine:

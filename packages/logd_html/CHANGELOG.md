@@ -1,3 +1,8 @@
+## 0.2.2
+
+- **Maintenance**: Migrate `HtmlFileSink` to invoke `FileRotation.shouldRotate(path, data)` introduced in `package:logd` 0.10.7, removing all internal file system dependencies.
+- **Dependency Alignment**: Align minimum `package:logd` dependency constraint to `^0.10.7`.
+
 ## 0.2.1
 
 - **Fix**: Replace `checkNeedsRotation` call in `HtmlFileSink` with standard `FileRotation.needsRotation(Context.fileSystem.file(path), data)` to guarantee compatibility with `package:logd` 0.10.6 across all supported platforms (iOS, Android, Linux, macOS, Windows, and Web).

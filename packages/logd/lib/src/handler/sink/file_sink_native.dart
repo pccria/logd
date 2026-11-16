@@ -38,16 +38,40 @@ abstract class FileRotation {
   /// (deletes oldest if exceeded; 0 = no backups).
   final int backupCount;
 
+  /// Determines whether the log file at [path] should be rotated before
+  /// appending [newData].
+  ///
+  /// Subclasses should override this method to provide custom rotation
+  /// criteria. By default, it delegates to the legacy [needsRotation] method
+  /// to preserve backward compatibility.
+  Future<bool> shouldRotate(final String path, final Uint8List newData) async =>
+      // ignore: deprecated_member_use_from_same
+      needsRotation(Context.fileSystem.file(path), newData);
+
   /// Determines if rotation is necessary before appending
   /// [newData] to [currentFile].
-  Future<bool> needsRotation(final File currentFile, final Uint8List newData);
+  ///
+  /// Deprecated in favor of [shouldRotate], which accepts a string path
+  /// directly and avoids leaking internal file system abstractions.
+  @Deprecated(
+    'Implement and call shouldRotate(path, newData) instead. '
+    'Scheduled for removal in logd 0.11.0.',
+  )
+  Future<bool> needsRotation(
+    final File currentFile,
+    final Uint8List newData,
+  ) async => false;
 
   /// Evaluates whether rotation is required for the file at [basePath] before
   /// writing [newData].
+  @Deprecated(
+    'Use shouldRotate(basePath, newData) instead. '
+    'Scheduled for removal in logd 0.11.0.',
+  )
   Future<bool> checkNeedsRotation(
     final String basePath,
     final Uint8List newData,
-  ) => needsRotation(Context.fileSystem.file(basePath), newData);
+  ) => shouldRotate(basePath, newData);
 
   /// Performs the rotation of the file at [basePath].
   ///
@@ -119,6 +143,14 @@ class SizeRotation extends FileRotation {
   }
 
   @override
+  Future<bool> shouldRotate(final String path, final Uint8List newData) async {
+    final file = Context.fileSystem.file(path);
+    final currentLength = await file.exists() ? await file.length() : 0;
+    return currentLength + newData.length > maxBytes;
+  }
+
+  @override
+  // ignore: deprecated_member_use_from_same
   Future<bool> needsRotation(
     final File currentFile,
     final Uint8List newData,
@@ -277,6 +309,15 @@ class TimeRotation extends FileRotation {
   DateTime? lastRotation;
 
   @override
+  Future<bool> shouldRotate(final String path, final Uint8List newData) async {
+    final file = Context.fileSystem.file(path);
+    await initLastRotation(file);
+    final now = Context.clock.now;
+    return now.difference(lastRotation!) >= interval;
+  }
+
+  @override
+  // ignore: deprecated_member_use_from_same
   Future<bool> needsRotation(
     final File currentFile,
     final Uint8List newData,
@@ -544,7 +585,7 @@ base class FileSink extends EncodingSink {
 
       File targetFile = file;
       if (fileRotation != null &&
-          await fileRotation.checkNeedsRotation(basePath, data)) {
+          await fileRotation.shouldRotate(basePath, data)) {
         try {
           final shouldWrap =
               strategy == WrappingStrategy.document &&
