@@ -27,7 +27,8 @@ v0.10.6 released. Core Resilience & Serialization Stabilization completed. Monor
 | **v0.10.1 (Cookbook & Dio)** | Production cookbook, API reference, launch `packages/logd_dio` | ✅ Released |
 | **v0.10.2 (Native Safety)** | Bounded Binary IR, dynamic Arena slabs, box decorator tab alignment | ✅ Released |
 | **v0.10.6 (Core Resilience)** | Obfuscated frames, process drain/flush contracts, ANSI neutralization, CI matrix | ✅ Released |
-| **v0.11.0 (Satellite Telemetry)** | SQLite FTS5 search, HTML client filter/search, network stream compression, Dio W3C tracing | 🔲 Next |
+| **v0.10.7 (Rotation Contract)** | Path-first `shouldRotate`, soft deprecate `needsRotation`/`checkNeedsRotation`, satellite bridge | ✅ Released |
+| **v0.11.0 (Satellite Telemetry & API Freeze)** | SQLite FTS5, HTML modular views, network zstd, Dio W3C tracing, hard removal of `needsRotation` | 🔲 Next |
 | **v0.12.0 (Native Phase 2)** | SIMD-accelerated colorization, vectorized layout, zero-copy pointer transfer | 🔲 Queued |
 | **v1.0.0 (API Freeze & Stability)** | Full stability declaration, breaking-change policy lock, deprecation guides | 🔲 Future |
 
@@ -35,7 +36,7 @@ v0.10.6 released. Core Resilience & Serialization Stabilization completed. Monor
 
 ## Current Core Package State
 
-- **Version**: `0.10.6`
+- **Version**: `0.10.7`
 - **Dart SDK**: `^3.10.0`
 - **Direct Dependencies**: `characters`, `ffi`, `matcher`, `meta`, `timezone`, `source_maps`, `source_span` (zero external network dependencies)
 - **Tests**: All 2,054 core unit and integration tests passing; 100% ecosystem validation passing.

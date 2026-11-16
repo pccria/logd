@@ -10,6 +10,7 @@
 - [ ] **`logd_dio`**: Add W3C TraceContext (`traceparent`, `tracestate`) distributed tracing auto-injection from `LogContext`.
 - [ ] **Cross-Sink Unified Theming**: Evolve `LogTheme` and `StyleDecorator` into a dual-mode palette exposing ANSI escape codes and CSS variables, ensuring identical visual styles across console, HTML (`logd_html`), and live WebSocket dashboards (`logd_network`).
 - [ ] **Universal Formatter Interoperability**: Support format-agnostic rendering of `PlainFormatter`, `ToonFormatter`, and custom AST pipelines across HTML and network presentation sinks.
+- [ ] **File Rotation Formal Deprecation Removal**: Formally remove deprecated `needsRotation(File, ...)` and `checkNeedsRotation(String, ...)` from `FileRotation` in core `logd`. Fully seal `File` inside `logd/src/core/context/io/file_system.dart` so `shouldRotate(String path, Uint8List newData)` serves as the sole, path-first rotation contract across all sinks and policies.
 
 ---
 

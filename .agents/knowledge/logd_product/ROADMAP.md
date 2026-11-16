@@ -105,8 +105,10 @@ Phase 3 (v1.0.0) — Major Release & API Stability Lock
 
 - [x] Publish `logd_sqlite` (SQLite WAL persistence & rich query engine) — v0.9.0
 - [x] Extract & Publish `logd_network` (`HttpSink`, `SocketSink`, `HttpServerSink`, `HttpDashboardHandler`) — v0.9.5
-- [ ] Hard-remove network classes & `http`/`web_socket_channel` deps from core — v0.10.0
-- [ ] Evaluate `logd_time` extraction (remove `timezone` dependency from core) — v0.10.x
+- [x] Hard-remove network classes & `http`/`web_socket_channel` deps from core — v0.10.0
+- [x] Unify FileRotation to path-first `shouldRotate` and soft-deprecate `needsRotation` — v0.10.7
+- [ ] Hard-remove deprecated `needsRotation` and `checkNeedsRotation` from core — v0.11.0
+- [ ] Evaluate `logd_time` extraction (remove `timezone` dependency from core) — v0.11.x
 - [ ] Evaluate `logd_native` extraction (remove `ffi` dependency from core for 100% Web/Dart purity) — v0.10.x
 - [ ] Evaluate `logd_deobfuscate` extraction (remove `source_maps`/`source_span` from core) — v0.10.x
 - [ ] Develop `logd_flutter` (In-app log viewer widget, overlay toasts, DevTools extension panel)

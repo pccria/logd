@@ -24,11 +24,27 @@ abstract class FileRotation {
   /// The maximum number of backup files to keep.
   final int backupCount;
 
+  /// Determines whether the log file at [path] should be rotated before
+  /// appending [newData].
+  Future<bool> shouldRotate(final String path, final Uint8List newData) async =>
+      false;
+
   /// Determines if rotation is needed.
-  Future<bool> needsRotation(final File currentFile, final Uint8List newData);
+  @Deprecated(
+    'Implement and call shouldRotate(path, newData) instead. '
+    'Scheduled for removal in logd 0.11.0.',
+  )
+  Future<bool> needsRotation(
+    final File currentFile,
+    final Uint8List newData,
+  ) async => false;
 
   /// Evaluates whether rotation is required for the file at [basePath] before
   /// writing [newData].
+  @Deprecated(
+    'Use shouldRotate(basePath, newData) instead. '
+    'Scheduled for removal in logd 0.11.0.',
+  )
   Future<bool> checkNeedsRotation(
     final String basePath,
     final Uint8List newData,
@@ -80,6 +96,14 @@ class SizeRotation extends FileRotation {
   }
 
   @override
+  Future<bool> shouldRotate(final String path, final Uint8List newData) =>
+      throw UnsupportedError(
+        'SizeRotation is not supported on the Web because browsers lack '
+        'direct file system access. SizeRotation is native-only.',
+      );
+
+  @override
+  // ignore: deprecated_member_use_from_same
   Future<bool> needsRotation(final File currentFile, final Uint8List newData) =>
       throw UnsupportedError(
         'SizeRotation is not supported on the Web because browsers lack '
@@ -124,6 +148,14 @@ class TimeRotation extends FileRotation {
   filenameFormatter;
 
   @override
+  Future<bool> shouldRotate(final String path, final Uint8List newData) =>
+      throw UnsupportedError(
+        'TimeRotation is not supported on the Web because browsers lack '
+        'direct file system access. TimeRotation is native-only.',
+      );
+
+  @override
+  // ignore: deprecated_member_use_from_same
   Future<bool> needsRotation(final File currentFile, final Uint8List newData) =>
       throw UnsupportedError(
         'TimeRotation is not supported on the Web because browsers lack '
