@@ -30,6 +30,7 @@ class HtmlFileHandler extends Handler {
     final LogTheme? theme,
     final FileRotation? fileRotation,
     final int? lineLength,
+    final String? sessionLabel,
     final LogFormatter? formatter,
     final List<LogDecorator>? decorators,
     final HtmlFileMode fileMode = HtmlFileMode.appendSession,
@@ -37,20 +38,16 @@ class HtmlFileHandler extends Handler {
     super.engine = const StandardEngine(),
     super.timeout,
   }) : super(
-         formatter:
-             formatter ??
-             (view != null
-                 ? HtmlFormatter(view: view)
-                 : HtmlFormatter(
-                     title: title ?? 'logd Session',
-                     stylesheet: stylesheet ?? const DefaultHtmlStylesheet(),
-                   )),
-         sink: HtmlFileSink(
+         formatter: _createFormatter(formatter, title, stylesheet, view),
+         sink: _createSink(
            path,
-           encoder: _createEncoder(title, stylesheet, view),
-           mode: fileMode,
-           fileRotation: fileRotation,
-           lineLength: lineLength,
+           title,
+           stylesheet,
+           view,
+           fileMode,
+           fileRotation,
+           lineLength,
+           sessionLabel,
          ),
          decorators: decorators ?? [StyleDecorator(theme ?? const DarkTheme())],
        );
@@ -65,6 +62,7 @@ class HtmlFileHandler extends Handler {
     final LogTheme? theme,
     final FileRotation? fileRotation,
     final int? lineLength,
+    final String? sessionLabel,
     final LogFormatter? formatter,
     final List<LogDecorator>? decorators,
     final HtmlFileMode fileMode = HtmlFileMode.appendSession,
@@ -72,25 +70,53 @@ class HtmlFileHandler extends Handler {
     final LogEngine engine = const StandardEngine(),
     final Duration? timeout,
   }) => AsyncHandler(
-    formatter:
-        formatter ??
-        (view != null
-            ? HtmlFormatter(view: view)
-            : HtmlFormatter(
-                title: title ?? 'logd Session',
-                stylesheet: stylesheet ?? const DefaultHtmlStylesheet(),
-              )),
-    sink: HtmlFileSink(
+    formatter: _createFormatter(formatter, title, stylesheet, view),
+    sink: _createSink(
       path,
-      encoder: _createEncoder(title, stylesheet, view),
-      mode: fileMode,
-      fileRotation: fileRotation,
-      lineLength: lineLength,
+      title,
+      stylesheet,
+      view,
+      fileMode,
+      fileRotation,
+      lineLength,
+      sessionLabel,
     ),
     decorators: decorators ?? [StyleDecorator(theme ?? const DarkTheme())],
     filters: filters,
     engine: engine,
     timeout: timeout,
+  );
+
+  static LogFormatter _createFormatter(
+    final LogFormatter? formatter,
+    final String? title,
+    final HtmlStylesheet? stylesheet,
+    final HtmlView? view,
+  ) =>
+      formatter ??
+      (view != null
+          ? HtmlFormatter(view: view)
+          : HtmlFormatter(
+              title: title ?? 'logd Session',
+              stylesheet: stylesheet ?? const DefaultHtmlStylesheet(),
+            ));
+
+  static HtmlFileSink _createSink(
+    final String path,
+    final String? title,
+    final HtmlStylesheet? stylesheet,
+    final HtmlView? view,
+    final HtmlFileMode fileMode,
+    final FileRotation? fileRotation,
+    final int? lineLength,
+    final String? sessionLabel,
+  ) => HtmlFileSink(
+    path,
+    encoder: _createEncoder(title, stylesheet, view),
+    mode: fileMode,
+    fileRotation: fileRotation,
+    lineLength: lineLength,
+    sessionLabel: sessionLabel,
   );
 
   static HtmlEncoder _createEncoder(

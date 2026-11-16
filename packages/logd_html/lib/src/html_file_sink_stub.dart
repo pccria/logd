@@ -24,6 +24,7 @@ base class HtmlFileSink extends LogSink<LogDocument> {
     this.mode = HtmlFileMode.appendSession,
     this.fileRotation,
     this.lineLength = 120,
+    this.sessionLabel,
     super.enabled,
   });
 
@@ -41,6 +42,9 @@ base class HtmlFileSink extends LogSink<LogDocument> {
 
   /// The preferred line length.
   final int? lineLength;
+
+  /// An optional custom label displayed in the session resumption delimiter.
+  final String? sessionLabel;
 
   @override
   Future<void> output(

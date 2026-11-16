@@ -781,37 +781,27 @@ class DefaultHtmlStylesheet implements HtmlStylesheet {
     }
 
     function getVisibleLogData() {
-      const visibleEntries = Array.from(document.querySelectorAll('.log-entry')).filter(
-        e => e.style.display !== 'none'
-      );
-      return visibleEntries.map(entry => {
-        let level = 'info';
-        ['trace', 'debug', 'info', 'warning', 'error'].forEach(lvl => {
-          if (entry.classList.contains('log-' + lvl)) level = lvl;
-        });
+      const idx = ensureIndex();
+      const results = [];
+      for (let i = 0; i < idx.length; i++) {
+        const item = idx[i];
+        if (item.el.style.display === 'none') continue;
 
-        const clone = entry.cloneNode(true);
-        clone.querySelectorAll('.log-copy-btn, button').forEach(b => b.remove());
+        const tsEl = item.el.querySelector('.log-timestamp');
+        const timestamp = tsEl ? (tsEl.textContent || '').trim() : '';
 
-        const tsEl = clone.querySelector('.log-timestamp');
-        const timestamp = tsEl ? tsEl.textContent.trim() : '';
+        const originEl = item.el.querySelector('.log-origin');
+        const origin = originEl ? (originEl.textContent || '').trim() : '';
 
-        const loggerEl = clone.querySelector('.log-logger');
-        const logger = loggerEl ? loggerEl.textContent.trim() : '';
-
-        const originEl = clone.querySelector('.log-origin');
-        const origin = originEl ? originEl.textContent.trim() : '';
-
-        const text = (clone.innerText || clone.textContent).trim();
-
-        return {
-          level: level,
+        results.push({
+          level: item.level || 'info',
           timestamp: timestamp,
-          logger: logger,
+          logger: item.logger || '',
           origin: origin,
-          message: text
-        };
-      });
+          message: item.text.trim()
+        });
+      }
+      return results;
     }
 
     function triggerDownload(content, filename, mimeType) {

@@ -3,6 +3,8 @@ import 'dart:io' as io;
 import 'dart:typed_data';
 
 import 'package:logd/logd.dart';
+// ignore: implementation_imports
+import 'package:logd/src/logger/internal_logger.dart';
 
 import 'html_encoder.dart';
 import 'html_view.dart';
@@ -40,6 +42,7 @@ base class HtmlFileSink extends LogSink<LogDocument> {
     this.mode = HtmlFileMode.appendSession,
     this.fileRotation,
     this.lineLength = 120,
+    this.sessionLabel,
     super.enabled,
   }) {
     _coordinator.refCount++;
@@ -60,6 +63,13 @@ base class HtmlFileSink extends LogSink<LogDocument> {
   /// The preferred line length.
   final int? lineLength;
 
+  /// An optional custom label displayed in the session resumption delimiter.
+  ///
+  /// If `null`, defaults to `'Run PID: ${io.pid}'`.
+  final String? sessionLabel;
+
+  bool _isDisposed = false;
+
   String get _canonicalPath => io.File(path).absolute.path;
 
   _SharedHtmlFileCoordinator get _coordinator => _coordinators.putIfAbsent(
@@ -70,6 +80,7 @@ base class HtmlFileSink extends LogSink<LogDocument> {
       fileRotation: fileRotation,
       encoder: encoder,
       view: encoder.effectiveView,
+      sessionLabel: sessionLabel,
     ),
   );
 
@@ -118,6 +129,10 @@ base class HtmlFileSink extends LogSink<LogDocument> {
 
   @override
   Future<void> dispose() async {
+    if (_isDisposed) {
+      return;
+    }
+    _isDisposed = true;
     await flush();
     const factory = StandardPipelineFactory();
     final c = _coordinator;
@@ -136,6 +151,7 @@ class _SharedHtmlFileCoordinator {
     required this.fileRotation,
     required this.encoder,
     required this.view,
+    this.sessionLabel,
   });
 
   final String path;
@@ -143,9 +159,11 @@ class _SharedHtmlFileCoordinator {
   final FileRotation? fileRotation;
   final HtmlEncoder encoder;
   final HtmlView view;
+  final String? sessionLabel;
 
   int refCount = 0;
   bool isPreambleWritten = false;
+  bool isPostambleWritten = false;
   Future<void> _lock = Future<void>.value();
 
   Future<void> write(
@@ -169,31 +187,42 @@ class _SharedHtmlFileCoordinator {
         if (fileRotation != null &&
             file.existsSync() &&
             await fileRotation!.checkNeedsRotation(path, data)) {
-          if (isPreambleWritten && view.isStandalone) {
-            final postContext = factory.checkoutContext();
-            try {
-              encoder.postamble(
-                postContext,
-                LogLevel.info,
-                factory,
-                document: document,
-              );
-              final postBytes = postContext.takeBytes();
-              if (postBytes.isNotEmpty) {
-                final raf = file.openSync(mode: io.FileMode.append);
-                try {
-                  raf.writeFromSync(postBytes);
-                } finally {
-                  raf.closeSync();
+          try {
+            if (isPreambleWritten && view.isStandalone) {
+              final postContext = factory.checkoutContext();
+              try {
+                encoder.postamble(
+                  postContext,
+                  LogLevel.info,
+                  factory,
+                  document: document,
+                );
+                final postBytes = postContext.takeBytes();
+                if (postBytes.isNotEmpty) {
+                  final raf = file.openSync(mode: io.FileMode.append);
+                  try {
+                    raf.writeFromSync(postBytes);
+                  } finally {
+                    raf.closeSync();
+                  }
                 }
+              } finally {
+                factory.release(postContext);
               }
-            } finally {
-              factory.release(postContext);
             }
-          }
 
-          await fileRotation!.rotate(path);
-          isPreambleWritten = false;
+            await fileRotation!.rotate(path);
+            isPreambleWritten = false;
+          } catch (rotationError, rotationStack) {
+            // ignore: invalid_use_of_internal_member
+            InternalLogger.log(
+              LogLevel.warning,
+              'HTML file rotation failed, continuing with write to '
+              'original file',
+              error: rotationError,
+              stackTrace: rotationStack,
+            );
+          }
         }
 
         // Initialize preamble / rewind if needed
@@ -221,6 +250,7 @@ class _SharedHtmlFileCoordinator {
     final LogLevel level,
     final LogDocument? document,
   ) {
+    isPostambleWritten = false;
     final fileExists = file.existsSync();
     final fileLength = fileExists ? file.lengthSync() : 0;
 
@@ -280,7 +310,7 @@ class _SharedHtmlFileCoordinator {
           HtmlEncoder.writeSessionDelimiter(
             divContext,
             timestamp: DateTime.now(),
-            label: 'Run PID: ${io.pid}',
+            label: sessionLabel ?? 'Run PID: ${io.pid}',
           );
           final divBytes = divContext.takeBytes();
           if (divBytes.isNotEmpty) {
@@ -299,7 +329,7 @@ class _SharedHtmlFileCoordinator {
 
   Future<void> release(final LogPipelineFactory factory) {
     refCount--;
-    if (refCount <= 0) {
+    if (refCount <= 0 && !isPostambleWritten) {
       if (mode == HtmlFileMode.fragment) {
         return Future<void>.value();
       }
@@ -311,7 +341,8 @@ class _SharedHtmlFileCoordinator {
       return prevLock.then((_) async {
         try {
           final file = io.File(path);
-          if (file.existsSync() && isPreambleWritten) {
+          if (file.existsSync() && isPreambleWritten && !isPostambleWritten) {
+            isPostambleWritten = true;
             final postContext = factory.checkoutContext();
             try {
               encoder.postamble(postContext, LogLevel.info, factory);

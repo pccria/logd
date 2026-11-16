@@ -364,7 +364,15 @@ Specialized formatters, databases, and network adapters maintained within the `l
 * **`SocketSink(url: 'wss://...')`**: Live streaming to remote log aggregators.
 
 ### [`package:logd_html`](../packages/logd_html)
-* **`HtmlFileHandler(String path)`**: Generates self-contained HTML reports with dynamic dark/light theme switching.
+* **`HtmlFileHandler(String path, ...)`**: Generates self-contained HTML reports with dynamic dark/light theme switching, single-document append resilience, and search indexing.
+* **`HtmlFileHandler.async(String path, ...)`**: Offloads HTML document formatting, serialization, and disk persistence to a dedicated background isolate.
+* **`HtmlView({HtmlHeaderComponent? header, HtmlControlPanelComponent? controlPanel, HtmlFooterComponent? footer})`**: Modular view orchestrator defining document structure, branding, controls, and footers.
+* **`HtmlView.embedded(...)`**: Produces shell-less HTML fragments without `<!DOCTYPE html>`, `<head>`, or `<body>` wrappers, designed for embedding into web portals and dashboards.
+* **`DefaultHtmlControlPanel.all(...)`**: Preconfigures the complete interactive toolbar: in-memory search bar, regex mode, subsystem dropdown, level filter pills, live follow auto-scroll, theme toggle, and JSON/CSV export buttons.
+* **`HtmlActionButton(String id, String label, String onClickJs)`**: Injects custom interactive toolbar buttons executing arbitrary client-side JavaScript.
+* **`HtmlFileMode`**: Controls file output lifecycle: `appendSession` (rewinds closing tags and inserts session delimiter), `overwrite` (truncates file), or `fragment` (raw entry elements).
+* **`HtmlEncoder`**: Serializes `LogDocument` semantic nodes into accessible HTML5 markup with zero external CDN dependencies.
+* **`HtmlFormatter`**: Semantic formatter that maps `LogEntry` into `LogDocument` and auto-injects `HtmlEncoder`.
 
 ### [`package:logd_markdown`](../packages/logd_markdown)
 * **`MarkdownFileHandler(String path)`**: Generates GitHub-Flavored Markdown files (ideal for `$GITHUB_STEP_SUMMARY` in CI/CD).

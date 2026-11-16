@@ -107,23 +107,20 @@ void main() {
       expect(output, contains('btn-primary'));
     });
 
-    test(
-      'DefaultHtmlControlPanel with showLoggerFilter renders logger select '
-      'dropdown',
-      () {
-        const encoder = HtmlEncoder(
-          view: HtmlView(
-            controlPanel: DefaultHtmlControlPanel(showLoggerFilter: true),
-          ),
-        );
-        encoder.preamble(context, LogLevel.info, factory);
+    test('DefaultHtmlControlPanel with showLoggerFilter renders logger select '
+        'dropdown', () {
+      const encoder = HtmlEncoder(
+        view: HtmlView(
+          controlPanel: DefaultHtmlControlPanel(showLoggerFilter: true),
+        ),
+      );
+      encoder.preamble(context, LogLevel.info, factory);
 
-        final output = String.fromCharCodes(context.takeBytes());
+      final output = String.fromCharCodes(context.takeBytes());
 
-        expect(output, contains('<select id="log-logger-select"'));
-        expect(output, contains('All Loggers'));
-      },
-    );
+      expect(output, contains('<select id="log-logger-select"'));
+      expect(output, contains('All Loggers'));
+    });
 
     test(
       'DefaultHtmlControlPanel.all enables all tools including logger select',
@@ -140,20 +137,17 @@ void main() {
       },
     );
 
-    test(
-      'HtmlStylesheet buildJs contains flat-index search and context '
-      'click-to-isolate',
-      () {
-        const stylesheet = DefaultHtmlStylesheet();
-        final js = stylesheet.buildJs();
+    test('HtmlStylesheet buildJs contains flat-index search and context '
+        'click-to-isolate', () {
+      const stylesheet = DefaultHtmlStylesheet();
+      final js = stylesheet.buildJs();
 
-        expect(js, contains('buildLogIndex()'));
-        expect(js, contains('ensureIndex()'));
-        expect(js, contains('populateLoggerDropdown()'));
-        expect(js, contains("closest('.log-val')"));
-        expect(js, contains('debounceTimer'));
-      },
-    );
+      expect(js, contains('buildLogIndex()'));
+      expect(js, contains('ensureIndex()'));
+      expect(js, contains('populateLoggerDropdown()'));
+      expect(js, contains("closest('.log-val')"));
+      expect(js, contains('debounceTimer'));
+    });
 
     test('custom HtmlFooterComponent renders custom attribution', () {
       const encoder = HtmlEncoder(
@@ -430,6 +424,103 @@ void main() {
           expect(rotatedContent, contains('ROT-BRAND'));
           expect(rotatedContent, contains('ROT-ATTRIBUTION'));
         }
+      },
+    );
+
+    test('includeExternalFonts controls Google Fonts CDN injection', () {
+      const engineFactory = StandardPipelineFactory();
+      final testContext = engineFactory.checkoutContext();
+      try {
+        // By default (false), external fonts are omitted for air-gapped
+        // security.
+        const defaultView = HtmlView(title: 'Air Gapped Test');
+        const defaultEncoder = HtmlEncoder(view: defaultView);
+        defaultEncoder.preamble(testContext, LogLevel.info, engineFactory);
+        var output = String.fromCharCodes(testContext.takeBytes());
+        expect(output, isNot(contains('fonts.googleapis.com')));
+
+        // When explicitly enabled, external font links must be injected
+        const fontsView = HtmlView(
+          title: 'Fonts Test',
+          includeExternalFonts: true,
+        );
+        const fontsEncoder = HtmlEncoder(view: fontsView);
+        fontsEncoder.preamble(testContext, LogLevel.info, engineFactory);
+        output = String.fromCharCodes(testContext.takeBytes());
+        expect(output, contains('fonts.googleapis.com'));
+      } finally {
+        engineFactory.release(testContext);
+      }
+    });
+
+    test('copyWith works across all modular view components', () {
+      const header = DefaultHtmlHeader(logoText: 'ORIG');
+      final updatedHeader = header.copyWith(
+        logoText: 'MODIFIED',
+        subtitle: 'v2',
+      );
+      expect(updatedHeader.logoText, 'MODIFIED');
+      expect(updatedHeader.subtitle, 'v2');
+      expect(updatedHeader.showDate, isTrue);
+
+      const panel = DefaultHtmlControlPanel(showSearch: false);
+      final updatedPanel = panel.copyWith(
+        showSearch: true,
+        showThemeToggle: true,
+      );
+      expect(updatedPanel.showSearch, isTrue);
+      expect(updatedPanel.showThemeToggle, isTrue);
+
+      const footer = DefaultHtmlFooter(attribution: 'ATTR');
+      final updatedFooter = footer.copyWith(customContent: 'CUSTOM');
+      expect(updatedFooter.attribution, 'ATTR');
+      expect(updatedFooter.customContent, 'CUSTOM');
+
+      const view = HtmlView(title: 'ORIG_TITLE');
+      final updatedView = view.copyWith(
+        title: 'NEW_TITLE',
+        includeExternalFonts: true,
+      );
+      expect(updatedView.title, 'NEW_TITLE');
+      expect(updatedView.includeExternalFonts, isTrue);
+    });
+
+    test(
+      'sessionLabel customizes resumption delimiter in appendSession mode',
+      () async {
+        final file = File('${tempDir.path}/custom_session.html');
+        final handler1 = HtmlFileHandler(
+          path: file.path,
+          fileMode: HtmlFileMode.appendSession,
+        );
+        Logger.configure('sess_logger', handlers: [handler1]);
+        Logger.get('sess_logger').info('Message from run 1');
+        await handler1.dispose();
+
+        // Session 2 with custom sessionLabel
+        final handler2 = HtmlFileHandler(
+          path: file.path,
+          fileMode: HtmlFileMode.appendSession,
+          sessionLabel: 'Pod: worker-east-2 • Commit: 8ab2f',
+        );
+        Logger.configure('sess_logger', handlers: [handler2]);
+        Logger.get('sess_logger').info('Message from run 2');
+        await handler2.dispose();
+
+        final content = file.readAsStringSync();
+        expect(content, contains('Pod: worker-east-2 • Commit: 8ab2f'));
+      },
+    );
+
+    test(
+      'HtmlFileSink dispose is idempotent and safe against multiple calls',
+      () async {
+        final file = File('${tempDir.path}/idempotent_dispose.html');
+        final sink = HtmlFileSink(file.path);
+        // Multiple disposes must not throw or cause reference count issues
+        await sink.dispose();
+        await sink.dispose();
+        await sink.dispose();
       },
     );
   });

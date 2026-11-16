@@ -66,6 +66,17 @@ class DefaultHtmlHeader implements HtmlHeaderComponent {
 ''';
   }
 
+  /// Creates a copy of this header with the given fields replaced.
+  DefaultHtmlHeader copyWith({
+    final String? logoText,
+    final bool? showDate,
+    final String? subtitle,
+  }) => DefaultHtmlHeader(
+    logoText: logoText ?? this.logoText,
+    showDate: showDate ?? this.showDate,
+    subtitle: subtitle ?? this.subtitle,
+  );
+
   @override
   bool operator ==(final Object other) =>
       identical(this, other) ||
@@ -277,6 +288,31 @@ $secondaryRow
 ''';
   }
 
+  /// Creates a copy of this control panel with the given fields replaced.
+  DefaultHtmlControlPanel copyWith({
+    final bool? showSearch,
+    final bool? showLevelFilters,
+    final bool? showExpandCollapse,
+    final bool? showRegexToggle,
+    final bool? showExportActions,
+    final bool? showThemeToggle,
+    final bool? showLiveFollow,
+    final bool? showLoggerFilter,
+    final String? searchPlaceholder,
+    final List<HtmlActionButton>? extraActions,
+  }) => DefaultHtmlControlPanel(
+    showSearch: showSearch ?? this.showSearch,
+    showLevelFilters: showLevelFilters ?? this.showLevelFilters,
+    showExpandCollapse: showExpandCollapse ?? this.showExpandCollapse,
+    showRegexToggle: showRegexToggle ?? this.showRegexToggle,
+    showExportActions: showExportActions ?? this.showExportActions,
+    showThemeToggle: showThemeToggle ?? this.showThemeToggle,
+    showLiveFollow: showLiveFollow ?? this.showLiveFollow,
+    showLoggerFilter: showLoggerFilter ?? this.showLoggerFilter,
+    searchPlaceholder: searchPlaceholder ?? this.searchPlaceholder,
+    extraActions: extraActions ?? this.extraActions,
+  );
+
   @override
   bool operator ==(final Object other) =>
       identical(this, other) ||
@@ -341,6 +377,15 @@ class DefaultHtmlFooter implements HtmlFooterComponent {
 ''';
   }
 
+  /// Creates a copy of this footer with the given fields replaced.
+  DefaultHtmlFooter copyWith({
+    final String? attribution,
+    final String? customContent,
+  }) => DefaultHtmlFooter(
+    attribution: attribution ?? this.attribution,
+    customContent: customContent ?? this.customContent,
+  );
+
   @override
   bool operator ==(final Object other) =>
       identical(this, other) ||
@@ -371,6 +416,7 @@ class HtmlView {
     this.footer = const DefaultHtmlFooter(),
     this.stylesheet = const DefaultHtmlStylesheet(),
     this.injectScripts = true,
+    this.includeExternalFonts = false,
   });
 
   /// Creates an embeddable [HtmlView] fragment without `<!DOCTYPE html>`,
@@ -385,6 +431,7 @@ class HtmlView {
     this.footer,
     this.stylesheet = const DefaultHtmlStylesheet(),
     this.injectScripts = true,
+    this.includeExternalFonts = false,
   }) : isStandalone = false;
 
   /// The title of the document or log session.
@@ -410,6 +457,33 @@ class HtmlView {
   /// Whether to inject client-side interactive JavaScript scripts.
   final bool injectScripts;
 
+  /// Whether to include external web fonts (e.g. Google Fonts) via CDN links.
+  ///
+  /// Defaults to `false` to guarantee 100% self-contained, air-gap-resilient
+  /// output without external network requests or CSP violations.
+  final bool includeExternalFonts;
+
+  /// Creates a copy of this view with the given fields replaced.
+  HtmlView copyWith({
+    final String? title,
+    final bool? isStandalone,
+    final HtmlHeaderComponent? header,
+    final HtmlControlPanelComponent? controlPanel,
+    final HtmlFooterComponent? footer,
+    final HtmlStylesheet? stylesheet,
+    final bool? injectScripts,
+    final bool? includeExternalFonts,
+  }) => HtmlView(
+    title: title ?? this.title,
+    isStandalone: isStandalone ?? this.isStandalone,
+    header: header ?? this.header,
+    controlPanel: controlPanel ?? this.controlPanel,
+    footer: footer ?? this.footer,
+    stylesheet: stylesheet ?? this.stylesheet,
+    injectScripts: injectScripts ?? this.injectScripts,
+    includeExternalFonts: includeExternalFonts ?? this.includeExternalFonts,
+  );
+
   @override
   bool operator ==(final Object other) =>
       identical(this, other) ||
@@ -420,7 +494,8 @@ class HtmlView {
           header == other.header &&
           controlPanel == other.controlPanel &&
           footer == other.footer &&
-          injectScripts == other.injectScripts;
+          injectScripts == other.injectScripts &&
+          includeExternalFonts == other.includeExternalFonts;
 
   @override
   int get hashCode => Object.hash(
@@ -431,6 +506,7 @@ class HtmlView {
     controlPanel,
     footer,
     injectScripts,
+    includeExternalFonts,
   );
 }
 

@@ -75,17 +75,20 @@ class HtmlEncoder implements LogEncoder {
         (document?.metadata['logd.theme'] as LogTheme?) ?? const DarkTheme();
 
     if (v.isStandalone) {
+      final fontLinks = v.includeExternalFonts
+          ? '''
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@300;400;500;600;700" rel="stylesheet">\n'''
+          : '';
+
       context.writeString('''
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>$t</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@300;400;500;600;700" rel="stylesheet">
-  <style>
+  <title>$t</title>$fontLinks  <style>
 ${v.stylesheet.buildCss(theme)}
   </style>
 </head>

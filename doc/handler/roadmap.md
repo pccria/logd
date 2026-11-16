@@ -6,8 +6,10 @@
 **Goal**: Expand capabilities across satellite packages (`logd_sqlite`, `logd_network`, `logd_html`, `logd_dio`), refine performance profiling hooks, and stabilize APIs toward v1.0.0.
 - [ ] **`logd_sqlite`**: Implement type-safe query builder extensions, cursor pagination, and Full-Text Search (FTS5) integration for searching structured logs.
 - [ ] **`logd_network`**: Add transparent high-throughput stream compression (`zstd` / stream wrappers) for high-volume network sinks.
-- [ ] **`logd_html`**: Introduce standalone interactive client-side log search, regex query bar, and real-time level filtering in generated HTML reports.
+- [x] **`logd_html`**: Introduce standalone interactive client-side log search, regex query bar, and real-time level filtering in generated HTML reports (Shipped in `logd_html` v0.2.0 with modular `HtmlView`, single-shell append resilience, and zero DOM-cloning in-memory index).
 - [ ] **`logd_dio`**: Add W3C TraceContext (`traceparent`, `tracestate`) distributed tracing auto-injection from `LogContext`.
+- [ ] **Cross-Sink Unified Theming**: Evolve `LogTheme` and `StyleDecorator` into a dual-mode palette exposing ANSI escape codes and CSS variables, ensuring identical visual styles across console, HTML (`logd_html`), and live WebSocket dashboards (`logd_network`).
+- [ ] **Universal Formatter Interoperability**: Support format-agnostic rendering of `PlainFormatter`, `ToonFormatter`, and custom AST pipelines across HTML and network presentation sinks.
 
 ---
 
