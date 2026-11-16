@@ -10,10 +10,7 @@ import '../sink/sink.dart';
 
 abstract class FileRotation {
   /// Base constructor.
-  FileRotation({
-    this.compress = false,
-    this.backupCount = 5,
-  }) {
+  FileRotation({this.compress = false, this.backupCount = 5}) {
     if (backupCount < 0) {
       throw ArgumentError(
         'Invalid backupCount: $backupCount. Must be non-negative.',
@@ -29,6 +26,13 @@ abstract class FileRotation {
 
   /// Determines if rotation is needed.
   Future<bool> needsRotation(final File currentFile, final Uint8List newData);
+
+  /// Evaluates whether rotation is required for the file at [basePath] before
+  /// writing [newData].
+  Future<bool> checkNeedsRotation(
+    final String basePath,
+    final Uint8List newData,
+  ) async => false;
 
   /// Rotates the file at [basePath].
   Future<void> rotate(final String basePath);
@@ -49,11 +53,8 @@ class SizeRotation extends FileRotation {
   final int maxBytes;
 
   /// Custom function to format rotated file names.
-  final String Function(
-    String baseWithoutExt,
-    String? ext,
-    int? index,
-  )? filenameFormatter;
+  final String Function(String baseWithoutExt, String? ext, int? index)?
+  filenameFormatter;
 
   /// Parses a human-readable size string into bytes.
   ///
@@ -87,9 +88,9 @@ class SizeRotation extends FileRotation {
 
   @override
   Future<void> rotate(final String basePath) => throw UnsupportedError(
-        'SizeRotation is not supported on the Web because browsers lack '
-        'direct file system access. SizeRotation is native-only.',
-      );
+    'SizeRotation is not supported on the Web because browsers lack '
+    'direct file system access. SizeRotation is native-only.',
+  );
 }
 
 /// Rotates log files based on time intervals. Stub fallback on unsupported
@@ -102,8 +103,8 @@ class TimeRotation extends FileRotation {
     this.filenameFormatter,
     super.compress,
     super.backupCount,
-  })  : timestamp = timestamp ?? Timestamp(formatter: 'yyyy-MM-dd'),
-        assert(!interval.isNegative, 'Invalid interval: must be non-negative');
+  }) : timestamp = timestamp ?? Timestamp(formatter: 'yyyy-MM-dd'),
+       assert(!interval.isNegative, 'Invalid interval: must be non-negative');
 
   /// The time interval after which log files should rotate.
   final Duration interval;
@@ -119,7 +120,8 @@ class TimeRotation extends FileRotation {
     String baseWithoutExt,
     String? ext,
     DateTime rotationTime,
-  )? filenameFormatter;
+  )?
+  filenameFormatter;
 
   @override
   Future<bool> needsRotation(final File currentFile, final Uint8List newData) =>
@@ -130,9 +132,9 @@ class TimeRotation extends FileRotation {
 
   @override
   Future<void> rotate(final String basePath) => throw UnsupportedError(
-        'TimeRotation is not supported on the Web because browsers lack '
-        'direct file system access. TimeRotation is native-only.',
-      );
+    'TimeRotation is not supported on the Web because browsers lack '
+    'direct file system access. TimeRotation is native-only.',
+  );
 }
 
 /// A fallback stub for [FileSink] on unsupported platforms (like Web).
@@ -147,10 +149,7 @@ base class FileSink extends EncodingSink {
     this.fileRotation,
     final int? lineLength,
     super.enabled = true,
-  }) : super(
-          preferredWidth: lineLength ?? 120,
-          delegate: _dummyDelegate,
-        ) {
+  }) : super(preferredWidth: lineLength ?? 120, delegate: _dummyDelegate) {
     _validateBasePath(basePath);
   }
 

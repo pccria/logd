@@ -1,3 +1,28 @@
+## 0.2.0
+
+- **Single-Document Integrity & Smart Rewind**:
+  - Implemented `HtmlFileSink` with `HtmlFileMode` (`appendSession`, `overwrite`, `fragment`) and multi-logger `_SharedHtmlFileCoordinator`.
+  - Guarantees exactly one `<!DOCTYPE html>`, `<head>`, and closing `</html>` tag even across application restarts and multiple loggers targeting the same file.
+  - Automatically truncates previous closing tags upon append and inserts clean `<div class="log-session-delimiter">` session demarcations.
+- **High-Performance Search & Correlation Engine**:
+  - Flat in-memory search index (`buildLogIndex`) constructed on demand, replacing expensive `cloneNode(true)` operations and forced browser layout reflows.
+  - Dynamic subsystem / logger dropdown selector (`showLoggerFilter: true`) automatically populated from logged entries.
+  - Structured context value click-to-isolate: clicking on any `.log-val` token immediately isolates that trace or request in the viewer.
+  - Debounced search input handler for smooth responsiveness on large log files.
+- **Modular View Architecture**: Introduced `HtmlView` orchestrator with pluggable component interfaces:
+  - `HtmlHeaderComponent` and `DefaultHtmlHeader` for custom branding, titles, and timestamp metadata.
+  - `HtmlControlPanelComponent`, `DefaultHtmlControlPanel`, and `HtmlActionButton` for client-side search, level filter pills, and custom user action buttons with JavaScript hooks.
+  - `HtmlFooterComponent` and `DefaultHtmlFooter` for custom attribution and environment notices.
+- **Embedded Fragment Support**: Added `HtmlView.embedded` and `HtmlFileMode.fragment` for generating scoped HTML fragments without `<!DOCTYPE html>`, `<head>`, or `<body>` shells, ready for web portals and dashboards.
+- **Advanced Interactivity**:
+  - Regular expression search mode (`.*` toggle) with safe, error-tolerant regex compilation.
+  - DOM TextNode-level match visual highlighting with `<mark class="log-search-match">` elements.
+  - Client-side log export (`Export JSON` and `Export CSV`) for currently visible/filtered logs with automatic browser file downloads.
+  - Live Dark / Light mode theme toggle (`showThemeToggle: true`) with `localStorage` user preference persistence.
+  - Smooth Live Follow / Auto-Scroll toggle (`showLiveFollow: true`).
+- **Convenience Constructors**: Added `DefaultHtmlControlPanel.all()` to easily enable all interactive tools with a single declaration.
+- **Value Equality**: Implemented `operator ==` and `hashCode` across all immutable view components.
+
 ## 0.1.7
 
 - Requires logd ^0.10.6.

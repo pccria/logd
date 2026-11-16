@@ -24,8 +24,9 @@ void main() {
       );
       final document = factory.checkoutDocument();
       document.metadata['logd.theme'] = theme;
-      const HtmlEncoder(title: 'Test Log')
-          .preamble(context, LogLevel.info, factory, document: document);
+      const HtmlEncoder(
+        title: 'Test Log',
+      ).preamble(context, LogLevel.info, factory, document: document);
       final output = String.fromCharCodes(context.takeBytes());
 
       expect(output, contains('<title>Test Log</title>'));
@@ -302,52 +303,51 @@ void main() {
       expect(output, contains('svg'));
     });
 
-    test('TableNode with empty columnWidths falls back to repeat(maxCols, 1fr)',
-        () {
-      final document = factory.checkoutDocument();
-      final table = factory.checkoutTable();
-      final row = TableRowNode(
-        children: [
-          TableCellNode(
-            children: [
-              factory.checkoutMessage()..segments.add(const StyledText('C1')),
-            ],
-          ),
-          TableCellNode(
-            children: [
-              factory.checkoutMessage()..segments.add(const StyledText('C2')),
-            ],
-          ),
-        ],
-      );
-      table.children.add(row);
-      document.nodes.add(table);
+    test(
+      'TableNode with empty columnWidths falls back to repeat(maxCols, 1fr)',
+      () {
+        final document = factory.checkoutDocument();
+        final table = factory.checkoutTable();
+        final row = TableRowNode(
+          children: [
+            TableCellNode(
+              children: [
+                factory.checkoutMessage()..segments.add(const StyledText('C1')),
+              ],
+            ),
+            TableCellNode(
+              children: [
+                factory.checkoutMessage()..segments.add(const StyledText('C2')),
+              ],
+            ),
+          ],
+        );
+        table.children.add(row);
+        document.nodes.add(table);
 
-      const HtmlEncoder().encode(
-        LogEntry(
-          level: LogLevel.info,
-          message: 'msg',
-          loggerName: 'test',
-          timestamp: '2026-03-22',
-          origin: 'test.dart:1',
-        ),
-        document,
-        LogLevel.info,
-        context,
-        factory,
-      );
+        const HtmlEncoder().encode(
+          LogEntry(
+            level: LogLevel.info,
+            message: 'msg',
+            loggerName: 'test',
+            timestamp: '2026-03-22',
+            origin: 'test.dart:1',
+          ),
+          document,
+          LogLevel.info,
+          context,
+          factory,
+        );
 
-      final output = String.fromCharCodes(context.takeBytes());
-      expect(output, contains('grid-template-columns: repeat(2, 1fr)'));
-    });
+        final output = String.fromCharCodes(context.takeBytes());
+        expect(output, contains('grid-template-columns: repeat(2, 1fr)'));
+      },
+    );
 
     test('MapNode keys are properly HTML escaped (XSS safety)', () {
       final document = factory.checkoutDocument();
       document.nodes.add(
-        factory.checkoutMap()
-          ..map = {
-            '<script>alert(1)</script>': 'value',
-          },
+        factory.checkoutMap()..map = {'<script>alert(1)</script>': 'value'},
       );
 
       const HtmlEncoder().encode(

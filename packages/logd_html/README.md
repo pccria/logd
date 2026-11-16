@@ -90,6 +90,82 @@ final handler = HtmlFileHandler(
 );
 ```
 
+## Modular Views & Embedding
+
+Use `HtmlView` to customize the structure of your HTML log reports or produce embeddable fragments for existing web portals:
+
+### 1. Customizing Standalone Views
+```dart
+final customView = HtmlView(
+  title: 'Acme Telemetry',
+  header: const DefaultHtmlHeader(
+    logoText: 'ACME',
+    subtitle: 'Production Cluster',
+  ),
+  controlPanel: const DefaultHtmlControlPanel(
+    searchPlaceholder: 'Filter events...',
+    extraActions: [
+      HtmlActionButton(
+        id: 'btn-print',
+        label: 'Print',
+        onClickJs: 'window.print()',
+      ),
+    ],
+  ),
+  footer: const DefaultHtmlFooter(attribution: 'ACME Internal Ops'),
+);
+
+final handler = HtmlFileHandler(
+  path: 'logs/acme.html',
+  view: customView,
+);
+```
+
+### 2. Embedded Fragment Mode
+When integrating into an existing web dashboard or iframe, `HtmlView.embedded` generates only the component container without `<!DOCTYPE html>`, `<head>`, or `<body>` shells:
+
+```dart
+final embeddedHandler = HtmlFileHandler(
+  path: 'public/logs_widget.html',
+  view: const HtmlView.embedded(
+    controlPanel: DefaultHtmlControlPanel(
+      showSearch: true,
+      showLevelFilters: true,
+    ),
+  ),
+);
+```
+
+### 3. Advanced Interactivity & Client-Side Export
+Enable the full toolkit with `DefaultHtmlControlPanel.all()` or toggle individual features:
+
+```dart
+const advancedPanel = DefaultHtmlControlPanel(
+  showRegexToggle: true,   // Toggles .* regex search mode with visual highlights
+  showExportActions: true, // Adds client-side "Export JSON" and "Export CSV" buttons
+  showThemeToggle: true,   // Live Light / Dark theme toggle with persistence
+  showLiveFollow: true,    // Smooth auto-scroll to latest log entries
+  showLoggerFilter: true,  // Dynamic subsystem / logger dropdown selector
+);
+```
+
+### 4. Single-Document Integrity & Session Demarcation
+When logging to the same HTML file across application restarts or from multiple loggers, `HtmlFileSink` coordinates access to guarantee a single valid HTML5 document without duplicate headers, DOCTYPEs, or closing tags:
+
+```dart
+final handler = HtmlFileHandler(
+  path: 'logs/app.html',
+  // appendSession: rewinds previous closing tags and inserts session divider
+  // overwrite: truncates existing file and starts fresh
+  // fragment: emits raw log entry elements without document shells
+  fileMode: HtmlFileMode.appendSession,
+);
+```
+
+### 5. Zero-DOM-Cloning Search & Value Correlation
+- **Flat In-Memory Search Index**: Log entries and subsystem metadata are indexed in memory once upon load, eliminating costly `cloneNode()` calls and forced browser layout reflows during search keystrokes.
+- **Context Value Correlation (Click-to-Isolate)**: Clicking any structured context value (e.g., `traceId`, `requestId`, or `userId`) in the report automatically isolates that stream in the viewer.
+
 ---
 
 ## Migration from `logd` <=0.9.7
