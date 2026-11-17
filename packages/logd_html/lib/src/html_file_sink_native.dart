@@ -2,9 +2,8 @@ import 'dart:async';
 import 'dart:io' as io;
 import 'dart:typed_data';
 
+import 'package:logd/advanced.dart';
 import 'package:logd/logd.dart';
-// ignore: implementation_imports
-import 'package:logd/src/logger/internal_logger.dart';
 
 import 'html_encoder.dart';
 import 'html_view.dart';
@@ -214,7 +213,6 @@ class _SharedHtmlFileCoordinator {
             await fileRotation!.rotate(path);
             isPreambleWritten = false;
           } catch (rotationError, rotationStack) {
-            // ignore: invalid_use_of_internal_member
             InternalLogger.log(
               LogLevel.warning,
               'HTML file rotation failed, continuing with write to '

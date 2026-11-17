@@ -5,9 +5,8 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:logd/advanced.dart';
 import 'package:logd/logd.dart';
-// ignore: invalid_use_of_internal_member, implementation_imports
-import 'package:logd/src/logger/internal_logger.dart';
 import 'package:meta/meta.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -627,7 +626,6 @@ base class HttpSink extends NetworkSink {
         final previousUrl = targetUrl;
         _httpState.currentUrlIndex++;
         final nextUrl = allUrls[_httpState.currentUrlIndex];
-        // ignore: invalid_use_of_internal_member
         InternalLogger.log(
           LogLevel.warning,
           'HttpSink endpoint ${_sanitizeEndpoint(previousUrl)} failed. '
@@ -643,7 +641,6 @@ base class HttpSink extends NetworkSink {
     if (_httpState.consecutiveFailures >= failureThreshold) {
       _httpState.circuitState = CircuitState.open;
       _httpState.lastStateChange = DateTime.now();
-      // ignore: invalid_use_of_internal_member
       InternalLogger.log(
         LogLevel.error,
         'HttpSink circuit breaker tripped to open after '
@@ -682,13 +679,11 @@ base class HttpSink extends NetworkSink {
   }
 
   void _handleFailure(final List<Uint8List> batch, final Object error) {
-    // ignore: invalid_use_of_internal_member
     LoggerMetrics.incrementDroppedBatches();
     if (onDropped != null) {
       try {
         onDropped!(batch, error);
       } catch (e, s) {
-        // ignore: invalid_use_of_internal_member
         InternalLogger.log(
           LogLevel.error,
           'HttpSink onDropped callback threw an error',
@@ -697,7 +692,6 @@ base class HttpSink extends NetworkSink {
         );
       }
     }
-    // ignore: invalid_use_of_internal_member
     InternalLogger.log(
       LogLevel.error,
       'HttpSink failed to send batch of ${batch.length} logs after '
@@ -925,7 +919,6 @@ base class SocketSink extends NetworkSink {
           300000,
         );
         final delay = Duration(milliseconds: backoffMs);
-        // ignore: invalid_use_of_internal_member
         InternalLogger.log(
           LogLevel.warning,
           'SocketSink reconnection failed. Retrying in '
@@ -945,7 +938,6 @@ base class SocketSink extends NetworkSink {
       final now = DateTime.now();
       if (_socketState.lastPingSent != null &&
           now.difference(_socketState.lastPingSent!) >= heartbeatTimeout) {
-        // ignore: invalid_use_of_internal_member
         InternalLogger.log(
           LogLevel.warning,
           'SocketSink heartbeat timed out after ${heartbeatTimeout.inSeconds}s. '
@@ -990,7 +982,6 @@ base class SocketSink extends NetworkSink {
   }
 
   void _handleFailure(final Object error) {
-    // ignore: invalid_use_of_internal_member
     InternalLogger.log(
       LogLevel.error,
       'SocketSink connection error',

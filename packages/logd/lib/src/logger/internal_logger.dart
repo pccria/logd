@@ -1,12 +1,12 @@
 library;
 
-import 'package:meta/meta.dart';
 import '../core/log_level.dart';
 
-/// Internal logger for logd to avoid circularity.
+/// Fail-safe diagnostic logger for the logd framework, engines, and sinks.
 ///
-/// Prints directly to console with a prefix.
-@internal
+/// Bypasses the standard logd pipeline and outputs directly to the platform's
+/// console stream with a `[logd-internal]` prefix to guarantee zero
+/// circularity or re-entrant logging during pipeline or sink failures.
 class InternalLogger {
   const InternalLogger._();
 
