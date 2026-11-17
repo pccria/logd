@@ -1,3 +1,8 @@
+## 0.2.3
+
+- **Diagnostics Alignment**: Migrate `HtmlFileSinkNative` to import `InternalLogger` from `package:logd/advanced.dart`, eliminating all internal implementation import and member suppressions.
+- **Dependency Alignment**: Align minimum `package:logd` dependency constraint to `^0.10.8`.
+
 ## 0.2.2
 
 - **Maintenance**: Migrate `HtmlFileSink` to invoke `FileRotation.shouldRotate(path, data)` introduced in `package:logd` 0.10.7, removing all internal file system dependencies.
