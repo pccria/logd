@@ -1,3 +1,8 @@
+## 0.1.8
+
+- Requires logd ^0.10.8.
+- **Documentation Cleanup**: Removed `comment_references` suppression header from `ToonFileHandler`.
+
 ## 0.1.7
 
 - Requires logd ^0.10.6.

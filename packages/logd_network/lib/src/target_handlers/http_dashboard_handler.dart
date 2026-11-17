@@ -1,5 +1,3 @@
-// ignore_for_file: comment_references
-
 library;
 
 import 'package:meta/meta.dart';
@@ -12,7 +10,7 @@ import 'http_dashboard_isolate_handler.dart';
 /// A pre-wired [Handler] that hosts a real-time web dashboard over HTTP/WS.
 ///
 /// Pre-wires [StructuredFormatter] and an [HttpServerSink]
-/// binding to [address] and [port].
+/// binding to `address` and `port`.
 ///
 /// ### Platform Support
 /// Supported on VM runtimes (Android, iOS, macOS, Windows, Linux).

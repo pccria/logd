@@ -1,4 +1,3 @@
-// ignore_for_file: invalid_use_of_internal_member, implementation_imports
 library;
 
 import 'dart:async';
@@ -6,10 +5,10 @@ import 'dart:convert' as convert;
 import 'dart:io' as io;
 import 'dart:typed_data';
 
+import 'package:logd/advanced.dart';
+import 'package:logd/logd.dart';
 import 'package:meta/meta.dart';
 
-import 'package:logd/logd.dart';
-import 'package:logd/src/logger/internal_logger.dart';
 import 'dashboard_html.dart';
 
 /// A [LogSink] that starts a local HTTP and WebSocket server to host a

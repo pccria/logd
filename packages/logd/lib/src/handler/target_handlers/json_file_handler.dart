@@ -1,5 +1,3 @@
-// ignore_for_file: comment_references
-
 library;
 
 import 'package:meta/meta.dart';
@@ -11,7 +9,7 @@ import '../sink/file_sink.dart';
 /// A pre-wired [Handler] that outputs structured JSON to a file.
 ///
 /// Uses [JsonFormatter] paired with a [JsonEncoder] and a [FileSink].
-/// When [pretty] is `true`, the output is formatted with indentation.
+/// When `pretty` is `true`, the output is formatted with indentation.
 ///
 /// To offload formatting, JSON encoding, and file I/O to a background isolate,
 /// use the [JsonFileHandler.async] constructor.

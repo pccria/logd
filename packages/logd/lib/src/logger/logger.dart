@@ -2315,8 +2315,11 @@ class LoggerMetrics {
   static void incrementBufferLeaks() => _bufferLeaks++;
   @internal
   static void incrementHandlerFailures() => _handlerFailures++;
-  @internal
+
+  /// Increments the count of batches permanently dropped due to network or
+  /// sink delivery failures.
   static void incrementDroppedBatches() => _droppedBatches++;
+
   @internal
   static void incrementDrops() => _drops++;
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.8
+
+- ### Advanced Diagnostics & Metric Reporting
+  - **Export `InternalLogger` in `package:logd/advanced.dart`**: Removed `@internal` and exported `InternalLogger` via `package:logd/advanced.dart`. Establishes an official, un-suppressed fail-safe diagnostic logging channel for custom execution engines, isolate pipelines, and third-party/satellite sinks without leaking internal symbols into `package:logd/logd.dart`.
+  - **Public `LoggerMetrics.incrementDroppedBatches()`**: Promoted `incrementDroppedBatches()` on `LoggerMetrics` to a public method, allowing network and persistent sinks to report unrecoverable batch drops directly.
+  - **Target Handler Documentation Cleanup**: Removed `comment_references` linter suppressions across `ConsoleHandler`, `JsonFileHandler`, `MemoryHandler`, and `PlainFileHandler`, adjusting constructor parameter references in class-level doc comments to code spans.
+
 ## 0.10.7
 
 - ### File Rotation Contract Unification & Deprecation Pathway

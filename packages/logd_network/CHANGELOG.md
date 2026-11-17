@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.6
+
+- Requires logd ^0.10.8.
+- **Fail-Safe Diagnostics & Metric Alignment**:
+  - Migrated `HttpSink`, `SocketSink`, and `HttpServerSink` fail-safe diagnostic logging to `InternalLogger` imported from `package:logd/advanced.dart`, eliminating all internal implementation import and member suppressions.
+  - Replaced internal metric mutation with public `LoggerMetrics.incrementDroppedBatches()`.
+- **Target Handler Documentation Cleanup**:
+  - Cleaned up doc comment parameter references in `HttpDashboardHandler` and removed `comment_references` suppression header.
+
 ## 0.2.5: Security Hardening, DNS Rebinding Protection & Native Headers
 
 - Requires logd ^0.10.6.

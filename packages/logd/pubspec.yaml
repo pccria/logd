@@ -1,6 +1,6 @@
 name: logd
 description: Modular hierarchical logging for Dart and Flutter. Features modular pipeline processing, O(1) configuration resolution, and low‑overhead performance.
-version: 0.10.7
+version: 0.10.8
 
 repository: https://github.com/pccria/logd
 homepage: https://github.com/pccria/logd
