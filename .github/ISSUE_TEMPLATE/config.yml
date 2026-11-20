@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Community Discussions & Q&A
+    url: https://github.com/pccria/logd/discussions
+    about: Ask usage questions, share feedback, or discuss architecture ideas with the logd community.

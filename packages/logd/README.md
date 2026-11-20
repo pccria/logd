@@ -2,7 +2,7 @@
   <a href="https://pub.dev/packages/logd">logd</a>
   &nbsp;
   <a href="https://pub.dev/packages/logd"><img src="https://img.shields.io/pub/v/logd.svg" alt="pub version"></a>
-  <a href="https://pub.dev/packages/logd/score"><img src="https://img.shields.io/pub/points/logd.svg" alt="pub points"></a>
+  <a href="https://github.com/pccria/logd/discussions"><img src="https://img.shields.io/badge/Discussions-Join%20Chat-blue?logo=github" alt="Discussions"></a>
   <a href="https://opensource.org/licenses/BSD-3-Clause"><img src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg" alt="BSD-3-Clause"></a>
 </h1>
 
