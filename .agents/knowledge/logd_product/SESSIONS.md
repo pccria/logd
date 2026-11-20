@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-11-20 | logd_sqlite v0.2.0 | Maturation: FTS5, Query Builder & Disk Quotas
+
+- **Focus**: Phase 2 maturation of `packages/logd_sqlite` with production-grade search, query abstractions, and storage budgets.
+- **Key Deliverables**:
+  - Full-Text Search (FTS5) external content virtual table with automated sync triggers, BM25 relevance ranking, match snippets, token escaping, and dynamic runtime fallback to `LIKE`.
+  - Type-safe `SqliteLogQuery` builder supporting log levels, hierarchical logger filtering, JSON context queries (`json_extract`), and keyset cursor pagination (`afterId`/`beforeId`).
+  - Immutable typed `SqliteLogRecord` model with ergonomic getters and backwards-compatible map indexing.
+  - Disk quota auto-purging (`maxDiskBytes`) with accurate freelist accounting (`page_count - freelist_count`) and chunked deletions.
+  - Isolate serialization integration via `registerLogdSqliteSerializers()` and `SqliteIsolateHandler`.
+  - Comprehensive 4-pillar test suites (43 tests in `logd_sqlite`, 2,282 across monorepo), interactive REPL dashboard, and live showcase examples.
+
+---
+
 ## 2026-11-14 | v0.10.6 | Core Resilience & Serialization Stabilization
 
 - **Focus**: Process exit safety, log injection neutralization, timezone fast-paths, zero-allocation pre-flight filtering, and monorepo CI/CD.

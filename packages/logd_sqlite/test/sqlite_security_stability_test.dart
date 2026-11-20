@@ -40,26 +40,18 @@ void main() {
       );
 
       expect(
-        () => SqliteSink(
-          database: memoryDb,
-          tableName: 'invalid-table-hyphen',
-        ),
+        () => SqliteSink(database: memoryDb, tableName: 'invalid-table-hyphen'),
         throwsArgumentError,
       );
 
       expect(
-        () => SqliteSink(
-          database: memoryDb,
-          tableName: '123_starts_with_number',
-        ),
+        () =>
+            SqliteSink(database: memoryDb, tableName: '123_starts_with_number'),
         throwsArgumentError,
       );
 
       expect(
-        () => SqliteSink(
-          database: memoryDb,
-          tableName: "logs' OR '1'='1",
-        ),
+        () => SqliteSink(database: memoryDb, tableName: "logs' OR '1'='1"),
         throwsArgumentError,
       );
 
@@ -91,75 +83,76 @@ void main() {
       );
     });
 
-    test('safely handles non-JSON-encodable context objects without crashing',
-        () async {
-      final sink = SqliteSink(
-        database: memoryDb,
-        batchSize: 1,
-      );
-      final doc = StandardDocument();
-      final entry = LogEntry(
-        message: 'Log with complex context',
-        loggerName: 'security.test',
-        origin: 'sqlite_security_stability_test.dart',
-        level: LogLevel.info,
-        timestamp: '2026-10-23 12:00:00',
-        context: {
-          'date': DateTime(2026, 10, 23),
-          'custom': _CustomNonEncodable(),
-        },
-      );
-
-      await expectLater(
-        sink.output(doc, entry, LogLevel.info, factory),
-        completes,
-      );
-
-      final logs = sink.queryLogs();
-      expect(logs.length, equals(1));
-      expect(logs.first['context_json'], contains('CustomObject'));
-      expect(logs.first['context_json'], contains('2026-10-23'));
-
-      await sink.dispose();
-    });
-
-    test('enforces maxBufferSize memory backpressure by evicting oldest logs',
-        () async {
-      final sink = SqliteSink(
-        database: memoryDb,
-        batchSize: 100, // Never auto-flush by batch
-        flushInterval: null, // No timer flush
-        maxBufferSize: 3, // Only hold up to 3 items in memory
-      );
-      final doc = StandardDocument();
-
-      for (int i = 1; i <= 5; i++) {
-        await sink.output(
-          doc,
-          LogEntry(
-            message: 'Log #$i',
-            loggerName: 'pressure',
-            origin: 'test',
-            level: LogLevel.info,
-            timestamp: '2026-10-23 12:00:00',
-          ),
-          LogLevel.info,
-          factory,
+    test(
+      'safely handles non-JSON-encodable context objects without crashing',
+      () async {
+        final sink = SqliteSink(database: memoryDb, batchSize: 1);
+        final doc = StandardDocument();
+        final entry = LogEntry(
+          message: 'Log with complex context',
+          loggerName: 'security.test',
+          origin: 'sqlite_security_stability_test.dart',
+          level: LogLevel.info,
+          timestamp: '2026-10-23 12:00:00',
+          context: {
+            'date': DateTime(2026, 10, 23),
+            'custom': _CustomNonEncodable(),
+          },
         );
-      }
 
-      // QueryLogs forces flushSync: only items #3, #4, #5 should be present
-      final logs = sink.queryLogs();
-      expect(logs.length, equals(3));
-      final messages = logs.map((final row) => row['message']).toList();
-      expect(messages, contains('Log #3'));
-      expect(messages, contains('Log #4'));
-      expect(messages, contains('Log #5'));
-      expect(messages.contains('Log #1'), isFalse);
-      expect(messages.contains('Log #2'), isFalse);
+        await expectLater(
+          sink.output(doc, entry, LogLevel.info, factory),
+          completes,
+        );
 
-      await sink.dispose();
-    });
+        final logs = sink.queryLogs();
+        expect(logs.length, equals(1));
+        expect(logs.first['context_json'], contains('CustomObject'));
+        expect(logs.first['context_json'], contains('2026-10-23'));
+
+        await sink.dispose();
+      },
+    );
+
+    test(
+      'enforces maxBufferSize memory backpressure by evicting oldest logs',
+      () async {
+        final sink = SqliteSink(
+          database: memoryDb,
+          batchSize: 100, // Never auto-flush by batch
+          flushInterval: null, // No timer flush
+          maxBufferSize: 3, // Only hold up to 3 items in memory
+        );
+        final doc = StandardDocument();
+
+        for (int i = 1; i <= 5; i++) {
+          await sink.output(
+            doc,
+            LogEntry(
+              message: 'Log #$i',
+              loggerName: 'pressure',
+              origin: 'test',
+              level: LogLevel.info,
+              timestamp: '2026-10-23 12:00:00',
+            ),
+            LogLevel.info,
+            factory,
+          );
+        }
+
+        // QueryLogs forces flushSync: only items #3, #4, #5 should be present
+        final logs = sink.queryLogs();
+        expect(logs.length, equals(3));
+        final messages = logs.map((final row) => row['message']).toList();
+        expect(messages, contains('Log #3'));
+        expect(messages, contains('Log #4'));
+        expect(messages, contains('Log #5'));
+        expect(messages.contains('Log #1'), isFalse);
+        expect(messages.contains('Log #2'), isFalse);
+
+        await sink.dispose();
+      },
+    );
 
     test('concurrent flush calls do not cause transaction collision', () async {
       final sink = SqliteSink(
@@ -194,52 +187,53 @@ void main() {
       await sink.dispose();
     });
 
-    test('queryLogs reflects uncommitted buffered entries synchronously',
-        () async {
-      final sink = SqliteSink(
-        database: memoryDb,
-        batchSize: 50,
-        flushInterval: null,
-      );
-      final doc = StandardDocument();
+    test(
+      'queryLogs reflects uncommitted buffered entries synchronously',
+      () async {
+        final sink = SqliteSink(
+          database: memoryDb,
+          batchSize: 50,
+          flushInterval: null,
+        );
+        final doc = StandardDocument();
 
-      await sink.output(
-        doc,
-        LogEntry(
-          message: 'Immediate buffered check',
-          loggerName: 'sync.test',
-          origin: 'test',
-          level: LogLevel.info,
-          timestamp: '2026-10-23 12:00:00',
-        ),
-        LogLevel.info,
-        factory,
-      );
+        await sink.output(
+          doc,
+          LogEntry(
+            message: 'Immediate buffered check',
+            loggerName: 'sync.test',
+            origin: 'test',
+            level: LogLevel.info,
+            timestamp: '2026-10-23 12:00:00',
+          ),
+          LogLevel.info,
+          factory,
+        );
 
-      // Query without explicit flush should return the entry immediately
-      final logs = sink.queryLogs(loggerName: 'sync.test');
-      expect(logs.length, equals(1));
-      expect(logs.first['message'], equals('Immediate buffered check'));
+        // Query without explicit flush should return the entry immediately
+        final logs = sink.queryLogs(loggerName: 'sync.test');
+        expect(logs.length, equals(1));
+        expect(logs.first['message'], equals('Immediate buffered check'));
 
-      await sink.dispose();
-    });
+        await sink.dispose();
+      },
+    );
 
-    test('worker isolate initialization failure propagates to ready future',
-        () async {
-      final handler = SqliteHandler.async(
-        path: ':memory:',
-        tableName: 'bad table name with spaces;',
-      );
+    test(
+      'worker isolate initialization failure propagates to ready future',
+      () async {
+        final handler = SqliteHandler.async(
+          path: ':memory:',
+          tableName: 'bad table name with spaces;',
+        );
 
-      await expectLater(
-        (handler as dynamic).ready as Future<void>,
-        throwsA(isA<StateError>()),
-      );
+        await expectLater(
+          (handler as dynamic).ready as Future<void>,
+          throwsA(isA<StateError>()),
+        );
 
-      await expectLater(
-        handler.dispose(),
-        completes,
-      );
-    });
+        await expectLater(handler.dispose(), completes);
+      },
+    );
   });
 }

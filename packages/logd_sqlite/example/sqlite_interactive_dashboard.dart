@@ -21,18 +21,14 @@ void main() async {
 
   Logger.configure(
     'global',
-    handlers: [
-      Handler(
-        formatter: const PlainFormatter(),
-        sink: sqliteSink,
-      ),
-    ],
+    handlers: [Handler(formatter: const PlainFormatter(), sink: sqliteSink)],
   );
 
   final isInteractive = stdioType(stdin) == StdioType.terminal;
 
   if (isInteractive) {
     await _runInteractiveRepl(sqliteSink, dbPath);
+    await _cleanup(sqliteSink, dbPath);
   } else {
     print(
       'ℹ Non-interactive environment detected. Running automated tour...\n',
@@ -71,7 +67,11 @@ Future<void> _runInteractiveRepl(
     print('  [0] ❌ Exit Dashboard\n');
 
     stdout.write('Select an option [0-9]: ');
-    final input = stdin.readLineSync()?.trim() ?? '';
+    final rawInput = stdin.readLineSync();
+    if (rawInput == null) {
+      break;
+    }
+    final input = rawInput.trim();
     print('');
 
     switch (input) {
@@ -113,10 +113,7 @@ Future<void> _runInteractiveRepl(
   }
 }
 
-Future<void> _emitTelemetryBurst(
-  final SqliteSink sink,
-  final int count,
-) async {
+Future<void> _emitTelemetryBurst(final SqliteSink sink, final int count) async {
   print('🚀 Emitting $count telemetry events across app modules...');
 
   final authLogger = Logger.get('app.auth');
@@ -126,19 +123,13 @@ Future<void> _emitTelemetryBurst(
   for (int i = 1; i <= count; i++) {
     authLogger.info(
       'User auth session initialized #$i',
-      context: {
-        'userId': 'USR-${1000 + i}',
-        'ip': '192.168.1.$i',
-      },
+      context: {'userId': 'USR-${1000 + i}', 'ip': '192.168.1.$i'},
     );
 
     if (i % 4 == 0) {
       authLogger.warning(
         'Failed password verification attempt #$i',
-        context: {
-          'userId': 'USR-${1000 + i}',
-          'attempts': 3,
-        },
+        context: {'userId': 'USR-${1000 + i}', 'attempts': 3},
       );
     }
 
@@ -155,19 +146,13 @@ Future<void> _emitTelemetryBurst(
         'Payment gateway timeout on transaction #$i',
         error: TimeoutException('Gateway took > 5000ms to respond'),
         stackTrace: StackTrace.current,
-        context: {
-          'transactionId': 'TX-${9000 + i}',
-          'gateway': 'StripeAPI',
-        },
+        context: {'transactionId': 'TX-${9000 + i}', 'gateway': 'StripeAPI'},
       );
     }
 
     dbLogger.debug(
       'Query executed on pool connection #$i',
-      context: {
-        'poolId': 'pool-primary',
-        'latencyMs': i * 3,
-      },
+      context: {'poolId': 'pool-primary', 'latencyMs': i * 3},
     );
   }
 
@@ -204,11 +189,9 @@ void _queryByLevel(final SqliteSink sink) {
     level = LogLevel.error;
   }
 
-  final results = sink.queryLogs(minLevel: level, limit: 15);
+  final results = sink.query().minLevel(level).limit(15).execute();
   final name = level.name.toUpperCase();
-  print(
-    '\n🔍 Found ${results.length} log records with minLevel >= $name:',
-  );
+  print('\n🔍 Found ${results.length} log records with minLevel >= $name:');
   _renderLogTable(results);
 }
 
@@ -246,7 +229,11 @@ void _queryByNamespace(final SqliteSink sink) {
     targetNs = input;
   }
 
-  final results = sink.queryLogs(loggerName: targetNs, limit: 15);
+  final results = sink
+      .query()
+      .logger(targetNs, hierarchy: true)
+      .limit(15)
+      .execute();
   print(
     '\n🔍 Found ${results.length} log records under namespace "$targetNs":',
   );
@@ -265,7 +252,7 @@ void _queryBySearch(final SqliteSink sink) {
   final input = stdin.readLineSync()?.trim();
   final term = (input == null || input.isEmpty) ? 'timeout' : input;
 
-  final results = sink.queryLogs(search: term, limit: 15);
+  final results = sink.query().search(term).limit(15).execute();
   print('\n🔍 Found ${results.length} log records matching "$term":');
   _renderLogTable(results);
 }
@@ -277,9 +264,9 @@ void _inspectRecord(final SqliteSink sink) {
     return;
   }
 
-  final recentLogs = sink.queryLogs(limit: 5);
-  final latestId = recentLogs.first['id'] as int;
-  final oldestInDb = sink.queryLogs(limit: 500).last['id'] as int;
+  final recentLogs = sink.query().limit(5).execute();
+  final latestId = recentLogs.first.id;
+  final oldestInDb = sink.query().limit(500).execute().last.id;
 
   print('┌─ [Option 5] Inspect Single Record Details');
   print(
@@ -305,18 +292,16 @@ void _inspectRecord(final SqliteSink sink) {
     return;
   }
 
-  final results = sink.queryLogs(limit: 500);
-  final match = results.firstWhere(
-    (final row) => row['id'] == id,
-    orElse: () => <String, dynamic>{},
-  );
+  final results = sink.query().limit(500).execute();
+  final match = results.where((final r) => r.id == id).firstOrNull;
 
-  if (match.isEmpty) {
+  if (match == null) {
     print('⚠️ Record ID #$id not found in current database window.');
     return;
   }
 
-  const line = '==================================================='
+  const line =
+      '==================================================='
       '=============================';
   print('\n$line');
   print('  INSPECT RECORD #$id');
@@ -362,10 +347,7 @@ Future<void> _runThroughputBenchmark(final SqliteSink sink) async {
   for (int i = 1; i <= 1000; i++) {
     benchmarkLogger.info(
       'Benchmark payload entry #$i',
-      context: {
-        'index': i,
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-      },
+      context: {'index': i, 'timestamp': DateTime.now().millisecondsSinceEpoch},
     );
   }
 
@@ -390,9 +372,7 @@ Future<void> _runMaintenanceMenu(
       : '0.00';
 
   print('┌─ [Option 8] Database Maintenance');
-  print(
-    '│  Status: Stored Records: ${sink.count()} | DB Size: $sizeKb KB',
-  );
+  print('│  Status: Stored Records: ${sink.count()} | DB Size: $sizeKb KB');
   print('│  Actions:');
   print('│    [1] Flush Pending Buffer');
   print('│    [2] Run VACUUM (Compacts storage file)');
@@ -426,7 +406,7 @@ Future<void> _runAutomatedTour(final SqliteSink sink) async {
   await _emitTelemetryBurst(sink, 20);
 
   print('\n🔍 Executing Sample Queries:');
-  final results = sink.queryLogs(limit: 5);
+  final results = sink.query().limit(5).execute();
   _renderLogTable(results);
 
   await _runThroughputBenchmark(sink);
@@ -436,19 +416,23 @@ Future<void> _runAutomatedTour(final SqliteSink sink) async {
   print('✓ Automated tour completed successfully!\n');
 }
 
-void _renderLogTable(final List<Map<String, dynamic>> rows) {
+void _renderLogTable(final List<SqliteLogRecord> rows) {
   if (rows.isEmpty) {
     print('  (No records match query)');
     return;
   }
 
-  const border = '┌─────┬─────────┬──────────────────┬'
+  const border =
+      '┌─────┬─────────┬──────────────────┬'
       '──────────────────────────────────────────┐';
-  const header = '│ ID  │ LEVEL   │ LOGGER           │'
+  const header =
+      '│ ID  │ LEVEL   │ LOGGER           │'
       ' MESSAGE                                  │';
-  const divider = '├─────┼─────────┼──────────────────┼'
+  const divider =
+      '├─────┼─────────┼──────────────────┼'
       '──────────────────────────────────────────┤';
-  const bottom = '└─────┴─────────┴──────────────────┴'
+  const bottom =
+      '└─────┴─────────┴──────────────────┴'
       '──────────────────────────────────────────┘';
 
   print(border);
@@ -494,7 +478,8 @@ Future<void> _cleanup(final SqliteSink sink, final String dbPath) async {
 }
 
 void _printHeader(final String title) {
-  const line = '==================================================='
+  const line =
+      '==================================================='
       '=============================';
   print(line);
   print('  $title');

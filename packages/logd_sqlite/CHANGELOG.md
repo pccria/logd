@@ -1,3 +1,29 @@
+## 0.2.0
+
+- **FTS5 Full-Text Search Engine**:
+  - Added optional FTS5 virtual table (`{tableName}_fts`) with automatic trigger-based synchronization on all INSERT, UPDATE, and DELETE operations.
+  - Full-text search now uses BM25-ranked inverted index queries via `query().search()`, providing sub-millisecond results with tokenized phrase matching and case-insensitive Unicode normalization on databases of any size.
+  - FTS5 availability is probed at initialization; on platforms where the SQLite runtime was compiled without FTS5, search automatically degrades to parameterized `LIKE` queries.
+  - `query().search('term')` returns `snippet` and `rank` fields in results.
+  - Safely escapes raw search input strings with `SqliteSink.escapeFts5()` to prevent syntax crashes from unbalanced quotes or operators.
+- **Type-Safe Query Builder (`SqliteLogQuery`)**:
+  - New fluent `SqliteLogQuery` builder returned by `sink.query()` and `handler.query()`.
+  - Supports level filtering (`.minLevel()`, `.maxLevel()`, `.levelsFilter()`), logger namespace matching (`.logger(hierarchy: true)`), JSON context path extraction (`.whereContext(path, value)`), full-text search, date range bounds, and execution methods (`.execute()`, `.fetchFirst()`, `.count()`, `.delete()`).
+- **Cursor-Based Keyset Pagination**:
+  - `.afterId(id)` and `.beforeId(id)` cursor navigation replaces `OFFSET` pagination, providing O(1) keyset pagination via the primary key index.
+- **Typed Log Records (`SqliteLogRecord`)**:
+  - `query().execute()` returns `List<SqliteLogRecord>` with typed getters (`.level`, `.createdAtDateTime`, `.context`, `.snippet`, `.rank`) and backward-compatible `operator []` map access.
+- **Disk Quota Auto-Pruning (`maxDiskBytes`)**:
+  - New `maxDiskBytes` parameter on `SqliteSink` and `SqliteHandler` automatically prunes oldest log records when the live data size exceeds the specified byte ceiling.
+  - Uses `(page_count - freelist_count) * page_size` for accurate size estimation that correctly accounts for SQLite's free-page recycling behavior.
+- **FTS-Aware Table Clearing (`clear()`)**:
+  - `clear()` now issues an atomic FTS5 `delete-all` command alongside the main table DELETE, keeping the full-text index consistent without row-by-row trigger overhead.
+- **Deprecation**:
+  - `queryLogs(search:, offset:)` is deprecated in favor of `query()`. `queryLogs()` now returns `List<SqliteLogRecord>` for consistency. The `operator []` map accessor on `SqliteLogRecord` preserves full backward compatibility for code using map-style access patterns.
+- **Isolate Serialization**:
+  - `registerLogdSqliteSerializers()` updated to serialize `enableFts` and `maxDiskBytes` with backward-compatible defaults.
+- Requires `logd ^0.10.6`.
+
 ## 0.1.11
 
 - Requires logd ^0.10.6.

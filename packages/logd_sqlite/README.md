@@ -55,12 +55,12 @@ void main() async {
     context: {'transactionId': 'TX-1002', 'amount': 99.99},
   );
 
-  // Query stored logs via the handler's sink
-  final errorLogs = sqliteHandler.sqliteSink.queryLogs(
-    minLevel: LogLevel.warning,
-    search: 'Payment',
-    limit: 50,
-  );
+  // Query stored logs via the handler's query builder
+  final errorLogs = sqliteHandler.query()
+    .minLevel(LogLevel.warning)
+    .search('Payment')
+    .limit(50)
+    .execute();
 
   // Flush and dispose handle on app exit
   await sqliteHandler.dispose();
@@ -110,22 +110,32 @@ final sharedHandler = SqliteHandler.database(
 ```dart
 final sink = sqliteHandler.sqliteSink;
 
-// 1. Multi-Criteria Query
-final logs = sink.queryLogs(
-  minLevel: LogLevel.warning,                                 // Filter by minimum LogLevel
-  loggerName: 'app.auth',                                     // Filter by logger hierarchy namespace
-  search: 'token expired',                                    // Full-text search in message & error
-  start: DateTime.now().subtract(const Duration(hours: 1)),  // Time window start
-  end: DateTime.now(),                                        // Time window end
-  limit: 100,
-  offset: 0,
-);
+// 1. Fluent Type-Safe Query Builder
+final logs = sink.query()
+  .minLevel(LogLevel.warning)                                  // Filter by minimum LogLevel
+  .logger('app.auth', hierarchy: true)                        // Filter namespace and child loggers
+  .whereContext('userId', 'USR-1002')                         // SQLite json_extract() matching
+  .search('token expired')                                    // FTS5 BM25 ranked search + snippets
+  .after(DateTime.now().subtract(const Duration(hours: 1)))   // Time window start
+  .before(DateTime.now())                                     // Time window end
+  .limit(100)
+  .execute();
 
-// 2. Level Breakdown Summary
+for (final record in logs) {
+  print('[${record.levelName}] ${record.message} (snippet: ${record.snippet})');
+}
+
+// 2. Cursor-Based Keyset Pagination (no OFFSET scan penalty)
+final nextBatch = sink.query()
+  .afterId(logs.last.id)                                      // O(1) B-tree seek
+  .limit(50)
+  .execute();
+
+// 3. Level Breakdown Summary
 final levelCounts = sink.fetchLevelCounts();
 // Map<LogLevel, int> -> {LogLevel.info: 120, LogLevel.warning: 5, LogLevel.error: 1}
 
-// 3. Discover Active Logger Namespaces
+// 4. Discover Active Logger Namespaces
 final namespaces = sink.fetchDistinctLoggerNames();
 // List<Map<String, dynamic>> -> [{'logger_name': 'app.auth', 'record_count': 14}, ...]
 ```
@@ -143,6 +153,8 @@ final namespaces = sink.fetchDistinctLoggerNames();
 | `batchSize` | `int` | `50` | Number of log entries buffered before committing transaction. |
 | `flushInterval` | `Duration?` | `2 seconds` | Interval timer to flush pending memory buffer. |
 | `walMode` | `bool` | `true` | Enables Write-Ahead Logging for high write throughput. |
+| `enableFts` | `bool` | `true` | Enables FTS5 virtual table indexing for BM25 ranking and snippets. |
+| `maxDiskBytes` | `int?` | `null` | Maximum storage quota in bytes before auto-pruning oldest records. |
 
 ---
 

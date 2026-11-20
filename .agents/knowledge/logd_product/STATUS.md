@@ -1,5 +1,5 @@
 # logd Product — Status
-> Current as of: v0.10.6 | Updated: 2026-11-14
+> Current as of: v0.10.8 (core) / logd_sqlite v0.2.0 | Updated: 2026-11-20
 
 ---
 
@@ -29,6 +29,7 @@ v0.10.6 released. Core Resilience & Serialization Stabilization completed. Monor
 | **v0.10.6 (Core Resilience)** | Obfuscated frames, process drain/flush contracts, ANSI neutralization, CI matrix | ✅ Released |
 | **v0.10.7 (Rotation Contract)** | Path-first `shouldRotate`, soft deprecate `needsRotation`/`checkNeedsRotation`, satellite bridge | ✅ Released |
 | **v0.10.8 (Advanced Diagnostics)** | Export `InternalLogger` in `advanced.dart`, public `LoggerMetrics.incrementDroppedBatches`, eliminate satellite ignores | ✅ Released |
+| **v0.2.0 (logd_sqlite Maturation)** | FTS5 full-text search, type-safe `SqliteLogQuery`, cursor pagination, typed records, and `maxDiskBytes` storage quotas | ✅ Completed |
 | **v0.11.0 (Satellite Telemetry & API Freeze)** | SQLite FTS5, HTML modular views, network zstd, Dio W3C tracing, hard removal of `needsRotation` | 🔲 Next |
 | **v0.12.0 (Native Phase 2)** | SIMD-accelerated colorization, vectorized layout, zero-copy pointer transfer | 🔲 Queued |
 | **v1.0.0 (API Freeze & Stability)** | Full stability declaration, breaking-change policy lock, deprecation guides | 🔲 Future |

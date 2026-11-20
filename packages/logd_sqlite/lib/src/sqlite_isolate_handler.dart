@@ -23,6 +23,8 @@ class _SqliteWorkerConfig {
     required this.batchSize,
     this.flushIntervalMs,
     required this.walMode,
+    this.enableFts = true,
+    this.maxDiskBytes,
     required this.formatter,
     required this.decorators,
     this.timeoutMs,
@@ -35,6 +37,8 @@ class _SqliteWorkerConfig {
   final int batchSize;
   final int? flushIntervalMs;
   final bool walMode;
+  final bool enableFts;
+  final int? maxDiskBytes;
   final LogFormatter formatter;
   final List<LogDecorator> decorators;
   final int? timeoutMs;
@@ -75,28 +79,29 @@ base class SqliteIsolateHandler extends Handler {
     final int batchSize = 50,
     final Duration? flushInterval = const Duration(seconds: 2),
     final bool walMode = true,
+    final bool enableFts = true,
+    final int? maxDiskBytes,
     super.formatter = const StructuredFormatter(),
     super.decorators,
     super.filters,
     super.timeout,
-  })  : _config = _SqliteWorkerConfig(
-          path: path,
-          tableName: tableName,
-          maxEntries: maxEntries,
-          maxAge: maxAge,
-          batchSize: batchSize,
-          flushIntervalMs: flushInterval?.inMilliseconds,
-          walMode: walMode,
-          formatter: formatter,
-          decorators: decorators,
-          timeoutMs: timeout?.inMilliseconds,
-        ),
-        // Handler requires a sink at construction; we use a no-op placeholder.
-        // The real SqliteSink lives entirely inside the background isolate.
-        super(
-          sink: _NoOpSink(),
-          engine: const StandardEngine(),
-        ) {
+  }) : _config = _SqliteWorkerConfig(
+         path: path,
+         tableName: tableName,
+         maxEntries: maxEntries,
+         maxAge: maxAge,
+         batchSize: batchSize,
+         flushIntervalMs: flushInterval?.inMilliseconds,
+         walMode: walMode,
+         enableFts: enableFts,
+         maxDiskBytes: maxDiskBytes,
+         formatter: formatter,
+         decorators: decorators,
+         timeoutMs: timeout?.inMilliseconds,
+       ),
+       // Handler requires a sink at construction; we use a no-op placeholder.
+       // The real SqliteSink lives entirely inside the background isolate.
+       super(sink: _NoOpSink(), engine: const StandardEngine()) {
     _finalizer.attach(this, _receivePort, detach: this);
     _start();
   }
@@ -108,8 +113,9 @@ base class SqliteIsolateHandler extends Handler {
   final _IsolateState _state = _IsolateState();
   final List<LogEntry> _pendingQueue = [];
 
-  static final Finalizer<ReceivePort> _finalizer =
-      Finalizer<ReceivePort>((final port) {
+  static final Finalizer<ReceivePort> _finalizer = Finalizer<ReceivePort>((
+    final port,
+  ) {
     io.stderr.writeln(
       '[logd] SqliteIsolateHandler leak detected! '
       'Handler garbage-collected without dispose(). '
@@ -131,9 +137,7 @@ base class SqliteIsolateHandler extends Handler {
       );
 
       _errorPort.listen((final message) {
-        io.stderr.writeln(
-          '[logd] SqliteIsolateHandler worker error: $message',
-        );
+        io.stderr.writeln('[logd] SqliteIsolateHandler worker error: $message');
         if (!_ready.isCompleted) {
           _ready.completeError(
             StateError('SqliteIsolateHandler worker failed to start: $message'),
@@ -251,6 +255,8 @@ base class SqliteIsolateHandler extends Handler {
             ? Duration(milliseconds: config.flushIntervalMs!)
             : null,
         walMode: config.walMode,
+        enableFts: config.enableFts,
+        maxDiskBytes: config.maxDiskBytes,
       );
     } catch (e, s) {
       sendPort.send([false, e.toString(), s.toString()]);

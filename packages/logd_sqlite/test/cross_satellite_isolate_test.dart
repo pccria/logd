@@ -34,9 +34,7 @@ void main() {
           batchSize: 1,
           flushInterval: const Duration(milliseconds: 50),
           formatter: const MarkdownFormatter(),
-          decorators: [
-            const PrefixDecorator('[AUDIT] '),
-          ],
+          decorators: [const PrefixDecorator('[AUDIT] ')],
         );
 
         final entry = LogEntry(
@@ -167,29 +165,28 @@ void main() {
       }
     });
 
-    test('Pre-ready immediate disposal does not throw or leak isolate',
-        () async {
-      final handler = SqliteHandler.async(
-        path: dbPath,
-        formatter: const MarkdownFormatter(),
-      );
+    test(
+      'Pre-ready immediate disposal does not throw or leak isolate',
+      () async {
+        final handler = SqliteHandler.async(
+          path: dbPath,
+          formatter: const MarkdownFormatter(),
+        );
 
-      final entry = LogEntry(
-        level: LogLevel.info,
-        message: 'Pre-ready log',
-        loggerName: 'preready',
-        timestamp: '2026-09-21T00:00:00.000Z',
-        origin: 'preready.dart:1',
-      );
+        final entry = LogEntry(
+          level: LogLevel.info,
+          message: 'Pre-ready log',
+          loggerName: 'preready',
+          timestamp: '2026-09-21T00:00:00.000Z',
+          origin: 'preready.dart:1',
+        );
 
-      // Log immediately and immediately dispose without waiting for ready
-      final logFuture = handler.log(entry);
-      final disposeFuture = handler.dispose();
+        // Log immediately and immediately dispose without waiting for ready
+        final logFuture = handler.log(entry);
+        final disposeFuture = handler.dispose();
 
-      await expectLater(
-        Future.wait([logFuture, disposeFuture]),
-        completes,
-      );
-    });
+        await expectLater(Future.wait([logFuture, disposeFuture]), completes);
+      },
+    );
   });
 }
