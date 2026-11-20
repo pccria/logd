@@ -1,38 +1,67 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
+about: Report a defect, unexpected behavior, or crash in the logd ecosystem
+title: '[bug]: '
+labels: ['bug', 'triage']
 assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+### Description of the Bug
+<!-- A clear and concise description of the defect or unexpected behavior. -->
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+### Affected Package(s) & Version(s)
+<!-- Check and specify versions (e.g., logd: 0.10.8, logd_dio: 0.2.x, etc.) -->
+- [ ] `packages/logd` (Core): 
+- [ ] `packages/logd_dio`: 
+- [ ] `packages/logd_sqlite`: 
+- [ ] `packages/logd_network`: 
+- [ ] `packages/logd_html`: 
+- [ ] `packages/logd_toon`: 
+- [ ] `packages/logd_markdown`: 
+- [ ] `packages/logd_linters`: 
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+### Environment & Target Platform
+- **Dart SDK version** (`dart --version`):
+- **Flutter SDK version** (if applicable, `flutter --version`):
+- **Operating System / Target Host**: (e.g., macOS Sonoma, Ubuntu 24.04, Windows 11)
+- **Execution Target**:
+  - [ ] Dart CLI / Server
+  - [ ] Flutter Mobile (Android / iOS)
+  - [ ] Flutter Desktop (macOS / Linux / Windows)
+  - [ ] Web
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+### Logger / Handler Pipeline Configuration
+<!-- How is your logger or handler tree initialized? Provide the configuration snippet. -->
+```dart
+// Example:
+// final logger = Logger.get('app');
+// logger.attach(ConsoleHandler().async());
+```
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+### Minimal Steps to Reproduce
+<!-- Provide a minimal, self-contained reproducible code example or test case. -->
+```dart
+void main() {
+  // Minimal code that triggers the issue
+}
+```
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+### Expected Behavior
+<!-- What did you expect to happen? -->
 
-**Additional context**
-Add any other context about the problem here.
+### Actual Behavior / Logs / Stack Trace
+<!-- Include terminal logs, error messages, or full stack traces here. -->
+```text
+// Paste output or stack trace here
+```
+
+### Concurrency / Context Details (if applicable)
+<!-- Mark any relevant execution details: -->
+- [ ] Occurs with `.async()` isolate offloading
+- [ ] Involves ambient context (`LogContext.run(...)`) across async/Zone boundaries
+- [ ] Involves high-throughput / stress logging
+- [ ] Involves process shutdown or isolate teardown
+
+### Additional Context
+<!-- Any other background, custom decorators, or network/disk constraints. -->

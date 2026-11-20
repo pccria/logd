@@ -1,4 +1,4 @@
-<h1 style="margin-bottom: 20px; text-align: left;font-weight: bold; width:" > logd Monorepo <img src="https://img.shields.io/pub/v/logd?logo=dart" alt="Pub Version" title="Pub Version"> <img src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg" alt="License: BSD 3-Clause" title="License: BSD 3-Clause"> <img src="https://img.shields.io/badge/maintained%20with-melos-f7bf7f.svg" alt="Maintained with Melos" title="Maintained with Melos"> </h1>
+<h1 style="margin-bottom: 20px; text-align: left;font-weight: bold; width:" > logd Monorepo <img src="https://img.shields.io/pub/v/logd?logo=dart" alt="Pub Version" title="Pub Version"> <a href="https://github.com/pccria/logd/discussions"><img src="https://img.shields.io/badge/Discussions-Join%20Chat-blue?logo=github" alt="Discussions" title="Discussions"></a> <img src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg" alt="License: BSD 3-Clause" title="License: BSD 3-Clause"> <img src="https://img.shields.io/badge/maintained%20with-melos-f7bf7f.svg" alt="Maintained with Melos" title="Maintained with Melos"> </h1>
 
 
 ![logd Hero](assets/img/logd_hero.webp)
@@ -84,6 +84,14 @@ Technical depth is maintained in the root `/doc` directory:
 - [**Dio Logging Guide**](packages/logd_dio/README.md)
 - [**Design Philosophy**](doc/logger/philosophy.md)
 - [**Architecture Overview**](doc/logger/architecture.md)
+
+## Community & Feedback
+
+We actively seek feedback from developers and teams building with `logd`:
+
+- **Questions & Discussions**: Have an architecture question, need advice on isolate offloading, or want to discuss custom sinks? Join our [GitHub Discussions](https://github.com/pccria/logd/discussions).
+- **Feature Proposals**: Propose new formatters, sinks, or ideas in the [Discussions Ideas category](https://github.com/pccria/logd/discussions/categories/ideas).
+- **Issue Reports**: Found unexpected behavior or an edge-case crash? Please open a ticket using our [Bug Report Template](.github/ISSUE_TEMPLATE/bug_report.md).
 
 ## Contributing
 
