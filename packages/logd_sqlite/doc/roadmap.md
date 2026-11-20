@@ -17,24 +17,24 @@ Package version at time of writing: **0.1.7**
 
 ---
 
-## Next Milestones
+## Completed
 
-### 🔲 v0.2.0: Type-Safe Query Builder, Cursor Pagination & FTS5 Full-Text Search
+### ✅ v0.2.0: Type-Safe Query Builder, Cursor Pagination & FTS5 Full-Text Search
 
 **Goal**: Transform `logd_sqlite` into a queryable local log engine with high-performance search, structured querying, and automated disk management.
 
-- [ ] **Type-Safe Query Builder**:
-  - Add fluent query builder extensions (`SqliteLogQuery`) to construct type-safe filters on log level bitmasks, logger hierarchy prefixes, timestamps, and context keys without manual SQL concatenation.
-- [ ] **Cursor-Based Pagination**:
-  - Implement cursor-based navigation (`limit`, `beforeId`, `afterId`) for querying disk log history in interactive tools without `OFFSET` performance degradation.
-- [ ] **Full-Text Search (FTS5) Virtual Table**:
-  - Add optional FTS5 indexing on message payloads, stack traces, and serialized context for instant keyword and wildcard lookups over gigabyte-scale logs.
-- [ ] **Disk Quota Auto-Purging**:
-  - Add size-based pruning (`maxDiskBytes`) alongside existing entry-count pruning (`maxEntries`) to strictly cap log database disk usage in constrained mobile and desktop environments.
+- [x] **Type-Safe Query Builder (`SqliteLogQuery`)**:
+  - Added fluent, composable query builder extensions to construct type-safe filters on log levels, logger hierarchy prefixes, timestamps, and JSON context keys (`json_extract`) without manual SQL concatenation.
+- [x] **Cursor-Based Keyset Pagination**:
+  - Implemented cursor-based navigation (`afterId`, `beforeId`) for O(1) index seeks across disk log history in interactive tools without `OFFSET` performance degradation.
+- [x] **Full-Text Search (FTS5) Virtual Table**:
+  - Added FTS5 virtual table indexing on message payloads, stack traces, and serialized context for instant BM25-ranked keyword lookups, snippet extraction, and trigger synchronization with automatic fallback to parameterized `LIKE` when FTS5 is compiled out.
+- [x] **Strongly-Typed Log Record (`SqliteLogRecord`)**:
+  - Replaced untyped row maps with `SqliteLogRecord` value model providing typed getters and backward-compatible `operator []` map indexing.
+- [x] **Disk Quota Auto-Purging (`maxDiskBytes`)**:
+  - Added size-based pruning (`maxDiskBytes`) alongside existing entry-count (`maxEntries`) and age (`maxAge`) pruning to strictly cap log database disk usage in constrained mobile and desktop environments using `(page_count - freelist_count) * page_size` page accounting.
 
 ---
-
-## Completed
 
 ### ✅ v0.1.7: Security, Memory Backpressure & Concurrency Hardening
 

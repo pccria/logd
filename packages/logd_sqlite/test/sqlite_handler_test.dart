@@ -57,10 +57,7 @@ void main() {
 
     test('SqliteHandler.database wraps existing Database instance', () async {
       final db = sqlite3.openInMemory();
-      final handler = SqliteHandler.database(
-        database: db,
-        batchSize: 1,
-      );
+      final handler = SqliteHandler.database(database: db, batchSize: 1);
 
       final entry = LogEntry(
         loggerName: 'test.db_wrapper',
@@ -77,10 +74,7 @@ void main() {
     });
 
     test('SqliteHandler.async creates a background isolate handler', () async {
-      final handler = SqliteHandler.async(
-        path: testDbPath,
-        batchSize: 1,
-      );
+      final handler = SqliteHandler.async(path: testDbPath, batchSize: 1);
 
       expect(handler, isA<Handler>());
 
@@ -150,29 +144,26 @@ void main() {
         late AsyncHandler handler;
         Object? capturedZoneError;
 
-        await runZonedGuarded(
-          () async {
-            handler = AsyncHandler(
-              formatter: const StructuredFormatter(),
-              sink: sink,
-              decorators: const [],
-            );
+        await runZonedGuarded(() async {
+          handler = AsyncHandler(
+            formatter: const StructuredFormatter(),
+            sink: sink,
+            decorators: const [],
+          );
 
-            // ready completes with the isolate transfer error.
-            await expectLater(
-              handler.ready,
-              throwsA(
-                predicate<dynamic>((final e) {
-                  final msg = e.toString().toLowerCase();
-                  return msg.contains('unsendable') ||
-                      msg.contains('illegal argument') ||
-                      msg.contains('isolate');
-                }),
-              ),
-            );
-          },
-          (final e, final _) => capturedZoneError = e,
-        );
+          // ready completes with the isolate transfer error.
+          await expectLater(
+            handler.ready,
+            throwsA(
+              predicate<dynamic>((final e) {
+                final msg = e.toString().toLowerCase();
+                return msg.contains('unsendable') ||
+                    msg.contains('illegal argument') ||
+                    msg.contains('isolate');
+              }),
+            ),
+          );
+        }, (final e, final _) => capturedZoneError = e);
 
         // The zone error (the leaked async error) should also be about isolate
         // sendability — confirming the same root cause surfaced on both paths.
@@ -233,10 +224,7 @@ void main() {
     test(
       'SqliteHandler.async persists correct log level and logger name',
       () async {
-        final handler = SqliteHandler.async(
-          path: testDbPath,
-          batchSize: 1,
-        );
+        final handler = SqliteHandler.async(path: testDbPath, batchSize: 1);
 
         await (handler as SqliteIsolateHandler).ready;
 

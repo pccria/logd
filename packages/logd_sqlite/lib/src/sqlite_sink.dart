@@ -8,6 +8,9 @@ import 'dart:convert' as convert;
 import 'package:logd/logd.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+import 'sqlite_query.dart';
+import 'sqlite_record.dart';
+
 class _PendingSqliteLog {
   const _PendingSqliteLog({
     required this.timestamp,
@@ -38,8 +41,9 @@ class _PendingSqliteLog {
 ///
 /// Features pre-compiled prepared statements, Write-Ahead Logging (WAL),
 /// batch transaction commits ([batchSize], [flushInterval]), full entry field
-/// fidelity (origin, error, stackTrace, context), retention pruning, and a rich
-/// query engine.
+/// fidelity (origin, error, stackTrace, context), retention pruning
+/// ([maxEntries], [maxAge], [maxDiskBytes]), optional FTS5 full-text indexing
+/// ([enableFts]), and a type-safe query engine ([query]).
 base class SqliteSink extends LogSink<LogDocument> {
   static final RegExp _validIdentifier = RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$');
 
@@ -53,6 +57,10 @@ base class SqliteSink extends LogSink<LogDocument> {
       );
     }
   }
+
+  /// Escapes a query string as a literal FTS5 double-quoted phrase.
+  static String escapeFts5(final String query) =>
+      '"${query.replaceAll('"', '""')}"';
 
   /// Creates a [SqliteSink].
   ///
@@ -69,6 +77,10 @@ base class SqliteSink extends LogSink<LogDocument> {
   ///   throughput.
   /// - [maxBufferSize]: Maximum capacity for the in-memory batch buffer to
   ///   prevent memory exhaustion under write backpressure.
+  /// - [enableFts]: Whether to enable FTS5 virtual table indexing for full-text
+  ///   search and BM25 ranking (default: `true`).
+  /// - [maxDiskBytes]: Maximum disk/memory usage in bytes before auto-pruning
+  ///   oldest records.
   SqliteSink({
     this.dbPath = 'logs.db',
     final Database? database,
@@ -79,9 +91,11 @@ base class SqliteSink extends LogSink<LogDocument> {
     this.flushInterval = const Duration(seconds: 2),
     this.walMode = true,
     this.maxBufferSize = 10000,
+    this.enableFts = true,
+    this.maxDiskBytes,
     super.enabled = true,
-  })  : _db = database ?? sqlite3.open(dbPath),
-        _batch = [] {
+  }) : _db = database ?? sqlite3.open(dbPath),
+       _batch = [] {
     _validateTableName(tableName);
     if (maxEntries != null && maxEntries! <= 0) {
       throw ArgumentError.value(
@@ -95,6 +109,13 @@ base class SqliteSink extends LogSink<LogDocument> {
         maxBufferSize,
         'maxBufferSize',
         'maxBufferSize must be positive.',
+      );
+    }
+    if (maxDiskBytes != null && maxDiskBytes! <= 0) {
+      throw ArgumentError.value(
+        maxDiskBytes,
+        'maxDiskBytes',
+        'maxDiskBytes must be positive if specified.',
       );
     }
     _initDatabase();
@@ -125,15 +146,37 @@ base class SqliteSink extends LogSink<LogDocument> {
   /// Maximum capacity for in-memory buffer before evicting oldest logs.
   final int maxBufferSize;
 
+  /// Whether FTS5 virtual table indexing is requested.
+  final bool enableFts;
+
+  /// Maximum storage capacity in bytes before auto-pruning oldest records.
+  final int? maxDiskBytes;
+
   final Database _db;
   final List<_PendingSqliteLog> _batch;
   Timer? _flushTimer;
   bool _isDisposed = false;
   bool _inTransaction = false;
+  bool _fts5Available = false;
 
   PreparedStatement? _insertStmt;
   PreparedStatement? _pruneAgeStmt;
   PreparedStatement? _pruneCountStmt;
+
+  /// Whether SQLite FTS5 extension is available and enabled on this database.
+  bool get isFts5Available => _fts5Available;
+
+  bool _probeFts5() {
+    const probeTable = '_logd_fts5_probe';
+    try {
+      _db
+        ..execute('CREATE VIRTUAL TABLE $probeTable USING fts5(x);')
+        ..execute('DROP TABLE $probeTable;');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   void _initDatabase() {
     if (walMode && dbPath != ':memory:') {
@@ -172,6 +215,56 @@ base class SqliteSink extends LogSink<LogDocument> {
         'ON $tableName (logger_name);',
       );
 
+    if (enableFts) {
+      _fts5Available = _probeFts5();
+      if (_fts5Available) {
+        final ftsExisted = _db.select('''
+          SELECT 1 FROM sqlite_master
+          WHERE type = 'table' AND name = '${tableName}_fts';
+        ''').isNotEmpty;
+
+        _db
+          ..execute('''
+            CREATE VIRTUAL TABLE IF NOT EXISTS ${tableName}_fts USING fts5(
+              message,
+              error,
+              context_json,
+              content='$tableName',
+              content_rowid='id'
+            );
+          ''')
+          ..execute('''
+            CREATE TRIGGER IF NOT EXISTS ${tableName}_ai
+            AFTER INSERT ON $tableName BEGIN
+              INSERT INTO ${tableName}_fts(rowid, message, error, context_json)
+              VALUES (new.id, new.message, new.error, new.context_json);
+            END;
+          ''')
+          ..execute('''
+            CREATE TRIGGER IF NOT EXISTS ${tableName}_ad
+            AFTER DELETE ON $tableName BEGIN
+              INSERT INTO ${tableName}_fts(${tableName}_fts, rowid, message, error, context_json)
+              VALUES('delete', old.id, old.message, old.error, old.context_json);
+            END;
+          ''')
+          ..execute('''
+            CREATE TRIGGER IF NOT EXISTS ${tableName}_au
+            AFTER UPDATE ON $tableName BEGIN
+              INSERT INTO ${tableName}_fts(${tableName}_fts, rowid, message, error, context_json)
+              VALUES('delete', old.id, old.message, old.error, old.context_json);
+              INSERT INTO ${tableName}_fts(rowid, message, error, context_json)
+              VALUES (new.id, new.message, new.error, new.context_json);
+            END;
+          ''');
+
+        if (!ftsExisted) {
+          _db.execute(
+            "INSERT INTO ${tableName}_fts(${tableName}_fts) VALUES('rebuild');",
+          );
+        }
+      }
+    }
+
     _insertStmt = _db.prepare('''
       INSERT INTO $tableName (
         timestamp, level, level_name, logger_name, origin, message, error,
@@ -183,11 +276,13 @@ base class SqliteSink extends LogSink<LogDocument> {
         ? _db.prepare('DELETE FROM $tableName WHERE created_at < ?;')
         : null;
 
-    _pruneCountStmt = (maxEntries != null && maxEntries! > 0) ? _db.prepare('''
+    _pruneCountStmt = (maxEntries != null && maxEntries! > 0)
+        ? _db.prepare('''
             DELETE FROM $tableName WHERE id NOT IN (
               SELECT id FROM $tableName ORDER BY id DESC LIMIT ?
             );
-          ''') : null;
+          ''')
+        : null;
   }
 
   void _startFlushTimer() {
@@ -303,6 +398,35 @@ base class SqliteSink extends LogSink<LogDocument> {
     if (pruneCount != null && maxEntries != null && maxEntries! > 0) {
       pruneCount.execute([maxEntries]);
     }
+
+    _pruneDiskQuota();
+  }
+
+  void _pruneDiskQuota() {
+    final quota = maxDiskBytes;
+    if (quota == null) {
+      return;
+    }
+
+    while (true) {
+      final row = _db.select('''
+        SELECT (page_count - freelist_count) * page_size AS live_bytes
+        FROM pragma_page_count(), pragma_freelist_count(), pragma_page_size();
+      ''').first;
+      final liveBytes = row['live_bytes'] as int;
+      if (liveBytes <= quota) {
+        break;
+      }
+
+      _db.execute('''
+        DELETE FROM $tableName WHERE id IN (
+          SELECT id FROM $tableName ORDER BY id ASC LIMIT 50
+        );
+      ''');
+      if (_db.updatedRows == 0) {
+        break;
+      }
+    }
   }
 
   void _ensureNotDisposed() {
@@ -311,8 +435,324 @@ base class SqliteSink extends LogSink<LogDocument> {
     }
   }
 
+  /// Returns a fluent [SqliteLogQuery] builder bound to this sink.
+  SqliteLogQuery query() => SqliteLogQuery.bound(this);
+
+  String _colName(final SqliteSortField field) => switch (field) {
+    SqliteSortField.id => 'id',
+    SqliteSortField.createdAt => 'created_at',
+    SqliteSortField.level => 'level',
+    SqliteSortField.rank => 'rank',
+  };
+
+  (String, List<Object?>) _compileSelectSql(final SqliteLogQuery q) {
+    final useFts =
+        _fts5Available &&
+        ((q.searchTerm != null && q.searchTerm!.isNotEmpty) ||
+            (q.rawMatch != null && q.rawMatch!.isNotEmpty));
+
+    final whereClauses = <String>[];
+    final params = <Object?>[];
+    final prefix = useFts ? 'l.' : '';
+
+    if (useFts) {
+      whereClauses.add('${tableName}_fts MATCH ?');
+      if (q.rawMatch != null && q.rawMatch!.isNotEmpty) {
+        params.add(q.rawMatch);
+      } else {
+        params.add(escapeFts5(q.searchTerm!));
+      }
+    } else if (q.searchTerm != null && q.searchTerm!.isNotEmpty) {
+      whereClauses.add(
+        '(${prefix}message LIKE ? OR ${prefix}error LIKE ? '
+        'OR ${prefix}context_json LIKE ?)',
+      );
+      final term = '%${q.searchTerm}%';
+      params
+        ..add(term)
+        ..add(term)
+        ..add(term);
+    }
+
+    _applyFilterClauses(q, prefix, whereClauses, params);
+
+    final whereSql = whereClauses.isNotEmpty
+        ? 'WHERE ${whereClauses.join(' AND ')}'
+        : '';
+
+    final sortCol = q.sortField == SqliteSortField.rank && !useFts
+        ? 'id'
+        : (q.sortField == SqliteSortField.rank
+              ? 'rank'
+              : '$prefix${_colName(q.sortField)}');
+    final sortDir = q.sortOrder == SqliteSortOrder.ascending ? 'ASC' : 'DESC';
+    final safeLimit = q.limitCount < 1
+        ? 1
+        : (q.limitCount > 10000 ? 10000 : q.limitCount);
+    final safeOffset = q.offsetCount < 0 ? 0 : q.offsetCount;
+
+    String sql;
+    if (useFts) {
+      sql =
+          '''
+        SELECT
+          l.*,
+          snippet(${tableName}_fts, 0, '<b>', '</b>', '...', 15) AS snippet,
+          ${tableName}_fts.rank AS rank
+        FROM ${tableName}_fts
+        JOIN $tableName l ON l.id = ${tableName}_fts.rowid
+        $whereSql
+        ORDER BY $sortCol $sortDir
+        LIMIT ? OFFSET ?;
+      ''';
+    } else {
+      sql =
+          '''
+        SELECT * FROM $tableName
+        $whereSql
+        ORDER BY $sortCol $sortDir
+        LIMIT ? OFFSET ?;
+      ''';
+    }
+
+    params
+      ..add(safeLimit)
+      ..add(safeOffset);
+
+    return (sql, params);
+  }
+
+  (String, List<Object?>) _compileCountSql(final SqliteLogQuery q) {
+    final useFts =
+        _fts5Available &&
+        ((q.searchTerm != null && q.searchTerm!.isNotEmpty) ||
+            (q.rawMatch != null && q.rawMatch!.isNotEmpty));
+
+    final whereClauses = <String>[];
+    final params = <Object?>[];
+    final prefix = useFts ? 'l.' : '';
+
+    if (useFts) {
+      whereClauses.add('${tableName}_fts MATCH ?');
+      if (q.rawMatch != null && q.rawMatch!.isNotEmpty) {
+        params.add(q.rawMatch);
+      } else {
+        params.add(escapeFts5(q.searchTerm!));
+      }
+    } else if (q.searchTerm != null && q.searchTerm!.isNotEmpty) {
+      whereClauses.add(
+        '(${prefix}message LIKE ? OR ${prefix}error LIKE ? '
+        'OR ${prefix}context_json LIKE ?)',
+      );
+      final term = '%${q.searchTerm}%';
+      params
+        ..add(term)
+        ..add(term)
+        ..add(term);
+    }
+
+    _applyFilterClauses(q, prefix, whereClauses, params);
+
+    final whereSql = whereClauses.isNotEmpty
+        ? 'WHERE ${whereClauses.join(' AND ')}'
+        : '';
+
+    String sql;
+    if (useFts) {
+      sql =
+          '''
+        SELECT COUNT(*) AS cnt
+        FROM ${tableName}_fts
+        JOIN $tableName l ON l.id = ${tableName}_fts.rowid
+        $whereSql;
+      ''';
+    } else {
+      sql = 'SELECT COUNT(*) AS cnt FROM $tableName $whereSql;';
+    }
+
+    return (sql, params);
+  }
+
+  (String, List<Object?>) _compileDeleteSql(final SqliteLogQuery q) {
+    final useFts =
+        _fts5Available &&
+        ((q.searchTerm != null && q.searchTerm!.isNotEmpty) ||
+            (q.rawMatch != null && q.rawMatch!.isNotEmpty));
+
+    final whereClauses = <String>[];
+    final params = <Object?>[];
+    final prefix = useFts ? 'l.' : '';
+
+    if (useFts) {
+      whereClauses.add('${tableName}_fts MATCH ?');
+      if (q.rawMatch != null && q.rawMatch!.isNotEmpty) {
+        params.add(q.rawMatch);
+      } else {
+        params.add(escapeFts5(q.searchTerm!));
+      }
+    } else if (q.searchTerm != null && q.searchTerm!.isNotEmpty) {
+      whereClauses.add(
+        '(${prefix}message LIKE ? OR ${prefix}error LIKE ? '
+        'OR ${prefix}context_json LIKE ?)',
+      );
+      final term = '%${q.searchTerm}%';
+      params
+        ..add(term)
+        ..add(term)
+        ..add(term);
+    }
+
+    _applyFilterClauses(q, prefix, whereClauses, params);
+
+    final whereSql = whereClauses.isNotEmpty
+        ? 'WHERE ${whereClauses.join(' AND ')}'
+        : '';
+
+    String sql;
+    if (useFts) {
+      sql =
+          '''
+        DELETE FROM $tableName
+        WHERE id IN (
+          SELECT l.id
+          FROM ${tableName}_fts
+          JOIN $tableName l ON l.id = ${tableName}_fts.rowid
+          $whereSql
+        );
+      ''';
+    } else {
+      sql = 'DELETE FROM $tableName $whereSql;';
+    }
+
+    return (sql, params);
+  }
+
+  void _applyFilterClauses(
+    final SqliteLogQuery q,
+    final String prefix,
+    final List<String> whereClauses,
+    final List<Object?> params,
+  ) {
+    if (q.levels != null && q.levels!.isNotEmpty) {
+      final placeholders = List.filled(q.levels!.length, '?').join(', ');
+      whereClauses.add('${prefix}level IN ($placeholders)');
+      params.addAll(q.levels!.map((final l) => l.index));
+    } else {
+      if (q.minimumLevel != null) {
+        whereClauses.add('${prefix}level >= ?');
+        params.add(q.minimumLevel!.index);
+      }
+      if (q.maximumLevel != null) {
+        whereClauses.add('${prefix}level <= ?');
+        params.add(q.maximumLevel!.index);
+      }
+    }
+
+    if (q.loggerName != null && q.loggerName!.isNotEmpty) {
+      if (q.loggerHierarchy) {
+        whereClauses.add(
+          '(${prefix}logger_name = ? OR ${prefix}logger_name LIKE ?)',
+        );
+        params
+          ..add(q.loggerName)
+          ..add('${q.loggerName}.%');
+      } else {
+        whereClauses.add('${prefix}logger_name = ?');
+        params.add(q.loggerName);
+      }
+    }
+
+    for (final entry in q.contextFilters.entries) {
+      final key = entry.key;
+      final path = key.startsWith(r'$.') ? key : r'$.' + key;
+      final val = entry.value;
+      if (val == null) {
+        whereClauses.add('json_extract(${prefix}context_json, ?) IS NULL');
+        params.add(path);
+      } else if (val is bool) {
+        whereClauses.add('json_extract(${prefix}context_json, ?) = ?');
+        params
+          ..add(path)
+          ..add(val ? 1 : 0);
+      } else {
+        whereClauses.add('json_extract(${prefix}context_json, ?) = ?');
+        params
+          ..add(path)
+          ..add(val);
+      }
+    }
+
+    if (q.start != null) {
+      whereClauses.add('${prefix}created_at >= ?');
+      params.add(q.start!.millisecondsSinceEpoch);
+    }
+
+    if (q.end != null) {
+      whereClauses.add('${prefix}created_at <= ?');
+      params.add(q.end!.millisecondsSinceEpoch);
+    }
+
+    if (q.afterCursorId != null) {
+      if (q.sortOrder == SqliteSortOrder.descending) {
+        whereClauses.add('${prefix}id < ?');
+      } else {
+        whereClauses.add('${prefix}id > ?');
+      }
+      params.add(q.afterCursorId);
+    }
+
+    if (q.beforeCursorId != null) {
+      if (q.sortOrder == SqliteSortOrder.descending) {
+        whereClauses.add('${prefix}id > ?');
+      } else {
+        whereClauses.add('${prefix}id < ?');
+      }
+      params.add(q.beforeCursorId);
+    }
+  }
+
+  /// Executes [query] against this database and returns strongly-typed results.
+  List<SqliteLogRecord> execute(final SqliteLogQuery query) {
+    _ensureNotDisposed();
+    _flushSync();
+
+    final (sql, params) = _compileSelectSql(query);
+    final ResultSet results = _db.select(sql, params);
+    return results.map((final row) => SqliteLogRecord.fromRow(row)).toList();
+  }
+
+  /// Returns the total count of records matching [query].
+  int countQuery(final SqliteLogQuery query) {
+    _ensureNotDisposed();
+    _flushSync();
+
+    final (sql, params) = _compileCountSql(query);
+    final ResultSet results = _db.select(sql, params);
+    return results.first['cnt'] as int;
+  }
+
+  /// Deletes all records matching [query] and returns the count of deleted
+  /// rows.
+  int deleteQuery(final SqliteLogQuery query) {
+    _ensureNotDisposed();
+    _flushSync();
+
+    final (sql, params) = _compileDeleteSql(query);
+    _db.execute(sql, params);
+    return _db.updatedRows;
+  }
+
   /// Queries log records matching the specified search and filter criteria.
-  List<Map<String, dynamic>> queryLogs({
+  ///
+  /// Deprecated in favor of [query]. Returns strongly-typed [SqliteLogRecord]s
+  /// that implement [operator []] for backward compatibility with map access.
+  @Deprecated(
+    'Use query() builder instead. '
+    'queryLogs() will be removed in v0.3.0. '
+    'Migration: sink.query().minLevel(...).logger(...).search(...).limit(...)'
+    '.execute()',
+  )
+  List<SqliteLogRecord> queryLogs({
     final LogLevel? minLevel,
     final String? loggerName,
     final String? search,
@@ -321,69 +761,28 @@ base class SqliteSink extends LogSink<LogDocument> {
     final int limit = 100,
     final int offset = 0,
   }) {
-    _ensureNotDisposed();
-
-    // Ensure any buffered logs are written synchronously before querying
-    _flushSync();
-
-    final whereClauses = <String>[];
-    final params = <Object?>[];
-
+    var q = query();
     if (minLevel != null) {
-      whereClauses.add('level >= ?');
-      params.add(minLevel.index);
+      q = q.minLevel(minLevel);
     }
-
     if (loggerName != null && loggerName.isNotEmpty) {
-      whereClauses.add('(logger_name = ? OR logger_name LIKE ?)');
-      params
-        ..add(loggerName)
-        ..add('$loggerName.%');
+      q = q.logger(loggerName, hierarchy: true);
     }
-
     if (search != null && search.isNotEmpty) {
-      whereClauses.add(
-        '(message LIKE ? OR error LIKE ? OR context_json LIKE ?)',
-      );
-      final term = '%$search%';
-      params
-        ..add(term)
-        ..add(term)
-        ..add(term);
+      q = q.search(search);
     }
-
     if (start != null) {
-      whereClauses.add('created_at >= ?');
-      params.add(start.millisecondsSinceEpoch);
+      q = q.after(start);
     }
-
     if (end != null) {
-      whereClauses.add('created_at <= ?');
-      params.add(end.millisecondsSinceEpoch);
+      q = q.before(end);
     }
-
-    final safeLimit = limit < 1 ? 1 : (limit > 10000 ? 10000 : limit);
-    final safeOffset = offset < 0 ? 0 : offset;
-
-    final whereSql =
-        whereClauses.isNotEmpty ? 'WHERE ${whereClauses.join(' AND ')}' : '';
-    final sql = '''
-      SELECT * FROM $tableName
-      $whereSql
-      ORDER BY id DESC
-      LIMIT ? OFFSET ?;
-    ''';
-
-    params
-      ..add(safeLimit)
-      ..add(safeOffset);
-
-    final ResultSet results = _db.select(sql, params);
-    return results.map((final row) => Map<String, dynamic>.from(row)).toList();
+    q = q.limit(limit).offset(offset);
+    return q.execute();
   }
 
   /// Backward-compatible fetch helper.
-  List<Map<String, dynamic>> fetchLogs({final int limit = 100}) =>
+  List<SqliteLogRecord> fetchLogs({final int limit = 100}) =>
       queryLogs(limit: limit);
 
   /// Returns a summary breakdown of stored log record counts per [LogLevel].
@@ -422,16 +821,33 @@ base class SqliteSink extends LogSink<LogDocument> {
   int count() {
     _ensureNotDisposed();
     _flushSync();
-    final ResultSet results =
-        _db.select('SELECT COUNT(*) as cnt FROM $tableName;');
+    final ResultSet results = _db.select(
+      'SELECT COUNT(*) as cnt FROM $tableName;',
+    );
     return results.first['cnt'] as int;
   }
 
-  /// Deletes all log records stored in the database table.
+  /// Deletes all log records stored in the database table and synchronizes
+  /// FTS5.
   void clear() {
     _ensureNotDisposed();
     _batch.clear();
-    _db.execute('DELETE FROM $tableName;');
+    _db.execute('BEGIN TRANSACTION;');
+    try {
+      _db.execute('DELETE FROM $tableName;');
+      if (_fts5Available) {
+        _db.execute(
+          "INSERT INTO ${tableName}_fts(${tableName}_fts) "
+          "VALUES('delete-all');",
+        );
+      }
+      _db.execute('COMMIT;');
+    } catch (_) {
+      try {
+        _db.execute('ROLLBACK;');
+      } catch (_) {}
+      rethrow;
+    }
   }
 
   /// Compacts the database storage file.

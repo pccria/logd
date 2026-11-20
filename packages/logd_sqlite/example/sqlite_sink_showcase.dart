@@ -25,12 +25,7 @@ void main() async {
 
   Logger.configure(
     'global',
-    handlers: [
-      Handler(
-        formatter: const PlainFormatter(),
-        sink: sqliteSink,
-      ),
-    ],
+    handlers: [Handler(formatter: const PlainFormatter(), sink: sqliteSink)],
   );
 
   print('│  ✓ SqliteSink initialized (WAL mode: true, maxEntries: 100)');
@@ -50,19 +45,13 @@ void main() async {
   for (int i = 1; i <= 40; i++) {
     authLogger.info(
       'User auth session initialized #$i',
-      context: {
-        'userId': 'USR-${1000 + i}',
-        'ip': '192.168.1.$i',
-      },
+      context: {'userId': 'USR-${1000 + i}', 'ip': '192.168.1.$i'},
     );
 
     if (i % 5 == 0) {
       authLogger.warning(
         'Failed password verification attempt #$i',
-        context: {
-          'userId': 'USR-${1000 + i}',
-          'attempts': 3,
-        },
+        context: {'userId': 'USR-${1000 + i}', 'attempts': 3},
       );
     }
 
@@ -79,19 +68,13 @@ void main() async {
         'Payment gateway timeout on transaction #$i',
         error: TimeoutException('Gateway took > 5000ms to respond'),
         stackTrace: StackTrace.current,
-        context: {
-          'transactionId': 'TX-${9000 + i}',
-          'gateway': 'StripeAPI',
-        },
+        context: {'transactionId': 'TX-${9000 + i}', 'gateway': 'StripeAPI'},
       );
     }
 
     dbLogger.debug(
       'Query executed on pool connection #$i',
-      context: {
-        'poolId': 'pool-primary',
-        'latencyMs': i * 2,
-      },
+      context: {'poolId': 'pool-primary', 'latencyMs': i * 2},
     );
   }
 
@@ -109,46 +92,45 @@ void main() async {
   // Phase 3: Demonstrate Query Engine Capabilities
   print('┌─ [Phase 3] Live Query Engine Demonstration');
 
-  // Query 1: Filter by minLevel WARNING/ERROR
-  final criticalLogs = sqliteSink.queryLogs(
-    minLevel: LogLevel.warning,
-    limit: 5,
-  );
+  // Query 1: Filter by minLevel WARNING/ERROR via type-safe builder
+  final criticalLogs = sqliteSink
+      .query()
+      .minLevel(LogLevel.warning)
+      .limit(5)
+      .execute();
   print(
     '│  🔍 [Query 1] Filter minLevel = WARNING/ERROR (showing top 3 of '
     '${criticalLogs.length}):',
   );
   for (final log in criticalLogs.take(3)) {
-    final lvl = log['level_name'].toString().toUpperCase();
-    print('│     - [$lvl] ${log['logger_name']}: ${log['message']}');
+    final lvl = log.levelName.toUpperCase();
+    print('│     - [$lvl] ${log.loggerName}: ${log.message}');
   }
 
-  // Query 2: Filter by Logger Namespace
-  final paymentLogs = sqliteSink.queryLogs(
-    loggerName: 'app.payment',
-    limit: 5,
-  );
+  // Query 2: Filter by Logger Namespace & JSON Context Key
+  final paymentLogs = sqliteSink
+      .query()
+      .logger('app.payment')
+      .whereContext('transactionId', 'TX-9035')
+      .limit(5)
+      .execute();
   print(
-    '│  🔍 [Query 2] Filter loggerName = "app.payment" (found '
+    '│  🔍 [Query 2] Filter loggerName = "app.payment" & context (found '
     '${paymentLogs.length}):',
   );
   for (final log in paymentLogs.take(2)) {
     print(
-      '│     - ID #${log['id']}: ${log['message']} | Context: '
-      '${log['context_json']}',
+      '│     - ID #${log.id}: ${log.message} | Context: '
+      '${log.contextJson}',
     );
   }
 
-  // Query 3: Keyword Search
-  final searchLogs = sqliteSink.queryLogs(
-    search: 'timeout',
-    limit: 5,
-  );
-  print(
-    '│  🔍 [Query 3] Search keyword "timeout" (found ${searchLogs.length}):',
-  );
+  // Query 3: FTS5 Full-Text Search with snippets & ranking
+  final searchLogs = sqliteSink.query().search('timeout').limit(5).execute();
+  print('│  🔍 [Query 3] FTS5 Search "timeout" (found ${searchLogs.length}):');
   for (final log in searchLogs) {
-    print('│     - Error Detail: ${log['error']}');
+    print('│     - Match snippet: ${log.snippet ?? log.message}');
+    print('│       Error Detail: ${log.error}');
   }
 
   print('└─────────────────────────────────────────────────────────────\n');
@@ -185,7 +167,8 @@ void main() async {
 }
 
 void _printHeader(final String title) {
-  const line = '==================================================='
+  const line =
+      '==================================================='
       '=============================';
   print(line);
   print('  $title');

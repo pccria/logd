@@ -10,6 +10,8 @@ import 'package:logd/logd.dart';
 import 'src/sqlite_sink.dart';
 
 export 'src/sqlite_handler.dart';
+export 'src/sqlite_query.dart';
+export 'src/sqlite_record.dart';
 export 'src/sqlite_sink.dart';
 
 /// Registers SQLite components into logd's [LoggerSerializationRegistry].
@@ -37,6 +39,8 @@ void registerLogdSqliteSerializers() {
           : const Duration(seconds: 2),
       walMode: json['walMode'] as bool? ?? true,
       maxBufferSize: json['maxBufferSize'] as int? ?? 10000,
+      enableFts: json['enableFts'] as bool? ?? true,
+      maxDiskBytes: json['maxDiskBytes'] as int?,
     ),
     toJson: (final sink) => <String, dynamic>{
       'dbPath': sink.dbPath,
@@ -47,6 +51,8 @@ void registerLogdSqliteSerializers() {
       'flushInterval': sink.flushInterval?.inMilliseconds,
       'walMode': sink.walMode,
       'maxBufferSize': sink.maxBufferSize,
+      'enableFts': sink.enableFts,
+      if (sink.maxDiskBytes != null) 'maxDiskBytes': sink.maxDiskBytes,
     },
   );
 }

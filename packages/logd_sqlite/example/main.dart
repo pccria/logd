@@ -23,11 +23,9 @@ void main() async {
   try {
     throw StateError('Database connection attempt timed out');
   } catch (e, stackTrace) {
-    Logger.get('main').error(
-      'Database connection failed',
-      error: e,
-      stackTrace: stackTrace,
-    );
+    Logger.get(
+      'main',
+    ).error('Database connection failed', error: e, stackTrace: stackTrace);
   }
 
   // Dispose logger pipeline and handler
