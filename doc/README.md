@@ -5,7 +5,7 @@ This directory contains detailed documentation regarding the design, architectur
 - [**API Reference**](api_reference.md): Public classes, methods, configurations, and satellite APIs catalog.
 - [**Production Cookbook**](cookbook.md): Battle-tested copy-paste recipes for Flutter, Dio, Shelf, SQLite, live WebSockets, and AI agent telemetry.
 - [**Migration Guide**](migration.md): Upgrading from legacy versions, satellite migrations, and Flutter SDK decoupling details.
-- [**Architecture Decision Records (ADRs)**](decisions/README.md): Formal design decisions from ADR-001 to ADR-008.
+- [**Architecture Decision Records (ADRs)**](decisions/README.md): Formal design decisions from ADR-001 to ADR-010.
 - [**Cross-Isolate Coordination Guide**](logger/isolates.md): Configuration snapshots, serialization registry, and satellite package hooks.
 - [**Semantic Versioning Contract**](semver_contract.md): Public API guarantees, stability tiers, and deprecation policies.
 
@@ -35,7 +35,7 @@ Responsible for the processing pipeline of log entries.
 - [**logd_html**](../packages/logd_html/doc/architecture.md) - HTML architecture, custom stylesheets, and migration
 - [**logd_markdown**](../packages/logd_markdown/doc/architecture.md) - Markdown architecture, GFM tables, and migration
 - [**logd_sqlite**](../packages/logd_sqlite/doc/architecture.md) - SQLite WAL architecture, query engine, and benchmarks
-- [**logd_network**](../packages/logd_network/doc/architecture.md) - HTTP batching, WebSockets, dashboard, and roadmap
+- [**logd_network**](../packages/logd_network/doc/architecture.md) - HTTP batching, WebSockets, jittered backoff, delivery formats, live dashboard, and roadmap
 
 ### Reports & Benchmarks
 Performance and quality analysis reports:
