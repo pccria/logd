@@ -6,11 +6,14 @@ import 'package:logd_network/logd_network.dart';
 
 Future<void> main() async {
   print(
-      '\x1B[1;36m================================================================\x1B[0m');
+    '\x1B[1;36m================================================================\x1B[0m',
+  );
   print(
-      '\x1B[1;36m       LOGD_NETWORK: WEBSOCKET HEARTBEAT & SELF-HEALING DEMO    \x1B[0m');
+    '\x1B[1;36m       LOGD_NETWORK: WEBSOCKET HEARTBEAT & SELF-HEALING DEMO    \x1B[0m',
+  );
   print(
-      '\x1B[1;36m================================================================\x1B[0m\n');
+    '\x1B[1;36m================================================================\x1B[0m\n',
+  );
 
   final receivedLogs = <String>[];
   int pingsReceived = 0;
@@ -37,7 +40,8 @@ Future<void> main() async {
               socket.add('{"type":"pong"}');
             } else {
               print(
-                  '   \x1B[33m-> [Simulating dropped link] Suppressing pong response!\x1B[0m');
+                '   \x1B[33m-> [Simulating dropped link] Suppressing pong response!\x1B[0m',
+              );
             }
           } else {
             print('📝 Server received log: $str');
@@ -64,10 +68,7 @@ Future<void> main() async {
     pongMessage: '{"type":"pong"}',
   );
 
-  final handler = Handler(
-    formatter: const JsonFormatter(),
-    sink: sink,
-  );
+  final handler = Handler(formatter: const JsonFormatter(), sink: sink);
 
   Logger.configure('heartbeat.demo', handlers: [handler]);
   final logger = Logger.get('heartbeat.demo');
@@ -77,7 +78,8 @@ Future<void> main() async {
   await Future<void>.delayed(const Duration(milliseconds: 700));
 
   print(
-      '\n--- Phase 2: Unresponsive link (Server stops responding to pings) ---');
+    '\n--- Phase 2: Unresponsive link (Server stops responding to pings) ---',
+  );
   shouldRespondToPing = false;
   logger.info('Log 2: In-flight event during degradation');
   logger.info('Log 3: Another event during degradation');

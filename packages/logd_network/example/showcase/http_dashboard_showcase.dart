@@ -12,46 +12,100 @@ Future<void> main() async {
     '\x1B[2m─────────────────────────────────────────────────────────────\x1B[0m',
   );
 
-  // Single-line pre-wired setup
+  // Single-line pre-wired setup with custom title
   final dashboard = HttpDashboardHandler(
     port: 8088,
-    title: 'Production Observability Dashboard',
+    title: 'Fleet Observability & Telemetry Center',
     bufferCapacity: 500,
   );
 
-  Logger.configure('app.services', handlers: [dashboard]);
-  final authLogger = Logger.get('app.services.auth');
-  final billingLogger = Logger.get('app.services.billing');
+  Logger.configure('app', handlers: [dashboard]);
+  final authLogger = Logger.get('app.auth');
+  final billingLogger = Logger.get('app.billing');
+  final orderLogger = Logger.get('app.orders');
+  final dbLogger = Logger.get('app.db');
 
   print('\x1B[1m\x1B[92m[Dashboard Started via HttpDashboardHandler]\x1B[0m');
-  print('👉 Open browser: \x1B[4mhttp://localhost:8088\x1B[24m');
+  print('👉 Open browser: \x1B[1;34mhttp://localhost:8088\x1B[0m');
   print('Press Ctrl+C to terminate.');
   print(
     '\x1B[2m─────────────────────────────────────────────────────────────\x1B[0m',
   );
 
-  authLogger.info('User admin logged in from 192.168.1.5');
-  await Future<void>.delayed(const Duration(milliseconds: 500));
-  billingLogger.info(
-    'Subscription renewed',
-    context: {'plan': 'Pro Enterprise'},
+  // Initial seed entries
+  authLogger.info(
+    'User admin authenticated from 192.168.1.5',
+    context: {'role': 'superadmin', 'method': 'MFA_TOTP'},
   );
-  await Future<void>.delayed(const Duration(milliseconds: 500));
-  billingLogger.warning('Stripe webhook processing delayed (>1200ms)');
+  billingLogger.info(
+    'Enterprise subscription renewed',
+    context: {'plan': 'Enterprise Tier', 'amount': '\$4,500/mo'},
+  );
+  billingLogger.warning(
+    'Stripe webhook processing delayed (>1200ms)',
+    context: {'latencyMs': 1240, 'attempt': 2},
+  );
+  dbLogger.debug('Connection pool initialized (16/16 connections healthy)');
+
+  try {
+    throw StateError(
+      'Payment gateway circuit tripped: downstream bank API 503',
+    );
+  } catch (err, stack) {
+    orderLogger.error(
+      'Checkout transaction #TX-9821 failed',
+      error: err,
+      stackTrace: stack,
+      context: {
+        'txId': 'TX-9821',
+        'userId': 'usr_4921',
+        'items': 3,
+        'diagnostics': Stopwatch()
+          ..start(), // Non-serializable context object verified
+      },
+    );
+  }
 
   int step = 0;
-  Timer.periodic(const Duration(seconds: 2), (final _) {
+  Timer.periodic(const Duration(milliseconds: 1500), (final _) {
     step++;
-    if (step % 3 == 0) {
-      billingLogger.info(
-        'Invoice generated',
-        context: {'invoiceId': 'INV-$step'},
-      );
-    } else {
-      authLogger.info(
-        'Session refresh heartbeat',
-        context: {'activeUsers': 42 + step},
-      );
+    final cycle = step % 6;
+    switch (cycle) {
+      case 0:
+        authLogger.info(
+          'OAuth2 bearer token refreshed',
+          context: {'expiresIn': '3600s', 'clientId': 'mobile-app-v2'},
+        );
+      case 1:
+        dbLogger.debug('Slow query detected on orders table (142ms)');
+      case 2:
+        billingLogger.info(
+          'Invoice generated and dispatched',
+          context: {'invoiceId': 'INV-${1000 + step}', 'status': 'PAID'},
+        );
+      case 3:
+        orderLogger.info(
+          'Order #ORD-${5000 + step} placed successfully',
+          context: {'customer': 'acme-corp', 'total': '\$289.50'},
+        );
+      case 4:
+        billingLogger.warning(
+          'Rate limit threshold approaching 85%',
+          context: {'currentRps': 850, 'maxRps': 1000},
+        );
+      case 5:
+        try {
+          throw TimeoutException(
+            'Read replica replication lag exceeded 5000ms',
+          );
+        } catch (e, s) {
+          dbLogger.error(
+            'Database replication alert',
+            error: e,
+            stackTrace: s,
+            context: {'replica': 'us-east-db-2', 'lagMs': 5210},
+          );
+        }
     }
   });
 }

@@ -36,18 +36,19 @@ class HttpDashboardHandler extends Handler {
     super.engine = const StandardEngine(),
     super.timeout,
   }) : super(
-          formatter: formatter ?? const StructuredFormatter(),
-          sink: HttpServerSink(
-            address: address,
-            port: port,
-            encoder: const AutoTextEncoder(),
-            bufferCapacity: bufferCapacity,
-            lineLength: lineLength,
-            maxConnections: maxConnections,
-            allowedOrigins: allowedOrigins,
-          ),
-          decorators: decorators ?? const [],
-        );
+         formatter: formatter ?? const StructuredFormatter(),
+         sink: HttpServerSink(
+           address: address,
+           port: port,
+           title: title,
+           encoder: const AutoTextEncoder(),
+           bufferCapacity: bufferCapacity,
+           lineLength: lineLength,
+           maxConnections: maxConnections,
+           allowedOrigins: allowedOrigins,
+         ),
+         decorators: decorators ?? const [],
+       );
 
   /// The actual bound port of the running dashboard server.
   int get boundPort {
@@ -90,17 +91,17 @@ class HttpDashboardHandler extends Handler {
     final List<LogDecorator>? decorators,
     final List<LogFilter> filters = const [],
     final Duration? timeout,
-  }) =>
-      HttpDashboardIsolateHandler(
-        address: address,
-        port: port,
-        bufferCapacity: bufferCapacity,
-        lineLength: lineLength,
-        maxConnections: maxConnections,
-        allowedOrigins: allowedOrigins,
-        formatter: formatter ?? const StructuredFormatter(),
-        decorators: decorators ?? const [],
-        filters: filters,
-        timeout: timeout,
-      );
+  }) => HttpDashboardIsolateHandler(
+    address: address,
+    port: port,
+    title: title,
+    bufferCapacity: bufferCapacity,
+    lineLength: lineLength,
+    maxConnections: maxConnections,
+    allowedOrigins: allowedOrigins,
+    formatter: formatter ?? const StructuredFormatter(),
+    decorators: decorators ?? const [],
+    filters: filters,
+    timeout: timeout,
+  );
 }

@@ -105,6 +105,9 @@ Accumulates log entries in memory and posts them in batches to remote log aggreg
 - **Dynamic Auth Hooks (`headersProvider`)**: Evaluated before each batch POST and re-evaluated during retry backoffs for seamless OAuth2 token refreshing.
 - **Circuit Breaker (`CircuitState`)**: Configurable `failureThreshold` and `recoveryTimeout`. Trips to `open` on repeated outages to fail-fast into memory buffers, probe back via `halfOpen`, and close automatically.
 - **Failover Endpoints (`failoverUrls`)**: In-flight retries seamlessly cycle to backup endpoints before dropping logs.
+- **Delivery Formats (`HttpDeliveryFormat`)**: Support for `jsonArray` (`application/json`), `ndjson` (Newline-Delimited JSON, `application/x-ndjson`), and `raw` (`application/octet-stream`).
+- **Decorrelated Jitter Backoff (`BackoffPolicy`)**: Configurable exponential retry curves with randomized jitter preventing thundering herds.
+- **Memory Budgeting & Priority Eviction**: Set byte ceilings with `maxBufferBytes` and drop lowest-severity logs first via `DropPolicy.discardByPriority`.
 - **HTTP Backpressure (`Retry-After`)**: Transparently parses and respects server-instructed 429/503 `Retry-After` cooldowns (integer seconds and standard HTTP-date formats).
 - **GZip Batch Compression (`compress: true`)**: Shrinks payload sizes by up to 90%+ over the wire (platform-safe across VM, Flutter, and Web).
 
@@ -113,11 +116,19 @@ final httpHandler = Handler(
   formatter: const JsonFormatter(),
   sink: HttpSink(
     url: 'https://primary.example.com/api/v1/ingest',
+    deliveryFormat: HttpDeliveryFormat.ndjson, // Ingest via newline-delimited JSON
     // Failover Endpoints: seamless fallback if primary endpoint fails
     failoverUrls: const [
       'https://backup-1.example.com/api/v1/ingest',
       'https://backup-2.example.com/api/v1/ingest',
     ],
+    // Exponential retry with decorrelated randomized jitter
+    backoffPolicy: const BackoffPolicy(
+      initialDelay: Duration(milliseconds: 200),
+      maxDelay: Duration(seconds: 30),
+      multiplier: 2.0,
+      jitter: true,
+    ),
     // Dynamic Auth: evaluated before each batch POST & re-evaluated on retry
     headersProvider: () async {
       final token = await authManager.getFreshAccessToken();
@@ -128,11 +139,12 @@ final httpHandler = Handler(
     // Circuit Breaker: prevents endpoint flooding during prolonged outages
     failureThreshold: 3,
     recoveryTimeout: const Duration(seconds: 30),
-    // Batching & Buffer configuration
+    // Memory Budget & Buffer configuration
     batchSize: 50,
+    maxBufferBytes: 1024 * 1024, // 1 MB ceiling
+    dropPolicy: DropPolicy.discardByPriority, // Evict debug -> info -> warning -> error
     flushInterval: const Duration(seconds: 30),
     maxRetries: 5,
-    dropPolicy: DropPolicy.discardOldest,
   ),
 );
 
@@ -142,6 +154,7 @@ Logger.configure('app', handlers: [httpHandler]);
 **Drop Policies:**
 - `DropPolicy.discardOldest`: Evicts the oldest buffered entry when capacity is reached.
 - `DropPolicy.discardNewest`: Rejects incoming entries when buffer is full.
+- `DropPolicy.discardByPriority`: Evicts lowest-severity entries first (`debug` -> `info` -> `warning` -> `error`) when count or `maxBufferBytes` limits are reached.
 
 ---
 
@@ -252,6 +265,9 @@ dart run example/compression_example.dart
 
 # 4. WebSocket Heartbeat & Self-Healing Reconnect Demo
 dart run example/heartbeat_example.dart
+
+# 5. NDJSON Delivery Format & Jittered Backoff Demo
+dart run example/delivery_format_example.dart
 ```
 
 ---

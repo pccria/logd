@@ -11,7 +11,7 @@ The foundational philosophy. Documents the vision of [Strategic Elasticity](core
 The developer's gateway. Documents regarding the Logger API, static context, and user-facing configurations.
 
 ### [Handler](handler/)
-The engine room. Orchestration of the logging pipeline, sink management, and asynchronous flow control.
+The engine room. [Pipeline Orchestration](handler/orchestration.md), [Network Telemetry & Resilience](handler/network_telemetry.md), sink management, and asynchronous flow control.
 
 ### [Document](handler/document/)
 The semantic heart. Definitions of the `LogDocument`, `LogNode` hierarchy, and metadata schemas.

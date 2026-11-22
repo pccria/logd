@@ -6,8 +6,10 @@ import 'package:logd_network/logd_network.dart';
 
 import 'circuit_breaker_example.dart' as circuit_breaker_example;
 import 'compression_example.dart' as compression_example;
+import 'delivery_format_example.dart' as delivery_format_example;
 import 'dynamic_auth_example.dart' as dynamic_auth_example;
 import 'heartbeat_example.dart' as heartbeat_example;
+import 'offline_spooling_recipe.dart' as offline_spooling_recipe;
 import 'showcase/http_dashboard_showcase.dart' as http_dashboard_showcase;
 import 'showcase/http_server_sink_showcase.dart' as http_server_sink_showcase;
 import 'showcase/http_sink_showcase.dart' as http_sink_showcase;
@@ -54,6 +56,16 @@ void main(final List<String> args) async {
         await heartbeat_example.main();
         return;
       case '9':
+      case 'ndjson':
+      case 'delivery':
+        await delivery_format_example.main();
+        return;
+      case '10':
+      case 'spool':
+      case 'offline':
+        await offline_spooling_recipe.main();
+        return;
+      case '11':
       case 'all':
         await _runAutomatedSummary();
         return;
@@ -65,18 +77,20 @@ void main(final List<String> args) async {
   print('================================================');
   print('Select a network observability demo to run:');
   print('');
-  print('  [1] HttpSink Showcase (Batching & Retry)');
-  print('  [2] SocketSink Showcase (Live WebSocket Streaming)');
-  print('  [3] HttpServerSink Showcase (Embedded Browser Viewer)');
-  print('  [4] HttpDashboardHandler Showcase (Pre-wired DX Preset)');
-  print('  [5] Circuit Breaker & Failover Demo (Resilience)');
-  print('  [6] GZip Batch Compression Demo (Bandwidth Savings)');
-  print('  [7] Dynamic Auth Hook Demo (OAuth2 / Token Refresh)');
-  print('  [8] WebSocket Heartbeat Demo (Proactive Ping/Pong)');
-  print('  [9] Run All Non-Blocking Demos Sequentially');
-  print('  [0] Exit');
+  print('  [1]  HttpSink Showcase (Batching & Retry)');
+  print('  [2]  SocketSink Showcase (Live WebSocket Streaming)');
+  print('  [3]  HttpServerSink Showcase (Embedded Browser Viewer)');
+  print('  [4]  HttpDashboardHandler Showcase (Pre-wired DX Preset)');
+  print('  [5]  Circuit Breaker & Failover Demo (Resilience)');
+  print('  [6]  GZip Batch Compression Demo (Bandwidth Savings)');
+  print('  [7]  Dynamic Auth Hook Demo (OAuth2 / Token Refresh)');
+  print('  [8]  WebSocket Heartbeat Demo (Proactive Ping/Pong)');
+  print('  [9]  NDJSON Stream Delivery & Jittered Backoff Demo');
+  print('  [10] Offline Spooling & Zero-Loss Replay Recipe');
+  print('  [11] Run All Non-Blocking Demos Sequentially');
+  print('  [0]  Exit');
   print('');
-  stdout.write('Enter choice [1-9, 0]: ');
+  stdout.write('Enter choice [1-11, 0]: ');
 
   final input = stdin.readLineSync()?.trim();
   print('');
@@ -107,6 +121,12 @@ void main(final List<String> args) async {
       await heartbeat_example.main();
       break;
     case '9':
+      await delivery_format_example.main();
+      break;
+    case '10':
+      await offline_spooling_recipe.main();
+      break;
+    case '11':
       await _runAutomatedSummary();
       break;
     case '0':

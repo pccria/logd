@@ -9,101 +9,97 @@ import 'package:test/test.dart';
 void main() {
   group('Dashboard DNS Rebinding Defense & Auth Token Hardening', () {
     test(
-        'HttpServerSink rejects DNS rebinding requests where Host and Origin are foreign',
-        () async {
-      final sink = HttpServerSink(
-        address: '127.0.0.1',
-        port: 0,
-      );
-      await sink.ready;
-      final port = sink.boundPort;
-      addTearDown(sink.dispose);
+      'HttpServerSink rejects DNS rebinding requests where Host and Origin are foreign',
+      () async {
+        final sink = HttpServerSink(address: '127.0.0.1', port: 0);
+        await sink.ready;
+        final port = sink.boundPort;
+        addTearDown(sink.dispose);
 
-      // Simulate a DNS rebinding attack:
-      // Attacker controls evil.test which resolves to 127.0.0.1.
-      // Browser sends Host: evil.test and Origin: http://evil.test
-      final client = http.Client();
-      addTearDown(client.close);
+        // Simulate a DNS rebinding attack:
+        // Attacker controls evil.test which resolves to 127.0.0.1.
+        // Browser sends Host: evil.test and Origin: http://evil.test
+        final client = http.Client();
+        addTearDown(client.close);
 
-      final req = http.Request('GET', Uri.parse('http://127.0.0.1:$port/'))
-        ..headers['Host'] = 'evil.test'
-        ..headers['Origin'] = 'http://evil.test';
+        final req = http.Request('GET', Uri.parse('http://127.0.0.1:$port/'))
+          ..headers['Host'] = 'evil.test'
+          ..headers['Origin'] = 'http://evil.test';
 
-      final res = await client.send(req);
-      expect(res.statusCode, equals(403));
-    });
+        final res = await client.send(req);
+        expect(res.statusCode, equals(403));
+      },
+    );
 
     test(
-        'HttpServerSink enforces authToken on GET / and WebSocket /ws when configured',
-        () async {
-      const secret = 'super-secret-token-xyz';
-      final sink = HttpServerSink(
-        address: '127.0.0.1',
-        port: 0,
-        authToken: secret,
-      );
-      await sink.ready;
-      final port = sink.boundPort;
-      addTearDown(sink.dispose);
+      'HttpServerSink enforces authToken on GET / and WebSocket /ws when configured',
+      () async {
+        const secret = 'super-secret-token-xyz';
+        final sink = HttpServerSink(
+          address: '127.0.0.1',
+          port: 0,
+          authToken: secret,
+        );
+        await sink.ready;
+        final port = sink.boundPort;
+        addTearDown(sink.dispose);
 
-      // 1. Unauthenticated GET / must be rejected with 401
-      final unauthRes = await http.get(Uri.parse('http://127.0.0.1:$port/'));
-      expect(unauthRes.statusCode, equals(401));
+        // 1. Unauthenticated GET / must be rejected with 401
+        final unauthRes = await http.get(Uri.parse('http://127.0.0.1:$port/'));
+        expect(unauthRes.statusCode, equals(401));
 
-      // 2. Authenticated GET / with query token must succeed
-      final authRes = await http.get(
-        Uri.parse('http://127.0.0.1:$port/?token=$secret'),
-      );
-      expect(authRes.statusCode, equals(200));
+        // 2. Authenticated GET / with query token must succeed
+        final authRes = await http.get(
+          Uri.parse('http://127.0.0.1:$port/?token=$secret'),
+        );
+        expect(authRes.statusCode, equals(200));
 
-      // 3. Authenticated GET / with Authorization header must succeed
-      final headerRes = await http.get(
-        Uri.parse('http://127.0.0.1:$port/'),
-        headers: {'Authorization': 'Bearer $secret'},
-      );
-      expect(headerRes.statusCode, equals(200));
+        // 3. Authenticated GET / with Authorization header must succeed
+        final headerRes = await http.get(
+          Uri.parse('http://127.0.0.1:$port/'),
+          headers: {'Authorization': 'Bearer $secret'},
+        );
+        expect(headerRes.statusCode, equals(200));
 
-      // 4. Unauthenticated WebSocket /ws must fail
-      await expectLater(
-        io.WebSocket.connect('ws://127.0.0.1:$port/ws'),
-        throwsA(isA<io.WebSocketException>()),
-      );
+        // 4. Unauthenticated WebSocket /ws must fail
+        await expectLater(
+          io.WebSocket.connect('ws://127.0.0.1:$port/ws'),
+          throwsA(isA<io.WebSocketException>()),
+        );
 
-      // 5. Authenticated WebSocket /ws with token parameter must succeed
-      final ws =
-          await io.WebSocket.connect('ws://127.0.0.1:$port/ws?token=$secret');
-      expect(ws.readyState, equals(io.WebSocket.open));
-      await ws.close();
+        // 5. Authenticated WebSocket /ws with token parameter must succeed
+        final ws = await io.WebSocket.connect(
+          'ws://127.0.0.1:$port/ws?token=$secret',
+        );
+        expect(ws.readyState, equals(io.WebSocket.open));
+        await ws.close();
 
-      // 6. Dashboard HTML must include location.search in WebSocket URL
-      expect(
-        authRes.body,
-        contains(
-            r'wsUrl = `${protocol}//${window.location.host}/ws${window.location.search}`'),
-        reason:
-            'Dashboard JS must propagate query string tokens to WebSocket handshake',
-      );
-    });
+        // 6. Dashboard HTML must include location.search in WebSocket URL
+        expect(
+          authRes.body,
+          contains(
+            r'wsUrl = `${protocol}//${window.location.host}/ws${window.location.search}`',
+          ),
+          reason:
+              'Dashboard JS must propagate query string tokens to WebSocket handshake',
+        );
+      },
+    );
 
     test(
-        'HttpServerSink throws ArgumentError on non-loopback bind without authToken',
-        () {
-      expect(
-        () => HttpServerSink(
-          address: '0.0.0.0',
-          port: 0,
-        ),
-        throwsA(isA<ArgumentError>()),
-      );
+      'HttpServerSink throws ArgumentError on non-loopback bind without authToken',
+      () {
+        expect(
+          () => HttpServerSink(address: '0.0.0.0', port: 0),
+          throwsA(isA<ArgumentError>()),
+        );
 
-      expect(
-        () => HttpServerSink(
-          address: '192.168.1.50',
-          port: 0,
-        ),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
+        expect(
+          () => HttpServerSink(address: '192.168.1.50', port: 0),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
   });
 
   group('SocketSink Native Headers & Subprotocols', () {
@@ -136,18 +132,15 @@ void main() {
 
       Logger.configure(
         'test.socket',
-        handlers: [
-          Handler(
-            formatter: const PlainFormatter(),
-            sink: sink,
-          ),
-        ],
+        handlers: [Handler(formatter: const PlainFormatter(), sink: sink)],
       );
       Logger.get('test.socket').info('trigger socket connection');
 
       await completer.future.timeout(const Duration(seconds: 3));
       expect(
-          receivedHeaders['authorization'], equals('Bearer jwt-token-12345'));
+        receivedHeaders['authorization'],
+        equals('Bearer jwt-token-12345'),
+      );
       expect(receivedHeaders['x-client-id'], equals('agent-007'));
     });
   });

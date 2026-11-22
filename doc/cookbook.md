@@ -426,3 +426,68 @@ void setupCiLogging() {
   logger.info('Pipeline execution initialized');
 }
 ```
+
+---
+
+## 8. Distributed Telemetry: Resilient NDJSON Ingestion with Jittered Backoff & Offline Spooling
+
+### Problem
+In high-throughput edge nodes, microservices, or mobile apps:
+1. JSON array batching forces the server to buffer the entire payload in memory before parsing.
+2. Network blips cause thousands of nodes to reconnect simultaneously, overwhelming log collection servers with thundering herds.
+3. Network outages can lead to unbounded memory buffer growth and client-side Out-Of-Memory (OOM) crashes.
+
+### Solution
+Use `HttpSink` from [`package:logd_network`](../packages/logd_network) with:
+- `HttpDeliveryFormat.ndjson` for streaming Newline-Delimited JSON ingestion with zero-copy `BytesBuilder` assembly.
+- `BackoffPolicy(jitter: true)` to randomize retry delays and prevent thundering-herd storms.
+- `maxBufferBytes` combined with `DropPolicy.discardByPriority` for atomic client memory budgeting that prioritizes error retention.
+- `onDropped` hook to spool dropped logs locally and replay upon reconnection without coupling network sinks to disk dependencies.
+
+```dart
+import 'dart:typed_data';
+import 'package:logd/logd.dart';
+import 'package:logd_network/logd_network.dart';
+
+void setupResilientTelemetry() {
+  final offlineSpool = <List<Uint8List>>[];
+
+  final httpSink = HttpSink(
+    url: 'https://telemetry.example.com/v1/logs/ndjson',
+    deliveryFormat: HttpDeliveryFormat.ndjson, // Streamable Newline-Delimited JSON
+    batchSize: 100,
+    flushInterval: const Duration(seconds: 3),
+    
+    // Exponential backoff with decorrelated randomized jitter [0.5 * delay, 1.5 * delay]
+    backoffPolicy: const BackoffPolicy(
+      initialDelay: Duration(milliseconds: 250),
+      maxDelay: Duration(seconds: 30),
+      multiplier: 2.0,
+      jitter: true,
+    ),
+
+    // Strict memory budgeting: 2 MB ceiling, evict lowest-severity logs first (debug -> info -> warning)
+    maxBufferBytes: 2 * 1024 * 1024,
+    dropPolicy: DropPolicy.discardByPriority,
+
+    // Failover endpoint during prolonged primary cluster outages
+    failoverUrls: ['https://telemetry-backup.example.com/v1/logs/ndjson'],
+
+    // Intercept dropped batches during prolonged offline states to spool locally
+    onDropped: (droppedBatches) {
+      offlineSpool.add(droppedBatches);
+    },
+  );
+
+  Logger.configure('telemetry', handlers: [
+    Handler(
+      formatter: const JsonFormatter(),
+      sink: httpSink,
+    ),
+  ]);
+
+  Logger.get('telemetry.worker').info(
+    'Worker initialized with jittered NDJSON streaming telemetry',
+  );
+}
+```

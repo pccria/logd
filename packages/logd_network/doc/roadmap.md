@@ -1,6 +1,6 @@
 # logd_network Roadmap
 
-Package version at time of writing: **0.2.1**
+Package version at time of writing: **0.3.0**
 
 ---
 
@@ -86,31 +86,29 @@ Dynamic Auth Hooks, Circuit Breaker, HTTP Backpressure, Failover Endpoints, GZip
 - [x] **Dependency Alignment**:
       Updated minimum `logd` dependency constraint to `^0.10.2`.
 
+### ✅ v0.3.0 (Minor): Backoff Jitter, Delivery Formats, Memory Budgeting & Dashboard UX Upgrades
+**Goal**: Enterprise fleet resilience, transport payload flexibility, strict client-side memory safety, and interactive dashboard productivity.
+- [x] **Configurable Reconnection & Retry Backoff (`BackoffPolicy`)**:
+      Added `@immutable` `BackoffPolicy` supporting initial delay, max delay, exponential multiplier, and decorrelated randomized jitter to eliminate thundering-herd spikes across distributed clients. Integrated into `HttpSink` retry loop and `SocketSink` reconnection cycles.
+- [x] **Delivery Formats (`HttpDeliveryFormat`)**:
+      Added `HttpDeliveryFormat` supporting `jsonArray` (`application/json`), `ndjson` (Newline-Delimited JSON, `application/x-ndjson`), and `raw` (`application/octet-stream`). Employs zero-copy byte stream joining using `BytesBuilder`.
+- [x] **Client-Side Memory Budgeting & Priority Eviction**:
+      Added `maxBufferBytes` to enforce byte-level memory limits in high-throughput environments.
+      Added `DropPolicy.discardByPriority` which prioritizes retaining high-severity logs by dropping lowest-severity entries first (`debug` -> `info` -> `warning` -> `error`).
+      Exposed `bufferedBytes` and `bufferedLogCount` telemetry getters.
+- [x] **Multi-Isolate Serialization**:
+      Extended `registerLogdNetworkSerializers()` to support `deliveryFormat`, `backoffPolicy`, and `maxBufferBytes`.
+- [x] **Observability Dashboard UX Upgrades (`dashboard_html.dart`)**:
+      - [x] **Stream pause / resume**: Lossless queue buffering up to 5,000 entries while paused, with visual badge and instant DOM draining on resume.
+      - [x] **Live search with regex**: Support `/pattern/flags` regex search across messages, logger, origin, context, and error fields with match counters.
+      - [x] **Logger namespace filter**: Dynamic dropdown automatically discovering and filtering logger hierarchies.
+      - [x] **One-click export**: Export active logs directly to NDJSON (`application/x-ndjson`).
+
 ---
 
-### 🔲 High-Throughput Stream Compression Track (v0.3.0)
+### 🔲 High-Throughput Stream Compression Track (Future Milestone)
 - [ ] **Transparent Stream Compression**: Support high-throughput `zstd` (Zstandard) stream compression wrappers for sustained high-volume network telemetry sinks, with native FFI bindings and WebAssembly fallback.
 - [ ] **Streaming Chunked Ingestion**: Add HTTP chunked transfer streaming mode to `HttpSink` for sustained low-latency streaming without discrete batch boundaries.
-
----
-
-### 🔲 Dashboard UX Track (version TBD)
-
-Separate track targeting `dashboardHtml.dart` exclusively. Does not affect
-any transport class. Will be versioned as a minor bump when transport
-milestones (v0.2.0–v0.4.0) are complete and the dashboard scope is finalized.
-
-- [ ] **Stream pause / resume**: freeze incoming WebSocket messages in the UI
-      while buffering continues silently on the server side.
-- [ ] **Live search with regex**: filter visible log rows by message, logger
-      name, or context key. Show match count.
-- [ ] **Logger namespace filter tree**: collapsible sidebar tree view of active
-      logger hierarchies (e.g. `app`, `app.db`, `app.network`) with per-node
-      toggles.
-- [ ] **Expandable entry detail panel**: click any log row to reveal full
-      structured context map (syntax-highlighted JSON), stack traces, and TOON
-      column values.
-- [ ] **One-click export**: download buffered log history as NDJSON.
 
 ---
 

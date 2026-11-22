@@ -17,9 +17,7 @@ void main() async {
     formatter: const JsonFormatter(),
     sink: HttpSink(
       url: 'https://primary.logs.example.com/api/v1/ingest',
-      failoverUrls: const [
-        'https://backup.logs.example.com/api/v1/ingest',
-      ],
+      failoverUrls: const ['https://backup.logs.example.com/api/v1/ingest'],
       failureThreshold: 5,
       recoveryTimeout: const Duration(seconds: 30),
       headers: const {'X-Service': 'checkout-service'},

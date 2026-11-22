@@ -7,11 +7,14 @@ import 'package:logd_network/logd_network.dart';
 
 Future<void> main() async {
   print(
-      '\x1B[1;36m================================================================\x1B[0m');
+    '\x1B[1;36m================================================================\x1B[0m',
+  );
   print(
-      '\x1B[1;36m       LOGD_NETWORK: CIRCUIT BREAKER & FAILOVER DEMO            \x1B[0m');
+    '\x1B[1;36m       LOGD_NETWORK: CIRCUIT BREAKER & FAILOVER DEMO            \x1B[0m',
+  );
   print(
-      '\x1B[1;36m================================================================\x1B[0m\n');
+    '\x1B[1;36m================================================================\x1B[0m\n',
+  );
 
   // 1. Start simulated in-process HTTP intake servers
   bool primaryHealthy = true;
@@ -89,19 +92,22 @@ Future<void> main() async {
 
   // Step 2: Primary fails -> Automatic Failover
   print(
-      '\x1B[1;33m[Phase 2] Simulating Primary Cluster Outage -> Failover\x1B[0m');
+    '\x1B[1;33m[Phase 2] Simulating Primary Cluster Outage -> Failover\x1B[0m',
+  );
   primaryHealthy = false;
   print('  ⚠️  Primary cluster set to UNHEALTHY (503)');
   logger.info('Log #2: Transaction 98402 processed');
   await Future<void>.delayed(const Duration(milliseconds: 200));
   print(
-      '  -> Current Active Endpoint: \x1B[32m${sink.currentUrl}\x1B[0m (Switched to Backup!)');
+    '  -> Current Active Endpoint: \x1B[32m${sink.currentUrl}\x1B[0m (Switched to Backup!)',
+  );
   print('  -> Circuit State:           ${sink.circuitState.name}');
   print('  -> Backup received:         ${backupReceived.length} logs\n');
 
   // Step 3: Backup also fails -> Circuit Tripping (Fast Fail)
   print(
-      '\x1B[1;33m[Phase 3] Simulating Total Outage (Primary + Backup Down) -> Circuit Breaker\x1B[0m');
+    '\x1B[1;33m[Phase 3] Simulating Total Outage (Primary + Backup Down) -> Circuit Breaker\x1B[0m',
+  );
   backupHealthy = false;
   print('  ⚠️  Backup cluster set to UNHEALTHY (503)');
   logger.info('Log #3: Critical alert triggered during network disruption');
@@ -111,18 +117,21 @@ Future<void> main() async {
   await Future<void>.delayed(const Duration(milliseconds: 200));
 
   print(
-      '  -> Circuit State: \x1B[31m${sink.circuitState.name.toUpperCase()}\x1B[0m (Failing fast, saving network I/O)');
+    '  -> Circuit State: \x1B[31m${sink.circuitState.name.toUpperCase()}\x1B[0m (Failing fast, saving network I/O)',
+  );
   print('  -> Consecutive Failures: ${sink.consecutiveFailures}');
 
   // Send another log while open: it will be buffered, NOT dropped by failing I/O
   logger.info('Log #5: Safely retained in memory buffer');
   await Future<void>.delayed(const Duration(milliseconds: 100));
   print(
-      '  -> Fast-fail check: No HTTP requests dispatched while circuit is OPEN\n');
+    '  -> Fast-fail check: No HTTP requests dispatched while circuit is OPEN\n',
+  );
 
   // Step 4: Recovery
   print(
-      '\x1B[1;33m[Phase 4] Restoring Primary Cluster & Recovery Probe\x1B[0m');
+    '\x1B[1;33m[Phase 4] Restoring Primary Cluster & Recovery Probe\x1B[0m',
+  );
   primaryHealthy = true;
   print('  ✔ Primary cluster restored to HEALTHY (200)');
   print('  ⏳ Waiting for recovery window (2.2 seconds)...');
@@ -133,7 +142,8 @@ Future<void> main() async {
   await Future<void>.delayed(const Duration(milliseconds: 300));
 
   print(
-      '  -> Circuit State: \x1B[32m${sink.circuitState.name.toUpperCase()}\x1B[0m (Probe succeeded!)');
+    '  -> Circuit State: \x1B[32m${sink.circuitState.name.toUpperCase()}\x1B[0m (Probe succeeded!)',
+  );
   print('  -> Consecutive Failures: ${sink.consecutiveFailures}');
   print('  -> Total Primary Logs:   ${primaryReceived.length}');
   print('  -> Total Backup Logs:    ${backupReceived.length}\n');
@@ -144,5 +154,6 @@ Future<void> main() async {
   await backupServer.close(force: true);
 
   print(
-      '\x1B[1;32m✔ Circuit Breaker & Failover Demonstration Completed Successfully!\x1B[0m');
+    '\x1B[1;32m✔ Circuit Breaker & Failover Demonstration Completed Successfully!\x1B[0m',
+  );
 }

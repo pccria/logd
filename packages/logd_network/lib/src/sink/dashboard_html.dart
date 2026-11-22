@@ -491,6 +491,28 @@ const String dashboardHtml = '''
     .level-info { color: var(--info); }
     .level-warning { color: var(--warning); }
     .level-error { color: var(--error); }
+
+    .logger-select {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+      font-family: var(--font-sans);
+      outline: none;
+      cursor: pointer;
+      margin-top: 0.25rem;
+    }
+    .logger-select:focus {
+      border-color: var(--primary);
+    }
+    .logger-select option {
+      background: #0d111e;
+      color: var(--text);
+    }
+
     .panel-resizer {
       width: 6px;
       background: var(--border-color);
@@ -581,8 +603,15 @@ const String dashboardHtml = '''
       <div>
         <h3 class="section-title">Search</h3>
         <div class="search-box">
-          <input type="text" id="searchInput" placeholder="Search message, tags, origin...">
+          <input type="text" id="searchInput" placeholder="Search message, tags, origin (or /regex/)...">
         </div>
+      </div>
+
+      <div>
+        <h3 class="section-title">Subsystems</h3>
+        <select id="loggerSelect" class="logger-select">
+          <option value="">All Loggers</option>
+        </select>
       </div>
 
       <div>
@@ -634,13 +663,17 @@ const String dashboardHtml = '''
         <div class="console-actions">
           <button class="btn" id="btnWrap" title="Toggle line wrapping for long messages">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h15a3 3 0 1 1 0 6h-4M3 18h7"/><polyline points="16 16 14 18 16 20"/></svg>
-            Wrap Lines
+            Wrap
           </button>
-          <button class="btn" id="btnPause">
+          <button class="btn" id="btnPause" title="Pause or resume live incoming log stream">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
             Pause
           </button>
-          <button class="btn" id="btnClear">
+          <button class="btn" id="btnExport" title="Export logs as NDJSON file">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+          <button class="btn" id="btnClear" title="Clear console view">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             Clear
           </button>
@@ -656,8 +689,10 @@ const String dashboardHtml = '''
     const statusText = document.getElementById('statusText');
     const consoleOutput = document.getElementById('consoleOutput');
     const searchInput = document.getElementById('searchInput');
+    const loggerSelect = document.getElementById('loggerSelect');
     const logCountLabel = document.getElementById('logCountLabel');
     const btnPause = document.getElementById('btnPause');
+    const btnExport = document.getElementById('btnExport');
     const btnClear = document.getElementById('btnClear');
     const btnWrap = document.getElementById('btnWrap');
 
@@ -677,10 +712,12 @@ const String dashboardHtml = '''
     const statErrors = document.getElementById('statErrors');
 
     let allLogs = [];
+    let pausedBuffer = [];
     let isPaused = false;
     let ws = null;
     let totalCount = 0;
     let errorCount = 0;
+    const knownLoggers = new Set();
 
     // Line Wrapping State (Always enabled by default)
     let isWrapped = true;
@@ -755,9 +792,16 @@ const String dashboardHtml = '''
       };
 
       ws.onmessage = (event) => {
-        if (isPaused) return;
         try {
           const logPayload = JSON.parse(event.data);
+          if (isPaused) {
+            pausedBuffer.push(logPayload);
+            if (pausedBuffer.length > 5000) {
+              pausedBuffer.shift();
+            }
+            updatePauseLabel();
+            return;
+          }
           addLog(logPayload);
         } catch (e) {
           console.error("Failed to parse log event", e);
@@ -785,24 +829,52 @@ const String dashboardHtml = '''
     setupFilterBtn(lblDebug, chkDebug);
 
     searchInput.addEventListener('input', applyFilters);
+    loggerSelect.addEventListener('change', applyFilters);
 
     btnClear.addEventListener('click', () => {
       allLogs = [];
+      pausedBuffer = [];
       consoleOutput.innerHTML = '';
       totalCount = 0;
       errorCount = 0;
+      knownLoggers.clear();
+      loggerSelect.innerHTML = '<option value="">All Loggers</option>';
       updateStats();
     });
 
-    btnPause.addEventListener('click', () => {
-      isPaused = !isPaused;
+    function updatePauseLabel() {
       if (isPaused) {
-        btnPause.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Resume';
+        const bufferedText = pausedBuffer.length > 0 ? ` (\${pausedBuffer.length})` : '';
+        btnPause.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Resume\${bufferedText}`;
         btnPause.classList.add('primary');
       } else {
         btnPause.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg> Pause';
         btnPause.classList.remove('primary');
       }
+    }
+
+    btnPause.addEventListener('click', () => {
+      isPaused = !isPaused;
+      updatePauseLabel();
+      if (!isPaused && pausedBuffer.length > 0) {
+        const toDrain = pausedBuffer;
+        pausedBuffer = [];
+        toDrain.forEach(payload => addLog(payload));
+      }
+    });
+
+    btnExport.addEventListener('click', () => {
+      if (allLogs.length === 0) return;
+      const ndjson = allLogs.map(p => JSON.stringify(p)).join('\\n') + '\\n';
+      const blob = new Blob([ndjson], { type: 'application/x-ndjson;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `logd-export-\${new Date().toISOString().replace(/[:.]/g, '-')}.ndjson`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     });
 
     function escapeHtml(str) {
@@ -879,7 +951,15 @@ const String dashboardHtml = '''
       if (payload.entry.level === 'error') {
         errorCount++;
       }
-      updateStats();
+
+      const loggerName = payload.entry && payload.entry.loggerName;
+      if (loggerName && !knownLoggers.has(loggerName)) {
+        knownLoggers.add(loggerName);
+        const opt = document.createElement('option');
+        opt.value = loggerName;
+        opt.textContent = loggerName;
+        loggerSelect.appendChild(opt);
+      }
 
       allLogs.push(payload);
       
@@ -889,6 +969,7 @@ const String dashboardHtml = '''
       }
 
       renderLogRow(payload, true);
+      updateStats();
     }
 
     function renderLogRow(payload, appendToBottom) {
@@ -1000,22 +1081,50 @@ const String dashboardHtml = '''
     }
 
     function shouldShow(entry) {
-      const search = searchInput.value.toLowerCase();
-      
       // Level check
       if (entry.level === 'error' && !chkError.checked) return false;
       if (entry.level === 'warning' && !chkWarning.checked) return false;
       if (entry.level === 'info' && !chkInfo.checked) return false;
       if (entry.level === 'debug' && !chkDebug.checked) return false;
 
-      // Search check
-      if (search) {
-        const matchesMsg = entry.message.toLowerCase().includes(search);
-        const matchesLogger = entry.loggerName.toLowerCase().includes(search);
-        const matchesOrigin = entry.origin.toLowerCase().includes(search);
-        const matchesContext = entry.context ? JSON.stringify(entry.context).toLowerCase().includes(search) : false;
-        
-        if (!matchesMsg && !matchesLogger && !matchesOrigin && !matchesContext) {
+      // Logger subsystem check
+      const selectedLogger = loggerSelect.value;
+      if (selectedLogger && entry.loggerName !== selectedLogger) {
+        return false;
+      }
+
+      // Search check (supports plain text or /regex/flags)
+      const rawSearch = searchInput.value.trim();
+      if (rawSearch) {
+        let regex = null;
+        let searchLower = '';
+
+        if (rawSearch.startsWith('/') && rawSearch.lastIndexOf('/') > 0) {
+          try {
+            const lastSlash = rawSearch.lastIndexOf('/');
+            const pattern = rawSearch.slice(1, lastSlash);
+            const flags = rawSearch.slice(lastSlash + 1);
+            regex = new RegExp(pattern, flags);
+          } catch (e) {
+            searchLower = rawSearch.toLowerCase();
+          }
+        } else {
+          searchLower = rawSearch.toLowerCase();
+        }
+
+        const matchField = (val) => {
+          if (!val) return false;
+          if (regex) return regex.test(String(val));
+          return String(val).toLowerCase().includes(searchLower);
+        };
+
+        const matchesMsg = matchField(entry.message);
+        const matchesLogger = matchField(entry.loggerName);
+        const matchesOrigin = matchField(entry.origin);
+        const matchesContext = entry.context ? matchField(JSON.stringify(entry.context)) : false;
+        const matchesError = matchField(entry.error);
+
+        if (!matchesMsg && !matchesLogger && !matchesOrigin && !matchesContext && !matchesError) {
           return false;
         }
       }
@@ -1029,6 +1138,7 @@ const String dashboardHtml = '''
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
+        if (row.id === 'toonHeaderBar') continue;
         const entry = {
           level: row.dataset.level,
           message: row.dataset.message,
@@ -1037,7 +1147,6 @@ const String dashboardHtml = '''
         };
         
         if (shouldShow(entry)) {
-          row.style.style = '';
           row.style.display = 'flex';
           visibleCount++;
         } else {
@@ -1045,13 +1154,14 @@ const String dashboardHtml = '''
         }
       }
 
-      logCountLabel.textContent = `Showing \${visibleCount} of \${allLogs.length} logs`;
+      const pausedSuffix = isPaused && pausedBuffer.length > 0 ? ` (\${pausedBuffer.length} buffered)` : '';
+      logCountLabel.textContent = `Showing \${visibleCount} of \${allLogs.length} logs\${pausedSuffix}`;
     }
 
     function updateStats() {
       statTotal.textContent = totalCount;
       statErrors.textContent = errorCount;
-      logCountLabel.textContent = `Showing \${consoleOutput.querySelectorAll('.log-row[style*="display: flex"]').length || consoleOutput.children.length} of \${allLogs.length} logs`;
+      applyFilters();
     }
 
     // Init

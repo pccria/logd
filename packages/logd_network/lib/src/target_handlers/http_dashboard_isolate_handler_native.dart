@@ -14,6 +14,7 @@ class _HttpWorkerConfig {
   const _HttpWorkerConfig({
     required this.address,
     required this.port,
+    this.title,
     required this.bufferCapacity,
     this.lineLength,
     this.maxConnections = 32,
@@ -25,6 +26,7 @@ class _HttpWorkerConfig {
 
   final String address;
   final int port;
+  final String? title;
   final int bufferCapacity;
   final int? lineLength;
   final int maxConnections;
@@ -65,6 +67,7 @@ base class HttpDashboardIsolateHandler extends Handler {
   HttpDashboardIsolateHandler({
     final String address = 'localhost',
     final int port = 8080,
+    final String? title,
     final int bufferCapacity = 100,
     final int? lineLength,
     final int maxConnections = 32,
@@ -73,21 +76,19 @@ base class HttpDashboardIsolateHandler extends Handler {
     super.decorators,
     super.filters,
     super.timeout,
-  })  : _config = _HttpWorkerConfig(
-          address: address,
-          port: port,
-          bufferCapacity: bufferCapacity,
-          lineLength: lineLength,
-          maxConnections: maxConnections,
-          allowedOrigins: allowedOrigins,
-          formatter: formatter,
-          decorators: decorators,
-          timeoutMs: timeout?.inMilliseconds,
-        ),
-        super(
-          sink: _NoOpSink(),
-          engine: const StandardEngine(),
-        ) {
+  }) : _config = _HttpWorkerConfig(
+         address: address,
+         port: port,
+         title: title,
+         bufferCapacity: bufferCapacity,
+         lineLength: lineLength,
+         maxConnections: maxConnections,
+         allowedOrigins: allowedOrigins,
+         formatter: formatter,
+         decorators: decorators,
+         timeoutMs: timeout?.inMilliseconds,
+       ),
+       super(sink: _NoOpSink(), engine: const StandardEngine()) {
     _finalizer.attach(this, _receivePort, detach: this);
     _start();
   }
@@ -101,8 +102,9 @@ base class HttpDashboardIsolateHandler extends Handler {
   /// The actual bound port of the running HTTP server inside the worker isolate.
   int get boundPort => _state.boundPort ?? _config.port;
 
-  static final Finalizer<ReceivePort> _finalizer =
-      Finalizer<ReceivePort>((final port) {
+  static final Finalizer<ReceivePort> _finalizer = Finalizer<ReceivePort>((
+    final port,
+  ) {
     io.stderr.writeln(
       '[logd] HttpDashboardIsolateHandler leak detected! '
       'Handler garbage-collected without dispose(). '
@@ -236,6 +238,7 @@ base class HttpDashboardIsolateHandler extends Handler {
       sink = HttpServerSink(
         address: config.address,
         port: config.port,
+        title: config.title,
         bufferCapacity: config.bufferCapacity,
         lineLength: config.lineLength,
         maxConnections: config.maxConnections,

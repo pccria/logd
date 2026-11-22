@@ -72,7 +72,7 @@ Future<void> main() async {
         headersProvider: () async {
           tokenSequence++;
           return {
-            'Authorization': 'Bearer dynamic-oauth2-token-$tokenSequence'
+            'Authorization': 'Bearer dynamic-oauth2-token-$tokenSequence',
           };
         },
         batchSize: 3, // Ships immediately when 3 logs accumulate
@@ -87,7 +87,8 @@ Future<void> main() async {
     final logger = Logger.get('network.http');
 
     print(
-        '\n\x1B[32m[Client] Emitting Batch 1 (3 entries — triggers immediate batch flush)...\x1B[0m');
+      '\n\x1B[32m[Client] Emitting Batch 1 (3 entries — triggers immediate batch flush)...\x1B[0m',
+    );
     logger.info('User checkout initiated', context: {'userId': 'u-102'});
     logger.info('Cart items validated', context: {'itemsCount': 4});
     logger.info(
@@ -99,7 +100,8 @@ Future<void> main() async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
 
     print(
-        '\n\x1B[32m[Client] Emitting Batch 2 (2 entries — will flush on scheduled interval or dispose)...\x1B[0m');
+      '\n\x1B[32m[Client] Emitting Batch 2 (2 entries — will flush on scheduled interval or dispose)...\x1B[0m',
+    );
     logger.warning('Inventory stock low', context: {'sku': 'SKU-882'});
     logger.info('Receipt sent to customer email');
 
@@ -110,7 +112,8 @@ Future<void> main() async {
     // Clean teardown: flushes remaining buffer and shuts down client
     await httpHandler.sink.dispose();
     print(
-        '\n\x1B[1m\x1B[32m[Done] All HTTP batches delivered successfully.\x1B[0m');
+      '\n\x1B[1m\x1B[32m[Done] All HTTP batches delivered successfully.\x1B[0m',
+    );
   } finally {
     await serverSub.cancel();
     await server.close(force: true);

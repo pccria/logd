@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.3.0
+
+- Requires logd ^0.10.8.
+- **Configurable Reconnection & Retry Backoff (`BackoffPolicy`)**:
+  - Added `@immutable` `BackoffPolicy` supporting initial delay, max delay, exponential multiplier, and decorrelated randomized jitter to prevent thundering-herd reconnect storms across distributed clients.
+  - Integrated into `HttpSink` batch retry progression and `SocketSink` auto-reconnect cycle.
+  - Full multi-isolate serialization and deserialization support via `registerLogdNetworkSerializers()`.
+- **Flexible Delivery Formats (`HttpDeliveryFormat`)**:
+  - Added `HttpDeliveryFormat` supporting `jsonArray` (`application/json`, default), `ndjson` (Newline-Delimited JSON, `application/x-ndjson`), and `raw` (`application/octet-stream`).
+  - High-throughput byte stream assembly using zero-allocation `BytesBuilder` joins, avoiding intermediate UTF-16 string allocations.
+- **Memory Budgeting & Priority Eviction**:
+  - Added `maxBufferBytes` buffer ceiling to `NetworkSink`, `HttpSink`, and `SocketSink` to enforce strict memory bounds in high-throughput environments.
+  - Added `DropPolicy.discardByPriority` to evict lowest-severity entries first (`debug` -> `info` -> `warning` -> `error`) when buffer limits are reached.
+  - Added atomic pre-validation of available headroom in `discardByPriority` to prevent partial eviction when large incoming entries cannot fit.
+  - Exposed `bufferedBytes` and `bufferedLogCount` public telemetry inspection getters on `NetworkSink`.
+- **Character Resilience & Stream Hardening**:
+  - Configured `allowMalformed: true` in UTF-8 decoders across `SocketSink` and `HttpSink`, eliminating potential infinite reconnect loops triggered by malformed byte sequences.
+  - Added graceful fallback stringification (`toEncodable`) in `HttpServerSink` to safely serialize arbitrary non-encodable context objects over WebSockets.
+- **Observability Dashboard UX Enhancements (`dashboard_html.dart`)**:
+  - **Custom Title Propagation**: Connected the `title` parameter across `HttpDashboardHandler`, `HttpDashboardIsolateHandler`, and `HttpServerSink`, dynamically injecting sanitized titles into `<title>` and `<h1>`.
+  - **Lossless Stream Pausing**: Pausing incoming streams buffers events into an in-memory queue (up to 5,000 entries) with live queue count indicators, draining into the DOM upon unpausing without log loss.
+  - **Subsystem / Logger Namespace Filtering**: Dynamic dropdown automatically discovers incoming logger names and filters events by logger hierarchy.
+  - **Regex Search & Match Counters**: Search input supports `/pattern/flags` regular expression matching across message, logger, origin, context, and error fields, with real-time match count badges.
+  - **NDJSON One-Click Export**: Added client-side export button to download active logs as a standardized `.ndjson` payload.
+- **Serialization Completeness**:
+  - Extended `registerLogdNetworkSerializers()` to cover `SocketSink.protocols` and `HttpServerSink.title`, `allowedHosts`, and `authToken`.
+- **Examples & Recipes**:
+  - Added `example/delivery_format_example.dart` showcasing NDJSON stream ingestion, jittered backoff policies, and memory budget limits.
+  - Added `example/offline_spooling_recipe.dart` showcasing zero-data-loss local queue spooling and automatic reconnection replay.
+
 ## 0.2.6
 
 - Requires logd ^0.10.8.

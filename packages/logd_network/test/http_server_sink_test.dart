@@ -81,8 +81,7 @@ void main() {
       },
     );
 
-    test(
-        'should buffer log history and replay to late-connecting WebSocket'
+    test('should buffer log history and replay to late-connecting WebSocket'
         ' clients', () async {
       final sink = HttpServerSink(
         address: 'localhost',
@@ -136,53 +135,50 @@ void main() {
       await sink.dispose();
     });
 
-    test(
-      'should evict oldest logs when bufferCapacity is exceeded',
-      () async {
-        final sink = HttpServerSink(
-          address: 'localhost',
-          port: 0,
-          bufferCapacity: 2,
-          encoder: const PlainTextEncoder(),
-        );
+    test('should evict oldest logs when bufferCapacity is exceeded', () async {
+      final sink = HttpServerSink(
+        address: 'localhost',
+        port: 0,
+        bufferCapacity: 2,
+        encoder: const PlainTextEncoder(),
+      );
 
-        await sink.ready;
-        final port = sink.boundPort;
+      await sink.ready;
+      final port = sink.boundPort;
 
-        final logger = Logger.get('capacity_logger');
-        Logger.configure(
-          'capacity_logger',
-          handlers: [Handler(formatter: const PlainFormatter(), sink: sink)],
-        );
+      final logger = Logger.get('capacity_logger');
+      Logger.configure(
+        'capacity_logger',
+        handlers: [Handler(formatter: const PlainFormatter(), sink: sink)],
+      );
 
-        logger
-          ..info('Log 1 - should be evicted')
-          ..info('Log 2 - should be retained')
-          ..info('Log 3 - should be retained');
+      logger
+        ..info('Log 1 - should be evicted')
+        ..info('Log 2 - should be retained')
+        ..info('Log 3 - should be retained');
 
-        final wsUrl = 'ws://localhost:$port/ws';
-        final socket = await io.WebSocket.connect(wsUrl);
+      final wsUrl = 'ws://localhost:$port/ws';
+      final socket = await io.WebSocket.connect(wsUrl);
 
-        final receivedLogs = <String>[];
-        final completer = Completer<void>();
+      final receivedLogs = <String>[];
+      final completer = Completer<void>();
 
-        socket.listen((final data) {
-          receivedLogs.add(data as String);
-          if (receivedLogs.length == 2 && !completer.isCompleted) {
-            completer.complete();
-          }
-        });
+      socket.listen((final data) {
+        receivedLogs.add(data as String);
+        if (receivedLogs.length == 2 && !completer.isCompleted) {
+          completer.complete();
+        }
+      });
 
-        await completer.future.timeout(const Duration(seconds: 5));
-        expect(receivedLogs.length, equals(2));
+      await completer.future.timeout(const Duration(seconds: 5));
+      expect(receivedLogs.length, equals(2));
 
-        expect(receivedLogs[0], contains('Log 2 - should be retained'));
-        expect(receivedLogs[1], contains('Log 3 - should be retained'));
+      expect(receivedLogs[0], contains('Log 2 - should be retained'));
+      expect(receivedLogs[1], contains('Log 3 - should be retained'));
 
-        await socket.close();
-        await sink.dispose();
-      },
-    );
+      await socket.close();
+      await sink.dispose();
+    });
 
     test(
       'should broadcast logs to multiple concurrent WebSocket clients',
@@ -241,19 +237,86 @@ void main() {
     );
 
     test('should return 404 for unknown HTTP routes', () async {
-      final sink = HttpServerSink(
-        address: 'localhost',
-        port: 0,
-      );
+      final sink = HttpServerSink(address: 'localhost', port: 0);
 
       await sink.ready;
       final port = sink.boundPort;
 
-      final res =
-          await http.get(Uri.parse('http://localhost:$port/unknown_route'));
+      final res = await http.get(
+        Uri.parse('http://localhost:$port/unknown_route'),
+      );
       expect(res.statusCode, equals(404));
 
       await sink.dispose();
     });
+
+    test(
+      'should substitute custom title into HTML title and header elements',
+      () async {
+        final sink = HttpServerSink(
+          address: 'localhost',
+          port: 0,
+          title: 'Fleet Telemetry Control <Live>',
+        );
+
+        await sink.ready;
+        final port = sink.boundPort;
+
+        final res = await http.get(Uri.parse('http://localhost:$port/'));
+        expect(res.statusCode, equals(200));
+        expect(
+          res.body,
+          contains('<title>Fleet Telemetry Control &lt;Live&gt;</title>'),
+        );
+        expect(
+          res.body,
+          contains('<h1>Fleet Telemetry Control &lt;Live&gt;</h1>'),
+        );
+
+        await sink.dispose();
+      },
+    );
+
+    test(
+      'should safely serialize non-JSON-encodable context objects over WebSocket',
+      () async {
+        final sink = HttpServerSink(address: 'localhost', port: 0);
+
+        await sink.ready;
+        final port = sink.boundPort;
+
+        final socket = await io.WebSocket.connect('ws://localhost:$port/ws');
+        final completer = Completer<String>();
+        socket.listen((final data) {
+          if (!completer.isCompleted) {
+            completer.complete(data as String);
+          }
+        });
+
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        final logger = Logger.get('non_encodable_logger');
+        Logger.configure(
+          'non_encodable_logger',
+          handlers: [Handler(formatter: const PlainFormatter(), sink: sink)],
+        );
+
+        // Custom object without toJson
+        final customObject = Stopwatch()..start();
+        logger.info(
+          'Log with non-serializable context',
+          context: {'timer': customObject, 'closure': () => 42},
+        );
+
+        final received = await completer.future.timeout(
+          const Duration(seconds: 5),
+        );
+        expect(received, contains('Log with non-serializable context'));
+        expect(received, contains('Stopwatch'));
+
+        await socket.close();
+        await sink.dispose();
+      },
+    );
   });
 }

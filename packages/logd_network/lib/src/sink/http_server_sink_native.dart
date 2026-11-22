@@ -27,6 +27,7 @@ base class HttpServerSink extends EncodingSink {
     this.allowedOrigins = const {},
     this.allowedHosts = const {},
     this.authToken,
+    this.title,
   }) : super(preferredWidth: lineLength ?? 120, delegate: _staticWrite) {
     final isLoopback =
         address == 'localhost' || address == '127.0.0.1' || address == '::1';
@@ -69,6 +70,9 @@ base class HttpServerSink extends EncodingSink {
 
   /// Optional authentication token required for dashboard HTTP and WebSocket access.
   final String? authToken;
+
+  /// Optional custom title displayed on the dashboard header and browser tab.
+  final String? title;
 
   /// Completer to track server readiness.
   final Completer<void> _ready = Completer<void>();
@@ -123,6 +127,18 @@ base class HttpServerSink extends EncodingSink {
             "default-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' ws: wss:;",
           );
           var html = dashboardHtml;
+          if (title != null && title!.trim().isNotEmpty) {
+            final escapedTitle = _escapeHtml(title!.trim());
+            html = html
+                .replaceFirst(
+                  '<title>Logd Viewer Dashboard</title>',
+                  '<title>$escapedTitle</title>',
+                )
+                .replaceFirst(
+                  '<h1>logd Dashboard</h1>',
+                  '<h1>$escapedTitle</h1>',
+                );
+          }
           final Object currentEncoder = encoder;
           if (currentEncoder.runtimeType.toString() == 'HtmlEncoder') {
             final dynamic enc = currentEncoder;
@@ -149,8 +165,9 @@ base class HttpServerSink extends EncodingSink {
               origin.isNotEmpty &&
               !_isOriginAllowed(origin, request.headers.host)) {
             request.response.statusCode = io.HttpStatus.forbidden;
-            request.response
-                .write('Cross-origin WebSocket connection forbidden.');
+            request.response.write(
+              'Cross-origin WebSocket connection forbidden.',
+            );
             await request.response.close();
             return;
           }
@@ -278,7 +295,7 @@ base class HttpServerSink extends EncodingSink {
         width: preferredWidth,
       );
       final data = context.takeBytes();
-      final formattedString = convert.utf8.decode(data);
+      final formattedString = convert.utf8.decode(data, allowMalformed: true);
 
       final payload = {
         'formatted': formattedString,
@@ -302,7 +319,10 @@ base class HttpServerSink extends EncodingSink {
           },
       };
 
-      final payloadJson = convert.jsonEncode(payload);
+      final payloadJson = convert.jsonEncode(
+        payload,
+        toEncodable: (final dynamic nonEncodable) => nonEncodable.toString(),
+      );
 
       if (bufferCapacity > 0) {
         _history.add(payloadJson);
@@ -343,5 +363,14 @@ base class HttpServerSink extends EncodingSink {
 
     await _server?.close(force: true);
     await super.dispose();
+  }
+
+  static String _escapeHtml(final String text) {
+    return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
   }
 }

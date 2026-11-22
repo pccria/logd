@@ -205,10 +205,7 @@ void main() {
       final sink = HttpSink(
         url: httpUrl,
         batchSize: 1,
-        headers: const {
-          'Authorization': 'Bearer token-xyz',
-          'X-Custom': '123',
-        },
+        headers: const {'Authorization': 'Bearer token-xyz', 'X-Custom': '123'},
         client: mockClient,
       );
 
@@ -233,51 +230,53 @@ void main() {
       ).called(1);
     });
 
-    test('evaluates async headersProvider and overrides static headers',
-        () async {
-      when(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: any(named: 'body'),
-        ),
-      ).thenAnswer((final _) async => http.Response('OK', 200));
+    test(
+      'evaluates async headersProvider and overrides static headers',
+      () async {
+        when(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((final _) async => http.Response('OK', 200));
 
-      final sink = HttpSink(
-        url: httpUrl,
-        batchSize: 1,
-        headers: const {
-          'Authorization': 'Bearer old-token',
-          'X-Static': 'static-val',
-        },
-        headersProvider: () async => {
-          'Authorization': 'Bearer refreshed-token',
-          'X-Dynamic': 'dynamic-val',
-        },
-        client: mockClient,
-      );
-
-      await sink.output(
-        createTestDocument(['dynamic-headers']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future.delayed(Duration.zero);
-
-      verify(
-        () => mockClient.post(
-          any(),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer refreshed-token',
+        final sink = HttpSink(
+          url: httpUrl,
+          batchSize: 1,
+          headers: const {
+            'Authorization': 'Bearer old-token',
             'X-Static': 'static-val',
+          },
+          headersProvider: () async => {
+            'Authorization': 'Bearer refreshed-token',
             'X-Dynamic': 'dynamic-val',
           },
-          body: any(named: 'body'),
-        ),
-      ).called(1);
-    });
+          client: mockClient,
+        );
+
+        await sink.output(
+          createTestDocument(['dynamic-headers']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future.delayed(Duration.zero);
+
+        verify(
+          () => mockClient.post(
+            any(),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer refreshed-token',
+              'X-Static': 'static-val',
+              'X-Dynamic': 'dynamic-val',
+            },
+            body: any(named: 'body'),
+          ),
+        ).called(1);
+      },
+    );
 
     test('supports synchronous headersProvider callback', () async {
       when(
@@ -315,51 +314,53 @@ void main() {
       ).called(1);
     });
 
-    test('re-evaluates headersProvider on retry when token provider throws',
-        () async {
-      var providerCalls = 0;
-      when(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: any(named: 'body'),
-        ),
-      ).thenAnswer((final _) async => http.Response('OK', 200));
+    test(
+      're-evaluates headersProvider on retry when token provider throws',
+      () async {
+        var providerCalls = 0;
+        when(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((final _) async => http.Response('OK', 200));
 
-      final sink = HttpSink(
-        url: httpUrl,
-        batchSize: 1,
-        maxRetries: 3,
-        headersProvider: () {
-          providerCalls++;
-          if (providerCalls == 1) {
-            throw StateError('Auth server timeout');
-          }
-          return {'Authorization': 'Bearer recovered-jwt'};
-        },
-        client: mockClient,
-      );
-
-      await sink.output(
-        createTestDocument(['retry-token']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      expect(providerCalls, equals(2));
-      verify(
-        () => mockClient.post(
-          any(),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer recovered-jwt',
+        final sink = HttpSink(
+          url: httpUrl,
+          batchSize: 1,
+          maxRetries: 3,
+          headersProvider: () {
+            providerCalls++;
+            if (providerCalls == 1) {
+              throw StateError('Auth server timeout');
+            }
+            return {'Authorization': 'Bearer recovered-jwt'};
           },
-          body: any(named: 'body'),
-        ),
-      ).called(1);
-    });
+          client: mockClient,
+        );
+
+        await sink.output(
+          createTestDocument(['retry-token']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        expect(providerCalls, equals(2));
+        verify(
+          () => mockClient.post(
+            any(),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer recovered-jwt',
+            },
+            body: any(named: 'body'),
+          ),
+        ).called(1);
+      },
+    );
 
     test(
       'invokes onDropped with provider error when headersProvider throws continuously',
@@ -433,65 +434,67 @@ void main() {
       await sink.dispose();
     });
 
-    test('re-evaluates headersProvider dynamically across distinct batches',
-        () async {
-      var callIndex = 0;
-      when(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: any(named: 'body'),
-        ),
-      ).thenAnswer((final _) async => http.Response('OK', 200));
+    test(
+      're-evaluates headersProvider dynamically across distinct batches',
+      () async {
+        var callIndex = 0;
+        when(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((final _) async => http.Response('OK', 200));
 
-      final sink = HttpSink(
-        url: httpUrl,
-        batchSize: 1,
-        headersProvider: () => {'X-Sequence': 'seq-${++callIndex}'},
-        client: mockClient,
-      );
+        final sink = HttpSink(
+          url: httpUrl,
+          batchSize: 1,
+          headersProvider: () => {'X-Sequence': 'seq-${++callIndex}'},
+          client: mockClient,
+        );
 
-      await sink.output(
-        createTestDocument(['batch-1']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future.delayed(Duration.zero);
+        await sink.output(
+          createTestDocument(['batch-1']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future.delayed(Duration.zero);
 
-      verify(
-        () => mockClient.post(
-          any(),
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Sequence': 'seq-1',
-          },
-          body: any(named: 'body'),
-        ),
-      ).called(1);
+        verify(
+          () => mockClient.post(
+            any(),
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Sequence': 'seq-1',
+            },
+            body: any(named: 'body'),
+          ),
+        ).called(1);
 
-      await sink.output(
-        createTestDocument(['batch-2']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future.delayed(Duration.zero);
+        await sink.output(
+          createTestDocument(['batch-2']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future.delayed(Duration.zero);
 
-      verify(
-        () => mockClient.post(
-          any(),
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Sequence': 'seq-2',
-          },
-          body: any(named: 'body'),
-        ),
-      ).called(1);
+        verify(
+          () => mockClient.post(
+            any(),
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Sequence': 'seq-2',
+            },
+            body: any(named: 'body'),
+          ),
+        ).called(1);
 
-      expect(callIndex, equals(2));
-      await sink.dispose();
-    });
+        expect(callIndex, equals(2));
+        await sink.dispose();
+      },
+    );
 
     test('invokes onDropped callback when max retries exceeded', () async {
       when(
@@ -697,46 +700,50 @@ void main() {
       await sink.dispose();
     });
 
-    test('sends periodic heartbeat pings when heartbeatInterval is configured',
-        () async {
-      final streamController = StreamController<dynamic>.broadcast();
-      when(() => mockChannel.stream)
-          .thenAnswer((final _) => streamController.stream);
+    test(
+      'sends periodic heartbeat pings when heartbeatInterval is configured',
+      () async {
+        final streamController = StreamController<dynamic>.broadcast();
+        when(
+          () => mockChannel.stream,
+        ).thenAnswer((final _) => streamController.stream);
 
-      final addedMessages = <dynamic>[];
-      when(() => mockSink.add(any())).thenAnswer((final inv) {
-        addedMessages.add(inv.positionalArguments.first);
-      });
+        final addedMessages = <dynamic>[];
+        when(() => mockSink.add(any())).thenAnswer((final inv) {
+          addedMessages.add(inv.positionalArguments.first);
+        });
 
-      final sink = SocketSink(
-        url: wsUrl,
-        channel: mockChannel,
-        heartbeatInterval: const Duration(milliseconds: 30),
-        pingMessage: 'custom-ping',
-        pongMessage: 'custom-pong',
-      );
+        final sink = SocketSink(
+          url: wsUrl,
+          channel: mockChannel,
+          heartbeatInterval: const Duration(milliseconds: 30),
+          pingMessage: 'custom-ping',
+          pongMessage: 'custom-pong',
+        );
 
-      await sink.output(
-        createTestDocument(['hello']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
+        await sink.output(
+          createTestDocument(['hello']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
 
-      // Wait for heartbeat interval to trigger at least once
-      await Future<void>.delayed(const Duration(milliseconds: 70));
+        // Wait for heartbeat interval to trigger at least once
+        await Future<void>.delayed(const Duration(milliseconds: 70));
 
-      expect(addedMessages, contains('hello'));
-      expect(addedMessages, contains('custom-ping'));
+        expect(addedMessages, contains('hello'));
+        expect(addedMessages, contains('custom-ping'));
 
-      await sink.dispose();
-      await streamController.close();
-    });
+        await sink.dispose();
+        await streamController.close();
+      },
+    );
 
     test('reconnects when heartbeat pong times out', () async {
       final streamController = StreamController<dynamic>.broadcast();
-      when(() => mockChannel.stream)
-          .thenAnswer((final _) => streamController.stream);
+      when(
+        () => mockChannel.stream,
+      ).thenAnswer((final _) => streamController.stream);
 
       when(() => mockSink.add(any())).thenAnswer((final _) {});
 
@@ -1089,148 +1096,151 @@ void main() {
     });
 
     test(
-        'trips circuit to open after failureThreshold failures without failovers',
-        () async {
-      when(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: any(named: 'body'),
-        ),
-      ).thenAnswer((final _) async => http.Response('Internal Error', 500));
+      'trips circuit to open after failureThreshold failures without failovers',
+      () async {
+        when(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((final _) async => http.Response('Internal Error', 500));
 
-      final sink = HttpSink(
-        url: 'https://example.com/logs',
-        batchSize: 1,
-        maxRetries: 1,
-        failureThreshold: 2,
-        recoveryTimeout: const Duration(milliseconds: 50),
-        client: mockClient,
-      );
+        final sink = HttpSink(
+          url: 'https://example.com/logs',
+          batchSize: 1,
+          maxRetries: 1,
+          failureThreshold: 2,
+          recoveryTimeout: const Duration(milliseconds: 50),
+          client: mockClient,
+        );
 
-      // Batch 1 fails
-      await sink.output(
-        createTestDocument(['msg1']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        // Batch 1 fails
+        await sink.output(
+          createTestDocument(['msg1']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(sink.consecutiveFailures, equals(1));
-      expect(sink.circuitState, equals(CircuitState.closed));
+        expect(sink.consecutiveFailures, equals(1));
+        expect(sink.circuitState, equals(CircuitState.closed));
 
-      // Batch 2 fails -> reaches failureThreshold (2) -> trips to open!
-      await sink.output(
-        createTestDocument(['msg2']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        // Batch 2 fails -> reaches failureThreshold (2) -> trips to open!
+        await sink.output(
+          createTestDocument(['msg2']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(sink.consecutiveFailures, equals(2));
-      expect(sink.circuitState, equals(CircuitState.open));
+        expect(sink.consecutiveFailures, equals(2));
+        expect(sink.circuitState, equals(CircuitState.open));
 
-      // Batch 3 sent while circuit is open -> fails fast, no network calls made!
-      await sink.output(
-        createTestDocument(['msg3']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        // Batch 3 sent while circuit is open -> fails fast, no network calls made!
+        await sink.output(
+          createTestDocument(['msg3']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      // Verify msg1 and msg2 were called, but msg3 was NEVER called because circuit is open!
-      verify(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: jsonEncode(['msg1']),
-        ),
-      ).called(1);
-      verify(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: jsonEncode(['msg2']),
-        ),
-      ).called(1);
-      verifyNever(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: jsonEncode(['msg3']),
-        ),
-      );
-      verifyNoMoreInteractions(mockClient);
+        // Verify msg1 and msg2 were called, but msg3 was NEVER called because circuit is open!
+        verify(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: jsonEncode(['msg1']),
+          ),
+        ).called(1);
+        verify(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: jsonEncode(['msg2']),
+          ),
+        ).called(1);
+        verifyNever(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: jsonEncode(['msg3']),
+          ),
+        );
+        verifyNoMoreInteractions(mockClient);
 
-      await sink.dispose();
-    });
+        await sink.dispose();
+      },
+    );
 
-    test('recovers from open to halfOpen and closes on successful probe',
-        () async {
-      int requestCount = 0;
-      when(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: any(named: 'body'),
-        ),
-      ).thenAnswer((final _) async {
-        requestCount++;
-        if (requestCount <= 2) {
-          return http.Response('Service Unavailable', 503);
-        }
-        return http.Response('OK', 200);
-      });
+    test(
+      'recovers from open to halfOpen and closes on successful probe',
+      () async {
+        int requestCount = 0;
+        when(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((final _) async {
+          requestCount++;
+          if (requestCount <= 2) {
+            return http.Response('Service Unavailable', 503);
+          }
+          return http.Response('OK', 200);
+        });
 
-      final sink = HttpSink(
-        url: 'https://example.com/logs',
-        batchSize: 1,
-        maxRetries: 1,
-        failureThreshold: 2,
-        recoveryTimeout: const Duration(milliseconds: 30),
-        client: mockClient,
-      );
+        final sink = HttpSink(
+          url: 'https://example.com/logs',
+          batchSize: 1,
+          maxRetries: 1,
+          failureThreshold: 2,
+          recoveryTimeout: const Duration(milliseconds: 30),
+          client: mockClient,
+        );
 
-      // Send 2 batches to trip circuit to open
-      await sink.output(
-        createTestDocument(['batch1']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        // Send 2 batches to trip circuit to open
+        await sink.output(
+          createTestDocument(['batch1']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      await sink.output(
-        createTestDocument(['batch2']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        await sink.output(
+          createTestDocument(['batch2']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(sink.circuitState, equals(CircuitState.open));
+        expect(sink.circuitState, equals(CircuitState.open));
 
-      // Wait for recovery timeout to elapse
-      await Future<void>.delayed(const Duration(milliseconds: 40));
+        // Wait for recovery timeout to elapse
+        await Future<void>.delayed(const Duration(milliseconds: 40));
 
-      // Send probe log
-      await sink.output(
-        createTestDocument(['probe']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+        // Send probe log
+        await sink.output(
+          createTestDocument(['probe']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      // Probe succeeded -> circuit closes and resets consecutiveFailures!
-      expect(sink.circuitState, equals(CircuitState.closed));
-      expect(sink.consecutiveFailures, equals(0));
+        // Probe succeeded -> circuit closes and resets consecutiveFailures!
+        expect(sink.circuitState, equals(CircuitState.closed));
+        expect(sink.consecutiveFailures, equals(0));
 
-      await sink.dispose();
-    });
+        await sink.dispose();
+      },
+    );
 
     test('trips back to open if probe fails in halfOpen', () async {
       when(
@@ -1278,96 +1288,99 @@ void main() {
       await sink.dispose();
     });
 
-    test('fails over to fallback endpoint when primary endpoint fails',
-        () async {
-      final primaryUri = Uri.parse('https://primary.example.com/logs');
-      final backupUri = Uri.parse('https://backup.example.com/logs');
+    test(
+      'fails over to fallback endpoint when primary endpoint fails',
+      () async {
+        final primaryUri = Uri.parse('https://primary.example.com/logs');
+        final backupUri = Uri.parse('https://backup.example.com/logs');
 
-      when(
-        () => mockClient.post(
-          primaryUri,
-          headers: any(named: 'headers'),
-          body: any(named: 'body'),
-        ),
-      ).thenAnswer((final _) async => http.Response('Primary down', 500));
+        when(
+          () => mockClient.post(
+            primaryUri,
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((final _) async => http.Response('Primary down', 500));
 
-      when(
-        () => mockClient.post(
-          backupUri,
-          headers: any(named: 'headers'),
-          body: any(named: 'body'),
-        ),
-      ).thenAnswer((final _) async => http.Response('Backup OK', 200));
+        when(
+          () => mockClient.post(
+            backupUri,
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((final _) async => http.Response('Backup OK', 200));
 
-      final sink = HttpSink(
-        url: 'https://primary.example.com/logs',
-        failoverUrls: const ['https://backup.example.com/logs'],
-        batchSize: 1,
-        maxRetries: 1,
-        client: mockClient,
-      );
+        final sink = HttpSink(
+          url: 'https://primary.example.com/logs',
+          failoverUrls: const ['https://backup.example.com/logs'],
+          batchSize: 1,
+          maxRetries: 1,
+          client: mockClient,
+        );
 
-      await sink.output(
-        createTestDocument(['important_log']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+        await sink.output(
+          createTestDocument(['important_log']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      // Failed over to backup endpoint and succeeded without dropping the log!
-      expect(sink.currentUrl, equals('https://backup.example.com/logs'));
-      expect(sink.circuitState, equals(CircuitState.closed));
+        // Failed over to backup endpoint and succeeded without dropping the log!
+        expect(sink.currentUrl, equals('https://backup.example.com/logs'));
+        expect(sink.circuitState, equals(CircuitState.closed));
 
-      verify(
-        () => mockClient.post(
-          backupUri,
-          headers: any(named: 'headers'),
-          body: jsonEncode(['important_log']),
-        ),
-      ).called(1);
+        verify(
+          () => mockClient.post(
+            backupUri,
+            headers: any(named: 'headers'),
+            body: jsonEncode(['important_log']),
+          ),
+        ).called(1);
 
-      // resetFailover brings it back to primary
-      sink.resetFailover();
-      expect(sink.currentUrl, equals('https://primary.example.com/logs'));
+        // resetFailover brings it back to primary
+        sink.resetFailover();
+        expect(sink.currentUrl, equals('https://primary.example.com/logs'));
 
-      await sink.dispose();
-    });
+        await sink.dispose();
+      },
+    );
 
     test(
-        'manual resetCircuit restores closed state and resets consecutiveFailures',
-        () async {
-      when(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: any(named: 'body'),
-        ),
-      ).thenAnswer((final _) async => http.Response('Error', 500));
+      'manual resetCircuit restores closed state and resets consecutiveFailures',
+      () async {
+        when(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((final _) async => http.Response('Error', 500));
 
-      final sink = HttpSink(
-        url: 'https://example.com/logs',
-        batchSize: 1,
-        maxRetries: 1,
-        failureThreshold: 1,
-        client: mockClient,
-      );
+        final sink = HttpSink(
+          url: 'https://example.com/logs',
+          batchSize: 1,
+          maxRetries: 1,
+          failureThreshold: 1,
+          client: mockClient,
+        );
 
-      await sink.output(
-        createTestDocument(['fail']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      expect(sink.circuitState, equals(CircuitState.open));
+        await sink.output(
+          createTestDocument(['fail']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(sink.circuitState, equals(CircuitState.open));
 
-      sink.resetCircuit();
-      expect(sink.circuitState, equals(CircuitState.closed));
-      expect(sink.consecutiveFailures, equals(0));
+        sink.resetCircuit();
+        expect(sink.circuitState, equals(CircuitState.closed));
+        expect(sink.consecutiveFailures, equals(0));
 
-      await sink.dispose();
-    });
+        await sink.dispose();
+      },
+    );
   });
 
   group('HttpSink Retry-After Backpressure', () {
@@ -1421,43 +1434,45 @@ void main() {
 
   group('HttpSink Serialization', () {
     test(
-        'serializes and deserializes circuit breaker and failover configuration',
-        () {
-      registerLogdNetworkSerializers();
+      'serializes and deserializes circuit breaker and failover configuration',
+      () {
+        registerLogdNetworkSerializers();
 
-      final sink = HttpSink(
-        url: 'https://logs.prod.acme.corp',
-        failoverUrls: const [
-          'https://backup1.acme.corp',
-          'https://backup2.acme.corp',
-        ],
-        failureThreshold: 7,
-        recoveryTimeout: const Duration(seconds: 45),
-        batchSize: 25,
-      );
-
-      final json = LoggerSerializationRegistry.serializeSink(sink);
-      expect(json['type'], equals('HttpSink'));
-      final config = json['config'] as Map<String, dynamic>;
-      expect(config['url'], equals('https://logs.prod.acme.corp'));
-      expect(
-          config['failoverUrls'],
-          equals([
+        final sink = HttpSink(
+          url: 'https://logs.prod.acme.corp',
+          failoverUrls: const [
             'https://backup1.acme.corp',
             'https://backup2.acme.corp',
-          ]));
-      expect(config['failureThreshold'], equals(7));
-      expect(config['recoveryTimeoutMs'], equals(45000));
-      expect(config['batchSize'], equals(25));
+          ],
+          failureThreshold: 7,
+          recoveryTimeout: const Duration(seconds: 45),
+          batchSize: 25,
+        );
 
-      final deserialized =
-          LoggerSerializationRegistry.deserializeSink(json) as HttpSink;
-      expect(deserialized.url, equals(sink.url));
-      expect(deserialized.failoverUrls, equals(sink.failoverUrls));
-      expect(deserialized.failureThreshold, equals(7));
-      expect(deserialized.recoveryTimeout, equals(const Duration(seconds: 45)));
-      expect(deserialized.batchSize, equals(25));
-    });
+        final json = LoggerSerializationRegistry.serializeSink(sink);
+        expect(json['type'], equals('HttpSink'));
+        final config = json['config'] as Map<String, dynamic>;
+        expect(config['url'], equals('https://logs.prod.acme.corp'));
+        expect(
+          config['failoverUrls'],
+          equals(['https://backup1.acme.corp', 'https://backup2.acme.corp']),
+        );
+        expect(config['failureThreshold'], equals(7));
+        expect(config['recoveryTimeoutMs'], equals(45000));
+        expect(config['batchSize'], equals(25));
+
+        final deserialized =
+            LoggerSerializationRegistry.deserializeSink(json) as HttpSink;
+        expect(deserialized.url, equals(sink.url));
+        expect(deserialized.failoverUrls, equals(sink.failoverUrls));
+        expect(deserialized.failureThreshold, equals(7));
+        expect(
+          deserialized.recoveryTimeout,
+          equals(const Duration(seconds: 45)),
+        );
+        expect(deserialized.batchSize, equals(25));
+      },
+    );
   });
 
   group('HttpSink GZip Compression', () {
@@ -1468,95 +1483,97 @@ void main() {
     });
 
     test(
-        'compresses payload with GZip and adds Content-Encoding header when compress is true',
-        () async {
-      Object? capturedBody;
-      Map<String, String>? capturedHeaders;
+      'compresses payload with GZip and adds Content-Encoding header when compress is true',
+      () async {
+        Object? capturedBody;
+        Map<String, String>? capturedHeaders;
 
-      when(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: any(named: 'body'),
-        ),
-      ).thenAnswer((final invocation) async {
-        capturedHeaders =
-            invocation.namedArguments[#headers] as Map<String, String>?;
-        capturedBody = invocation.namedArguments[#body];
-        return http.Response('OK', 200);
-      });
+        when(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((final invocation) async {
+          capturedHeaders =
+              invocation.namedArguments[#headers] as Map<String, String>?;
+          capturedBody = invocation.namedArguments[#body];
+          return http.Response('OK', 200);
+        });
 
-      final sink = HttpSink(
-        url: 'https://example.com/logs',
-        batchSize: 1,
-        compress: true,
-        client: mockClient,
-      );
+        final sink = HttpSink(
+          url: 'https://example.com/logs',
+          batchSize: 1,
+          compress: true,
+          client: mockClient,
+        );
 
-      await sink.output(
-        createTestDocument(['gzip_compressed_message']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+        await sink.output(
+          createTestDocument(['gzip_compressed_message']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      expect(capturedHeaders, isNotNull);
-      expect(capturedHeaders!['Content-Encoding'], equals('gzip'));
-      expect(capturedHeaders!['Content-Type'], equals('application/json'));
+        expect(capturedHeaders, isNotNull);
+        expect(capturedHeaders!['Content-Encoding'], equals('gzip'));
+        expect(capturedHeaders!['Content-Type'], equals('application/json'));
 
-      expect(capturedBody, isA<List<int>>());
-      final decompressedBytes = gzip.decode(capturedBody as List<int>);
-      final jsonString = utf8.decode(decompressedBytes);
-      final decodedList = jsonDecode(jsonString) as List<dynamic>;
-      expect(decodedList, equals(['gzip_compressed_message']));
+        expect(capturedBody, isA<List<int>>());
+        final decompressedBytes = gzip.decode(capturedBody as List<int>);
+        final jsonString = utf8.decode(decompressedBytes);
+        final decodedList = jsonDecode(jsonString) as List<dynamic>;
+        expect(decodedList, equals(['gzip_compressed_message']));
 
-      await sink.dispose();
-    });
+        await sink.dispose();
+      },
+    );
 
     test(
-        'does not compress payload or add Content-Encoding header when compress is false',
-        () async {
-      Object? capturedBody;
-      Map<String, String>? capturedHeaders;
+      'does not compress payload or add Content-Encoding header when compress is false',
+      () async {
+        Object? capturedBody;
+        Map<String, String>? capturedHeaders;
 
-      when(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: any(named: 'body'),
-        ),
-      ).thenAnswer((final invocation) async {
-        capturedHeaders =
-            invocation.namedArguments[#headers] as Map<String, String>?;
-        capturedBody = invocation.namedArguments[#body];
-        return http.Response('OK', 200);
-      });
+        when(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((final invocation) async {
+          capturedHeaders =
+              invocation.namedArguments[#headers] as Map<String, String>?;
+          capturedBody = invocation.namedArguments[#body];
+          return http.Response('OK', 200);
+        });
 
-      final sink = HttpSink(
-        url: 'https://example.com/logs',
-        batchSize: 1,
-        compress: false,
-        client: mockClient,
-      );
+        final sink = HttpSink(
+          url: 'https://example.com/logs',
+          batchSize: 1,
+          compress: false,
+          client: mockClient,
+        );
 
-      await sink.output(
-        createTestDocument(['uncompressed_message']),
-        testEntry,
-        LogLevel.info,
-        const StandardPipelineFactory(),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+        await sink.output(
+          createTestDocument(['uncompressed_message']),
+          testEntry,
+          LogLevel.info,
+          const StandardPipelineFactory(),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      expect(capturedHeaders, isNotNull);
-      expect(capturedHeaders!.containsKey('Content-Encoding'), isFalse);
-      expect(capturedHeaders!['Content-Type'], equals('application/json'));
+        expect(capturedHeaders, isNotNull);
+        expect(capturedHeaders!.containsKey('Content-Encoding'), isFalse);
+        expect(capturedHeaders!['Content-Type'], equals('application/json'));
 
-      expect(capturedBody, isA<String>());
-      final decodedList = jsonDecode(capturedBody as String) as List<dynamic>;
-      expect(decodedList, equals(['uncompressed_message']));
+        expect(capturedBody, isA<String>());
+        final decodedList = jsonDecode(capturedBody as String) as List<dynamic>;
+        expect(decodedList, equals(['uncompressed_message']));
 
-      await sink.dispose();
-    });
+        await sink.dispose();
+      },
+    );
   });
 }
