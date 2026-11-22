@@ -21,23 +21,25 @@ Future<void> main() async {
   );
 
   var frameCount = 0;
-  final serverSub = server.transform(WebSocketTransformer()).listen(
-    (final webSocket) {
-      print(
-          '\n\x1B[35m[Server] WebSocket client connected from 127.0.0.1\x1B[0m');
-      webSocket.listen(
-        (final data) {
-          frameCount++;
-          print(
-              '\n\x1B[33m[Server] Frame #$frameCount received in real time:\x1B[0m');
-          print(data);
-        },
-        onDone: () {
-          print('\x1B[2m[Server] Client disconnected cleanly.\x1B[0m');
-        },
-      );
-    },
-  );
+  final serverSub = server.transform(WebSocketTransformer()).listen((
+    final webSocket,
+  ) {
+    print(
+      '\n\x1B[35m[Server] WebSocket client connected from 127.0.0.1\x1B[0m',
+    );
+    webSocket.listen(
+      (final data) {
+        frameCount++;
+        print(
+          '\n\x1B[33m[Server] Frame #$frameCount received in real time:\x1B[0m',
+        );
+        print(data);
+      },
+      onDone: () {
+        print('\x1B[2m[Server] Client disconnected cleanly.\x1B[0m');
+      },
+    );
+  });
 
   try {
     // 2. Configure SocketSink with styled terminal output
@@ -72,7 +74,8 @@ Future<void> main() async {
 
     await wsHandler.sink.dispose();
     print(
-        '\n\x1B[1m\x1B[32m[Done] Socket streaming demonstration complete.\x1B[0m');
+      '\n\x1B[1m\x1B[32m[Done] Socket streaming demonstration complete.\x1B[0m',
+    );
   } finally {
     await serverSub.cancel();
     await server.close(force: true);

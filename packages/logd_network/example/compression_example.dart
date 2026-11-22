@@ -7,11 +7,14 @@ import 'package:logd_network/logd_network.dart';
 
 Future<void> main() async {
   print(
-      '\x1B[1;36m================================================================\x1B[0m');
+    '\x1B[1;36m================================================================\x1B[0m',
+  );
   print(
-      '\x1B[1;36m       LOGD_NETWORK: GZIP BATCH COMPRESSION DEMO                \x1B[0m');
+    '\x1B[1;36m       LOGD_NETWORK: GZIP BATCH COMPRESSION DEMO                \x1B[0m',
+  );
   print(
-      '\x1B[1;36m================================================================\x1B[0m\n');
+    '\x1B[1;36m================================================================\x1B[0m\n',
+  );
 
   int totalBytesReceived = 0;
   final receivedLogs = <String>[];
@@ -63,10 +66,7 @@ Future<void> main() async {
     flushInterval: const Duration(seconds: 1),
   );
 
-  final handler = Handler(
-    formatter: const JsonFormatter(),
-    sink: sink,
-  );
+  final handler = Handler(formatter: const JsonFormatter(), sink: sink);
 
   Logger.configure('app.telemetry', handlers: [handler]);
   final logger = Logger.get('app.telemetry');
@@ -91,8 +91,8 @@ Future<void> main() async {
   // Calculate uncompressed JSON size for comparison
   final uncompressedSample = utf8.encode(jsonEncode(receivedLogs));
   final uncompressedBytes = uncompressedSample.length;
-  final ratio =
-      ((1 - (totalBytesReceived / uncompressedBytes)) * 100).toStringAsFixed(1);
+  final ratio = ((1 - (totalBytesReceived / uncompressedBytes)) * 100)
+      .toStringAsFixed(1);
 
   print('\n\x1B[1;32m✔ Batch Ingestion Summary:\x1B[0m');
   print('  -> HTTP Content-Encoding: \x1B[1m$detectedEncoding\x1B[0m');
@@ -100,11 +100,13 @@ Future<void> main() async {
   print('  -> Uncompressed Size:     $uncompressedBytes bytes');
   print('  -> Transmitted GZip Size: \x1B[32m$totalBytesReceived bytes\x1B[0m');
   print(
-      '  -> Network Reduction:     \x1B[1;32m$ratio% bandwidth saved\x1B[0m\n');
+    '  -> Network Reduction:     \x1B[1;32m$ratio% bandwidth saved\x1B[0m\n',
+  );
 
   await sink.dispose();
   await server.close(force: true);
 
   print(
-      '\x1B[1;32m✔ GZip Compression Demonstration Completed Successfully!\x1B[0m');
+    '\x1B[1;32m✔ GZip Compression Demonstration Completed Successfully!\x1B[0m',
+  );
 }

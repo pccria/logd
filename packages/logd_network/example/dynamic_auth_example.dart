@@ -83,7 +83,8 @@ Future<void> main() async {
 
   // 5. Emit logs for Batch #2 — headersProvider is re-evaluated with a new token!
   print(
-      '\n[Client] Emitting 2 logs (triggers Batch #2 with fresh auth token)...');
+    '\n[Client] Emitting 2 logs (triggers Batch #2 with fresh auth token)...',
+  );
   logger.warning('Payment gateway retry needed (attempt 1/3)');
   logger.info('Payment captured successfully via Stripe');
   await Future<void>.delayed(const Duration(milliseconds: 300));

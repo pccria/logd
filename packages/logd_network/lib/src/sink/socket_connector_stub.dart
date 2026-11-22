@@ -5,5 +5,4 @@ WebSocketChannel connectWebSocket(
   final Uri uri, {
   final Map<String, dynamic>? headers,
   final Iterable<String>? protocols,
-}) =>
-    WebSocketChannel.connect(uri, protocols: protocols);
+}) => WebSocketChannel.connect(uri, protocols: protocols);

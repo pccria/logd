@@ -11,12 +11,19 @@ void main() {
       Logger.reset();
     });
 
-    test('HttpDashboardHandler creates valid dashboard pipeline', () {
-      final handler = HttpDashboardHandler(port: 8888, title: 'Test Dashboard');
+    test('HttpDashboardHandler creates valid dashboard pipeline', () async {
+      final handler = HttpDashboardHandler(
+        port: 0,
+        title: 'Custom Test Dashboard',
+      );
 
       expect(handler, isA<Handler>());
       expect(handler.formatter, isA<StructuredFormatter>());
       expect(handler.sink, isA<HttpServerSink>());
+      final serverSink = handler.sink as HttpServerSink;
+      expect(serverSink.title, equals('Custom Test Dashboard'));
+
+      await handler.dispose();
     });
 
     test(
@@ -35,25 +42,27 @@ void main() {
       },
     );
 
-    test('HttpDashboardHandler.async creates background isolate handler',
-        () async {
-      registerLogdNetworkSerializers();
+    test(
+      'HttpDashboardHandler.async creates background isolate handler',
+      () async {
+        registerLogdNetworkSerializers();
 
-      final handler = HttpDashboardHandler.async(
-        port: 0,
-        title: 'Async Test Dashboard',
-      );
+        final handler = HttpDashboardHandler.async(
+          port: 0,
+          title: 'Async Test Dashboard',
+        );
 
-      expect(handler, isA<Handler>());
+        expect(handler, isA<Handler>());
 
-      Logger.configure('test.dashboard_async', handlers: [handler]);
-      final logger = Logger.get('test.dashboard_async');
+        Logger.configure('test.dashboard_async', handlers: [handler]);
+        final logger = Logger.get('test.dashboard_async');
 
-      await (handler as HttpDashboardIsolateHandler).ready;
-      logger.info('Dashboard log on isolate');
+        await (handler as HttpDashboardIsolateHandler).ready;
+        logger.info('Dashboard log on isolate');
 
-      await expectLater(handler.dispose(), completes);
-    });
+        await expectLater(handler.dispose(), completes);
+      },
+    );
 
     test(
       'HttpDashboardIsolateHandler stub throws UnsupportedError on construction',

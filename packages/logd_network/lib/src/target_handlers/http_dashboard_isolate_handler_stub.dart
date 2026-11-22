@@ -11,6 +11,7 @@ base class HttpDashboardIsolateHandler extends Handler {
   HttpDashboardIsolateHandler({
     final String address = 'localhost',
     final int port = 8080,
+    final String? title,
     final int bufferCapacity = 100,
     final int? lineLength,
     final int maxConnections = 32,
@@ -19,10 +20,7 @@ base class HttpDashboardIsolateHandler extends Handler {
     super.decorators,
     super.filters,
     super.timeout,
-  }) : super(
-          sink: _NoOpSink(),
-          engine: const StandardEngine(),
-        ) {
+  }) : super(sink: _NoOpSink(), engine: const StandardEngine()) {
     throw UnsupportedError(
       'HttpDashboardHandler.async is not supported on web platforms. '
       'Please use ConsoleSink, HttpSink, or standard output delegation.',

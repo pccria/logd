@@ -18,6 +18,7 @@ base class HttpServerSink extends EncodingSink {
     this.allowedOrigins = const {},
     this.allowedHosts = const {},
     this.authToken,
+    this.title,
   }) : super(preferredWidth: lineLength ?? 120, delegate: _unsupported) {
     throw UnsupportedError(
       'HttpServerSink is not supported on web platforms. '
@@ -45,6 +46,9 @@ base class HttpServerSink extends EncodingSink {
 
   /// Optional bearer or query auth token required to access the dashboard.
   final String? authToken;
+
+  /// Optional custom title displayed on the dashboard header and browser tab.
+  final String? title;
 
   /// The actual bound port (unsupported on web).
   int get boundPort => port;

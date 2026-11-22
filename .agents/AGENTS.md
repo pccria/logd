@@ -6,3 +6,7 @@
 ## Public Documentation & Changelogs
 - **Never mention store points, scores, or quotas**: Never write "pub points", "pub score", "160/160", or any gamified store metric in `CHANGELOG.md`, `README.md`, doc comments, commit messages, PR descriptions, or release notes. Always describe technical capabilities, bug fixes, backward compatibility, and platform support. See `.agents/rules/public-documentation-invariants.md`.
 
+## Git Workflow
+- **`master` branch accepts Pull Requests only**: Never push directly to `master` or instruct the user to push directly to `master`. Deliver work via `dev` or dedicated branches and open PRs targeting `master`.
+
+

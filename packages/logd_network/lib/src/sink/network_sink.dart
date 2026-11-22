@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:convert' as convert;
 import 'dart:math';
 import 'dart:typed_data';
@@ -11,6 +10,7 @@ import 'package:meta/meta.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../compression/gzip_compressor.dart';
+import '../policy/backoff_policy.dart';
 import 'socket_connector.dart';
 
 /// Defines the behavior when the network buffer reaches its maximum capacity.
@@ -21,6 +21,10 @@ enum DropPolicy {
   /// Discard the incoming entries until the buffer has space.
   discardNewest,
 
+  /// Discard entries with the lowest severity first (trace -> debug -> info -> warning -> error)
+  /// when the buffer reaches capacity, preserving higher-severity logs.
+  discardByPriority,
+
   /// Pause logging until the buffer has space (blocking the application).
   ///
   /// CAUTION: This can lead to performance issues if the network is down.
@@ -28,6 +32,26 @@ enum DropPolicy {
     'DropPolicy.block is not supported in logd_network and will be removed in v1.0.0.',
   )
   block,
+}
+
+/// The payload delivery format used by [HttpSink] when POSTing log batches.
+enum HttpDeliveryFormat {
+  /// Encloses all batch log entries in a JSON array string: `["...", "..."]`.
+  ///
+  /// Sets `Content-Type: application/json`.
+  jsonArray,
+
+  /// Formats batch entries separated by a newline (`\n`) without outer enclosing array brackets.
+  ///
+  /// This is the industry-standard format for aggregators such as Elasticsearch,
+  /// OpenSearch, Vector, Loki, Logstash, and FluentBit.
+  /// Sets `Content-Type: application/x-ndjson`.
+  ndjson,
+
+  /// Direct raw byte stream joining buffered entries without string decoding.
+  ///
+  /// Sets `Content-Type: application/octet-stream` unless explicitly overridden in headers.
+  raw,
 }
 
 /// Defines the operational state of the circuit breaker in [HttpSink].
@@ -65,8 +89,10 @@ const _months = <String, int>{
 /// 2. HTTP-date in RFC 1123 / RFC 850 / asctime format (e.g. `"Sun, 06 Nov 1994 08:49:37 GMT"`).
 ///
 /// Returns `null` if the header is missing, empty, or unparseable.
-Duration? parseRetryAfter(final String? headerValue,
-    {final DateTime Function()? clock}) {
+Duration? parseRetryAfter(
+  final String? headerValue, {
+  final DateTime Function()? clock,
+}) {
   if (headerValue == null) {
     return null;
   }
@@ -164,26 +190,36 @@ abstract base class NetworkSink extends EncodingSink {
   /// - [encoder]: The encoder used to serialize logs (default:
   ///   [PlainTextEncoder]).
   /// - [maxBufferSize]: Max entries to hold in memory (default: 1000).
-  /// - [dropPolicy]: Behavior when [maxBufferSize] is reached.
+  /// - [maxBufferBytes]: Max total bytes to hold in memory across buffered entries,
+  ///   or null for unbounded memory size.
+  /// - [dropPolicy]: Behavior when capacity limits are reached.
   /// - [enabled]: Whether the sink is active.
   const NetworkSink({
     super.encoder = const AutoTextEncoder(),
     this.maxBufferSize = 1000,
+    this.maxBufferBytes,
     this.dropPolicy = DropPolicy.discardOldest,
     super.enabled,
-  })  : assert(
-          dropPolicy != DropPolicy.block,
-          'DropPolicy.block is not supported in logd_network. '
-          'Use DropPolicy.discardOldest or DropPolicy.discardNewest.',
-        ),
-        super(delegate: _doNothing);
+  }) : assert(
+         dropPolicy != DropPolicy.block,
+         'DropPolicy.block is not supported in logd_network. '
+         'Use DropPolicy.discardOldest, DropPolicy.discardNewest, or DropPolicy.discardByPriority.',
+       ),
+       assert(
+         maxBufferBytes == null || maxBufferBytes > 0,
+         'maxBufferBytes must be greater than 0 if specified',
+       ),
+       super(delegate: _doNothing);
 
   static void _doNothing(final Uint8List _) {}
 
   /// Max entries to hold in memory.
   final int maxBufferSize;
 
-  /// Behavior when [maxBufferSize] is reached.
+  /// Max total bytes to hold in memory across buffered entries, or null for unbounded.
+  final int? maxBufferBytes;
+
+  /// Behavior when [maxBufferSize] or [maxBufferBytes] is reached.
   final DropPolicy dropPolicy;
 
   /// Shared [Expando] to store mutable state for sink instances.
@@ -200,24 +236,100 @@ abstract base class NetworkSink extends EncodingSink {
 
   /// Safely adds a line to the buffer according to the [dropPolicy].
   @protected
-  void enqueue(final Uint8List line) {
+  void enqueue(final Uint8List line, [final LogLevel level = LogLevel.info]) {
     final buffer = _state.buffer;
-    if (buffer.length >= maxBufferSize) {
-      if (dropPolicy == DropPolicy.discardOldest) {
-        if (buffer.isNotEmpty) {
-          buffer.removeFirst();
-        }
-        buffer.add(line);
-      } else if (dropPolicy == DropPolicy.discardNewest) {
+    final lineBytes = line.lengthInBytes;
+
+    if (maxBufferBytes != null && lineBytes > maxBufferBytes!) {
+      // Line is individually larger than the entire byte budget.
+      return;
+    }
+
+    if (dropPolicy == DropPolicy.discardNewest) {
+      if (buffer.length >= maxBufferSize ||
+          (maxBufferBytes != null &&
+              _state.bufferBytes + lineBytes > maxBufferBytes!)) {
         return;
-      } else if (dropPolicy == DropPolicy.block) {
-        throw UnsupportedError(
-          'DropPolicy.block is not supported in logd v0.8.7. '
-          'Use discardOldest or discardNewest.',
-        );
       }
-    } else {
-      buffer.add(line);
+      buffer.add(_BufferedLogEntry(line, level));
+      _state.bufferBytes += lineBytes;
+      return;
+    }
+
+    if (dropPolicy == DropPolicy.discardOldest) {
+      while (buffer.isNotEmpty &&
+          (buffer.length >= maxBufferSize ||
+              (maxBufferBytes != null &&
+                  _state.bufferBytes + lineBytes > maxBufferBytes!))) {
+        final removed = buffer.removeAt(0);
+        _state.bufferBytes -= removed.bytes.lengthInBytes;
+      }
+      buffer.add(_BufferedLogEntry(line, level));
+      _state.bufferBytes += lineBytes;
+      return;
+    }
+
+    if (dropPolicy == DropPolicy.discardByPriority) {
+      final neededSlots = max(0, buffer.length - maxBufferSize + 1);
+      final neededBytes = maxBufferBytes != null
+          ? max(0, _state.bufferBytes + lineBytes - maxBufferBytes!)
+          : 0;
+
+      if (neededSlots > 0 || neededBytes > 0) {
+        // Pre-validate whether existing entries with priority <= incoming level
+        // can supply enough slots and bytes to accommodate the new entry.
+        // This prevents partial eviction where low-priority logs are discarded
+        // only to drop the incoming entry on a subsequent pass.
+        int availableSlots = 0;
+        int availableBytes = 0;
+        for (int i = 0; i < buffer.length; i++) {
+          final entry = buffer[i];
+          if (entry.level.index <= level.index) {
+            availableSlots++;
+            availableBytes += entry.bytes.lengthInBytes;
+          }
+        }
+
+        if (availableSlots < neededSlots ||
+            (neededBytes > 0 && availableBytes < neededBytes)) {
+          // Cannot accommodate incoming entry without dropping higher-severity logs.
+          return;
+        }
+
+        while (buffer.isNotEmpty &&
+            (buffer.length >= maxBufferSize ||
+                (maxBufferBytes != null &&
+                    _state.bufferBytes + lineBytes > maxBufferBytes!))) {
+          int lowestIndex = -1;
+          int lowestSeverity = 999;
+          for (int i = 0; i < buffer.length; i++) {
+            final entrySeverity = buffer[i].level.index;
+            if (entrySeverity < lowestSeverity) {
+              lowestSeverity = entrySeverity;
+              lowestIndex = i;
+              if (lowestSeverity == 0) break;
+            }
+          }
+
+          if (lowestIndex == -1 || lowestSeverity > level.index) {
+            return;
+          }
+
+          final removed = buffer.removeAt(lowestIndex);
+          _state.bufferBytes -= removed.bytes.lengthInBytes;
+        }
+      }
+
+      buffer.add(_BufferedLogEntry(line, level));
+      _state.bufferBytes += lineBytes;
+      return;
+    }
+
+    if (dropPolicy == DropPolicy.block) {
+      throw UnsupportedError(
+        'DropPolicy.block is not supported in logd_network. '
+        'Use discardOldest, discardNewest, or discardByPriority.',
+      );
     }
   }
 
@@ -238,7 +350,7 @@ abstract base class NetworkSink extends EncodingSink {
       encoder.preamble(context, level, factory, document: document);
       final preamble = context.takeBytes();
       if (preamble.isNotEmpty) {
-        enqueue(preamble);
+        enqueue(preamble, level);
       }
       isPreambleWritten = true;
       factory.release(context);
@@ -256,7 +368,7 @@ abstract base class NetworkSink extends EncodingSink {
 
     final data = context.takeBytes();
     if (data.isNotEmpty) {
-      enqueue(data);
+      enqueue(data, level);
     }
     factory.release(context);
   }
@@ -270,7 +382,7 @@ abstract base class NetworkSink extends EncodingSink {
       encoder.postamble(context, LogLevel.info, factory);
       final post = context.takeBytes();
       if (post.isNotEmpty) {
-        enqueue(post);
+        enqueue(post, LogLevel.info);
       }
       factory.release(context);
     }
@@ -281,19 +393,33 @@ abstract base class NetworkSink extends EncodingSink {
   @protected
   List<Uint8List> takeBuffer() {
     final buffer = _state.buffer;
-    final lines = buffer.toList();
+    final lines = buffer.map((final e) => e.bytes).toList();
     buffer.clear();
+    _state.bufferBytes = 0;
     return lines;
   }
 
   /// Returns `true` if there are logs waiting in the buffer.
   @protected
   bool get hasBufferedLogs => _state.buffer.isNotEmpty;
+
+  /// Returns the number of logs currently waiting in the buffer.
+  int get bufferedLogCount => _state.buffer.length;
+
+  /// Returns the current total memory size (in bytes) of logs in the buffer.
+  int get bufferedBytes => _state.bufferBytes;
+}
+
+class _BufferedLogEntry {
+  const _BufferedLogEntry(this.bytes, this.level);
+  final Uint8List bytes;
+  final LogLevel level;
 }
 
 /// Internal state for a [NetworkSink].
 class _NetworkState {
-  final Queue<Uint8List> buffer = Queue<Uint8List>();
+  final List<_BufferedLogEntry> buffer = <_BufferedLogEntry>[];
+  int bufferBytes = 0;
   bool isDisposed = false;
 }
 
@@ -324,8 +450,11 @@ base class HttpSink extends NetworkSink {
   ///   On platforms where GZip is unavailable (e.g. Web/WASM), payloads are
   ///   transmitted uncompressed.
   /// - [client]: Optional external [http.Client].
+  /// - [deliveryFormat]: Payload delivery format (default: [HttpDeliveryFormat.jsonArray]).
+  /// - [backoffPolicy]: Backoff and jitter policy for retries (default: [BackoffPolicy()]).
   /// - [maxBufferSize]: Max entries to hold in memory.
-  /// - [dropPolicy]: Behavior when [maxBufferSize] is reached.
+  /// - [maxBufferBytes]: Max bytes to hold in memory.
+  /// - [dropPolicy]: Behavior when capacity limits are reached.
   /// - [enabled]: Whether the sink is active.
   /// - [onDropped]: Callback invoked when a batch cannot be delivered.
   const HttpSink({
@@ -339,9 +468,12 @@ base class HttpSink extends NetworkSink {
     this.batchSize = 50,
     this.flushInterval = const Duration(seconds: 60),
     this.maxRetries = 5,
+    this.deliveryFormat = HttpDeliveryFormat.jsonArray,
+    this.backoffPolicy = const BackoffPolicy(),
     this.compress = false,
     this.client,
     super.maxBufferSize = 1000,
+    super.maxBufferBytes,
     super.dropPolicy = DropPolicy.discardOldest,
     super.enabled,
     this.onDropped,
@@ -385,6 +517,12 @@ base class HttpSink extends NetworkSink {
 
   /// Max attempts for a single batch.
   final int maxRetries;
+
+  /// The delivery format used when packaging batches for transmission.
+  final HttpDeliveryFormat deliveryFormat;
+
+  /// The backoff policy governing retry delays between failed batch attempts.
+  final BackoffPolicy backoffPolicy;
 
   /// Whether to compress batch payloads with GZip before sending.
   final bool compress;
@@ -553,8 +691,14 @@ base class HttpSink extends NetworkSink {
 
       while (attempts < maxRetries) {
         try {
+          final defaultContentType = switch (deliveryFormat) {
+            HttpDeliveryFormat.jsonArray => 'application/json',
+            HttpDeliveryFormat.ndjson => 'application/x-ndjson',
+            HttpDeliveryFormat.raw => 'application/octet-stream',
+          };
+
           final resolvedHeaders = <String, String>{
-            'Content-Type': 'application/json',
+            'Content-Type': defaultContentType,
             ...headers,
           };
 
@@ -563,17 +707,66 @@ base class HttpSink extends NetworkSink {
             resolvedHeaders.addAll(dynamicHeaders);
           }
 
-          final jsonString = convert.jsonEncode(
-            batch.map((final b) => convert.utf8.decode(b)).toList(),
-          );
+          Object body;
+          switch (deliveryFormat) {
+            case HttpDeliveryFormat.jsonArray:
+              final jsonString = convert.jsonEncode(
+                batch
+                    .map(
+                      (final b) => convert.utf8.decode(b, allowMalformed: true),
+                    )
+                    .toList(),
+              );
+              if (compress && isGzipSupported) {
+                final compressed = gzipCompress(
+                  convert.utf8.encode(jsonString),
+                );
+                if (compressed != null) {
+                  body = compressed;
+                  resolvedHeaders['Content-Encoding'] = 'gzip';
+                } else {
+                  body = jsonString;
+                }
+              } else {
+                body = jsonString;
+              }
 
-          Object body = jsonString;
-          if (compress && isGzipSupported) {
-            final compressed = gzipCompress(convert.utf8.encode(jsonString));
-            if (compressed != null) {
-              body = compressed;
-              resolvedHeaders['Content-Encoding'] = 'gzip';
-            }
+            case HttpDeliveryFormat.ndjson:
+              final builder = BytesBuilder(copy: false);
+              for (int i = 0; i < batch.length; i++) {
+                builder.add(batch[i]);
+                builder.addByte(0x0A); // \n
+              }
+              final rawBytes = builder.toBytes();
+              if (compress && isGzipSupported) {
+                final compressed = gzipCompress(rawBytes);
+                if (compressed != null) {
+                  body = compressed;
+                  resolvedHeaders['Content-Encoding'] = 'gzip';
+                } else {
+                  body = rawBytes;
+                }
+              } else {
+                body = rawBytes;
+              }
+
+            case HttpDeliveryFormat.raw:
+              final builder = BytesBuilder(copy: false);
+              for (int i = 0; i < batch.length; i++) {
+                builder.add(batch[i]);
+              }
+              final rawBytes = builder.toBytes();
+              if (compress && isGzipSupported) {
+                final compressed = gzipCompress(rawBytes);
+                if (compressed != null) {
+                  body = compressed;
+                  resolvedHeaders['Content-Encoding'] = 'gzip';
+                } else {
+                  body = rawBytes;
+                }
+              } else {
+                body = rawBytes;
+              }
           }
 
           final response = await httpClient.post(
@@ -613,7 +806,7 @@ base class HttpSink extends NetworkSink {
           if (attempts >= maxRetries) {
             break;
           }
-          final delay = Duration(milliseconds: pow(2, attempts).toInt() * 100);
+          final delay = backoffPolicy.computeDelay(attempts);
           await Future.delayed(delay);
         }
       }
@@ -667,8 +860,9 @@ base class HttpSink extends NetworkSink {
 
   static Object _sanitizeError(final Object error) {
     final text = error.toString();
-    final sanitized =
-        text.replaceAllMapped(RegExp(r'https?://[^\s",<>]+'), (final match) {
+    final sanitized = text.replaceAllMapped(RegExp(r'https?://[^\s",<>]+'), (
+      final match,
+    ) {
       final rawUrl = match.group(0)!;
       return _sanitizeEndpoint(rawUrl);
     });
@@ -741,7 +935,8 @@ base class SocketSink extends NetworkSink {
   /// - [url]: The WebSocket server URL.
   /// - [headers]: Optional protocols/headers for the connection.
   /// - [reconnectInterval]: Delay before attempting reconnection
-  ///   (default: 15s).
+  ///   (default: 15s). Overridden if [backoffPolicy] is provided.
+  /// - [backoffPolicy]: Optional backoff policy with randomized jitter for reconnection.
   /// - [heartbeatInterval]: Interval between heartbeat ping frames to
   ///   detect dead/half-open connections (default: 30s). Set to `null` to
   ///   disable heartbeats.
@@ -753,13 +948,15 @@ base class SocketSink extends NetworkSink {
   /// - [encoder]: The encoder used to serialize logs (default:
   ///   [PlainTextEncoder]).
   /// - [maxBufferSize]: Max entries to hold in memory.
-  /// - [dropPolicy]: Behavior when [maxBufferSize] is reached.
+  /// - [maxBufferBytes]: Max total bytes to hold in memory across buffered entries.
+  /// - [dropPolicy]: Behavior when capacity limits are reached.
   /// - [enabled]: Whether the sink is active.
   const SocketSink({
     required this.url,
     this.headers = const {},
     this.protocols,
     this.reconnectInterval = const Duration(seconds: 15),
+    this.backoffPolicy,
     this.heartbeatInterval = const Duration(seconds: 30),
     this.heartbeatTimeout = const Duration(seconds: 10),
     this.pingMessage = 'ping',
@@ -767,6 +964,7 @@ base class SocketSink extends NetworkSink {
     this.channel,
     super.encoder = const AutoTextEncoder(),
     super.maxBufferSize = 1000,
+    super.maxBufferBytes,
     super.dropPolicy = DropPolicy.discardOldest,
     super.enabled,
   });
@@ -782,6 +980,9 @@ base class SocketSink extends NetworkSink {
 
   /// Delay before attempting reconnection.
   final Duration reconnectInterval;
+
+  /// Optional backoff policy with randomized jitter governing reconnection attempts.
+  final BackoffPolicy? backoffPolicy;
 
   /// Interval between heartbeat ping frames to detect dropped connections.
   final Duration? heartbeatInterval;
@@ -832,7 +1033,9 @@ base class SocketSink extends NetworkSink {
 
   void _send(final Uint8List line) {
     try {
-      _socketState.channel?.sink.add(convert.utf8.decode(line));
+      _socketState.channel?.sink.add(
+        convert.utf8.decode(line, allowMalformed: true),
+      );
     } catch (e) {
       _handleFailure(e);
       _socketState.isConnected = false;
@@ -864,7 +1067,8 @@ base class SocketSink extends NetworkSink {
     _socketState.isConnecting = true;
     try {
       final uri = _socketState.uri ??= Uri.parse(url);
-      _socketState.channel = channel ??
+      _socketState.channel =
+          channel ??
           connectWebSocket(
             uri,
             headers: headers.isNotEmpty ? headers : null,
@@ -913,12 +1117,15 @@ base class SocketSink extends NetworkSink {
       _socketState.isConnected = false;
       if (!isDisposed) {
         _socketState.retryAttempts++;
-        final factor = pow(2, min(_socketState.retryAttempts, 8)).toInt();
-        final backoffMs = min(
-          reconnectInterval.inMilliseconds * factor,
-          300000,
-        );
-        final delay = Duration(milliseconds: backoffMs);
+        final effectivePolicy =
+            backoffPolicy ??
+            BackoffPolicy(
+              initialDelay: reconnectInterval,
+              maxDelay: const Duration(seconds: 300),
+              multiplier: 2.0,
+              jitter: false,
+            );
+        final delay = effectivePolicy.computeDelay(_socketState.retryAttempts);
         InternalLogger.log(
           LogLevel.warning,
           'SocketSink reconnection failed. Retrying in '
