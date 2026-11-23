@@ -105,13 +105,14 @@ class MyApp extends StatelessWidget {
 
 ### Problem
 1. **Security & Compliance Violations (SOC2 / GDPR)**: Naive network interceptors dump authorization tokens, session cookies, and API keys straight into disk logs in plaintext.
-2. **Binary & Large Payload Corruption**: Logging large file uploads or `FormData` directly floods logs and can trigger out-of-memory errors.
-3. **Negative/Distorted Latencies**: Using `DateTime.now()` is subject to system clock drifts and NTP sync jumps.
-4. **False Alarm Errors**: User-cancelled requests (`CancelToken`) are often erroneously logged as server failures.
-5. **Trace Disconnection**: Frontend HTTP requests lack trace correlation headers unless manually threaded through every API client call.
+2. **Binary & Streaming Memory Exhaustion**: Buffering large responses or infinite Server-Sent Events (SSE) / token streams to compute metrics causes fatal Out-Of-Memory (OOM) crashes.
+3. **Trace Tree Disconnection**: Heterogeneous backends instrumented with OpenTelemetry require standard W3C `traceparent` headers rather than fragmented custom header keys.
+4. **Negative/Distorted Latencies**: Using `DateTime.now()` is subject to system clock drifts and NTP sync jumps.
+5. **False Negative Errors in Non-Throwing Pipelines**: When applications configure `validateStatus: (s) => true`, 4xx/5xx responses are logged at `info` level, bypassing error monitoring.
+6. **Opaque Non-JSON Payloads**: Protocol Buffers, FlatBuffers, or XML payloads cannot be inspected without custom serialization hooks.
 
 ### Solution
-Use the official satellite package [`package:logd_dio`](../packages/logd_dio). It provides `LogdDioInterceptor` with automatic case-insensitive credential sanitization, monotonic `Stopwatch` timing, ambient `LogContext` trace header injection, safe payload truncation, and copy-pasteable cURL generation.
+Use the official satellite package [`package:logd_dio`](../packages/logd_dio). It provides `LogdDioInterceptor` with automatic case-insensitive credential sanitization, W3C TraceContext Level 1 distributed tracing, monotonic `Stopwatch` latency timing, bandwidth profiling, zero-buffering stream telemetry, pluggable serializers, and executable cURL generation.
 
 #### 1. Quick Integration
 
@@ -131,16 +132,28 @@ dio.interceptors.add(LogdDioInterceptor());
 ```dart
 dio.interceptors.add(
   LogdDioInterceptor(
-    const LogdDioOptions(
-      // Output executable, sanitized cURL commands for terminal/Postman reproduction
+    LogdDioOptions(
+      // Output executable, pretty-formatted, sanitized cURL commands
       logCurl: true,
+      prettyCurl: true,
+
+      // Track network latency, byte sizing, and derived throughput (KB/s)
+      logMetrics: true,
+
+      // Monitor streaming downloads (SSE, chunked data) with zero heap buffering
+      logStreamMetrics: true,
+
+      // Automatically elevate 4xx to warning and 5xx to error in non-throwing pipelines
+      elevateHttpErrors: true,
+      warningLevel: LogLevel.warning,
+      errorLevel: LogLevel.error,
+
+      // W3C TraceContext Level 1 injection (traceparent + tracestate)
+      tracePropagationMode: TracePropagationMode.both,
+      extractServerTraceContext: true,
 
       // Truncate payloads longer than 512 characters to prevent log memory exhaustion
       maxBodyLength: 512,
-
-      // Automatically forward ambient LogContext requestId into outgoing 'x-request-id'
-      attachAmbientTraceId: true,
-      traceIdHeader: 'x-request-id',
 
       // Custom replacement token for sensitive values
       redactedPlaceholder: '[CONFIDENTIAL]',
@@ -161,22 +174,43 @@ dio.interceptors.add(
 
       // Treat user cancellations (CancelToken) as debug info rather than error alarms
       cancelLevel: LogLevel.debug,
-      errorLevel: LogLevel.error,
     ),
   ),
 );
 ```
 
-#### 3. Ambient Distributed Tracing with `LogContext`
+#### 3. W3C Distributed Tracing with Ambient `LogContext`
 
-When wrapping requests inside `LogContext.run()`, `LogdDioInterceptor` automatically detects and injects the active trace ID into outgoing HTTP headers:
+When wrapping requests inside `LogContext.run()`, `LogdDioInterceptor` automatically injects standard W3C `traceparent` headers into outgoing requests:
 
 ```dart
-await LogContext.run({'requestId': 'req-8891-ab'}, () async {
-  // Outgoing request automatically includes 'x-request-id: req-8891-ab'
-  // Downstream microservices can trace the end-to-end request lifecycle
+final trace = W3cTraceContext.generate(isSampled: true);
+
+await LogContext.run({
+  'w3cTraceContext': trace.toJson(),
+  'requestId': trace.traceId,
+}, () async {
+  // Outgoing request automatically carries:
+  // traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+  // x-request-id: 4bf92f3577b34da6a3ce929d0e0e4736
   await dio.get('/orders');
 });
+```
+
+#### 4. Zero-Buffering Stream Telemetry
+
+For file downloads, Server-Sent Events (SSE), or chunked LLM token responses, set `logStreamMetrics: true`. The interceptor transparently wraps the `ResponseBody.stream` without retaining chunks in memory, emitting a `STREAM_COMPLETED` log event upon stream finish:
+
+```dart
+final response = await dio.get<ResponseBody>(
+  '/stream/large-dataset',
+  options: Options(responseType: ResponseType.stream),
+);
+
+// Stream is piped directly to file with zero heap buffer overhead:
+await response.data!.stream.pipe(File('download.bin').openWrite());
+// Interceptor automatically emits:
+// [STREAM_COMPLETED] GET /stream/large-dataset (Chunks: 128, Bytes: 1048576, Duration: 312ms)
 ```
 
 > [!TIP]
@@ -189,8 +223,11 @@ await LogContext.run({'requestId': 'req-8891-ab'}, () async {
 > - [`example/main.dart`](../packages/logd_dio/example/main.dart): Basic integration & quick-start.
 > - [`example/security/sanitization_example.dart`](../packages/logd_dio/example/security/sanitization_example.dart): Custom header/query redaction & `FormData`/binary safety.
 > - [`example/tracing/distributed_tracing_example.dart`](../packages/logd_dio/example/tracing/distributed_tracing_example.dart): Ambient trace header injection & async zone isolation.
-> - [`example/resilience/error_and_cancellation_example.dart`](../packages/logd_dio/example/resilience/error_and_cancellation_example.dart): `CancelToken` handling vs HTTP 4xx/5xx server diagnostics.
-> - [`example/advanced/custom_pipeline_example.dart`](../packages/logd_dio/example/advanced/custom_pipeline_example.dart): cURL generation, response headers, and dedicated loggers.
+> - [`example/telemetry/w3c_tracing_and_metrics_example.dart`](../packages/logd_dio/example/telemetry/w3c_tracing_and_metrics_example.dart): W3C Level 1 traceparent, child spans, and throughput metrics.
+> - [`example/streaming/stream_telemetry_example.dart`](../packages/logd_dio/example/streaming/stream_telemetry_example.dart): Zero-buffering stream telemetry for large/infinite responses.
+> - [`example/serializers/custom_serializer_example.dart`](../packages/logd_dio/example/serializers/custom_serializer_example.dart): Pluggable serialization for Protobuf, XML, and custom domain payloads.
+> - [`example/resilience/error_and_cancellation_example.dart`](../packages/logd_dio/example/resilience/error_and_cancellation_example.dart): `CancelToken` handling vs HTTP 4xx/5xx status elevation.
+> - [`example/advanced/custom_pipeline_example.dart`](../packages/logd_dio/example/advanced/custom_pipeline_example.dart): Pretty-formatted cURL generation, response headers, and dedicated loggers.
 
 
 ---

@@ -327,26 +327,48 @@ Selectable layout and execution engines tailored to different throughput and mem
 Specialized formatters, databases, and network adapters maintained within the `logd` ecosystem:
 
 ### [`package:logd_dio`](../packages/logd_dio)
-* **`LogdDioInterceptor([LogdDioOptions options])`**: Production-grade Dio interceptor tracking monotonic latencies, formatted request/response lifecycles, and failure diagnostics.
+* **`LogdDioInterceptor([LogdDioOptions options])`**: Production-grade Dio interceptor tracking monotonic latencies, formatted request/response lifecycles, W3C distributed tracing, bandwidth metrics, zero-buffering stream telemetry, and failure diagnostics.
 * **`LogdDioOptions(...)`**: Configuration object for interceptor behaviors:
   - `logger`: Explicit `Logger` instance (defaults to `Logger.get('http')`).
   - `requestLevel` / `responseLevel` / `errorLevel`: Log levels for request lifecycle phases (default: `debug`, `info`, `error`).
+  - `warningLevel`: Log level for elevated 4xx client errors (default: `LogLevel.warning`).
   - `cancelLevel`: Log level for requests aborted via `CancelToken` (default: `LogLevel.debug`).
+  - `elevateHttpErrors`: Automatically elevates 4xx status to `warningLevel` and 5xx to `errorLevel` even in non-throwing pipelines where Dio's `validateStatus` evaluates to true (default: `true`).
   - `logRequestHeaders` / `logRequestBody`: Toggles for request metadata logging (default: `true`, `true`).
   - `logResponseHeaders` / `logResponseBody`: Toggles for response metadata logging (default: `false`, `true`).
+  - `logMetrics`: Computes monotonic latency, request/response byte sizing, derived throughput (KB/s), and status categories (default: `true`).
+  - `logStreamMetrics`: Monitors streaming downloads (`ResponseType.stream`) transparently with zero heap buffering, emitting a `STREAM_COMPLETED` log event on finish (default: `true`).
   - `logCurl`: Generates copy-pasteable executable cURL command in request log context (default: `false`).
+  - `prettyCurl`: Formats generated cURL commands across multiple lines with trailing backslashes and indentation (default: `false`).
   - `maxBodyLength`: Maximum character length before payload strings are safely truncated (default: `1024`).
+  - `tracePropagationMode`: Header injection mode: `both` (W3C + custom), `w3c` (`traceparent` + `tracestate`), `custom` (`traceIdHeader`), or `none` (default: `TracePropagationMode.both`).
   - `attachAmbientTraceId`: Automatically injects `LogContext.current['requestId']` into outgoing headers (default: `true`).
   - `traceIdHeader`: Target header name for ambient trace ID injection (default: `'x-request-id'`).
+  - `w3cTraceContextKey`: Context key for resolving ambient `W3cTraceContext` (default: `'w3cTraceContext'`).
+  - `extractServerTraceContext`: Automatically extracts server-emitted `traceparent` from response headers into `context['serverTraceparent']` (default: `true`).
+  - `bodySerializer`: Pluggable `LogdBodySerializer` for custom serialization of domain payloads such as Protobuf, XML, and FlatBuffers.
   - `redactedPlaceholder`: Replacement string for sensitive values (default: `'***REDACTED***'`).
   - `sensitiveHeaders`: Set of header names redacted case-insensitively (default: `defaultSensitiveHeaders`).
   - `sensitiveQueryParams`: Set of query parameter keys redacted case-insensitively (default: `defaultSensitiveQueryParams`).
-* **`LogdCurlGenerator.generate(RequestOptions options, {Set<String> sensitiveHeaders, String placeholder})`**: Generates sanitized, executable cURL commands from Dio request options.
+* **`W3cTraceContext`**: Level 1 W3C Recommendation distributed tracing model:
+  - `W3cTraceContext.generate({bool isSampled = true, String? tracestate})`: Generates unique 16-byte `traceId` and 8-byte `spanId`.
+  - `W3cTraceContext.parse(String traceparent, {String? tracestate})`: Strictly parses W3C headers (enforcing version `00`).
+  - `context.childSpan({String? tracestate})`: Derives a child span preserving root transaction `traceId`.
+  - `context.traceparent`: Standard serialized header (`00-${traceId}-${spanId}-${traceFlags}`).
+  - `context.toJson()` / `W3cTraceContext.fromJson(map)`: Serialization for ambient `LogContext` propagation across isolates.
+* **`HttpMetrics`**:
+  - `durationMs`: High-precision monotonic elapsed time.
+  - `requestBytes` / `responseBytes`: Total calculated payload and header byte footprint.
+  - `throughputKBps`: Derived network throughput in KB/s.
+  - `statusCategory`: Classifies status into `1xx`, `2xx`, `3xx`, `4xx`, `5xx`.
+* **`StreamMetricsTracker`**: Transparent `StreamTransformer` wrapping `ResponseBody.stream` without intermediate buffering, computing cumulative byte metrics and firing `STREAM_COMPLETED` upon stream termination.
+* **`LogdBodySerializer` & `FunctionalBodySerializer`**: Abstract interface and closure wrapper for formatting custom domain objects into inspectable strings prior to sanitization.
+* **`LogdCurlGenerator.generate(RequestOptions options, {Set<String> sensitiveHeaders, String placeholder, bool pretty})`**: Generates sanitized, executable cURL commands from Dio request options with `--compressed` auto-detection.
 * **`LogdSanitizer`**:
   - `sanitizeHeaders(Map<String, dynamic> headers, Set<String> sensitive, String placeholder)`: Redacts credentials case-insensitively.
   - `sanitizeQueryParams(Map<String, dynamic> query, Set<String> sensitive, String placeholder)`: Redacts query strings.
-  - `safeBodyPreview(Object? body, {int maxBodyLength})`: Formats JSON, strings, `FormData`, and binary streams safely without memory crashes.
-* **Showcase Gallery Runner**: `dart run packages/logd_dio/example/showcase_gallery.dart` (runs 5 specialized interactive scenarios covering basic integration, SOC2 sanitization, distributed tracing, error resilience, and cURL generation).
+  - `safeBodyPreview(Object? body, {int maxBodyLength, LogdBodySerializer? serializer, String? contentType, bool isRequest})`: Formats JSON, strings, `FormData`, and binary streams safely without memory crashes.
+* **Showcase Gallery Runner**: `dart run packages/logd_dio/example/showcase_gallery.dart` (runs 8 modular scenarios covering basic integration, SOC2 sanitization, distributed tracing, error resilience, cURL generation, W3C tracing, streaming telemetry, and custom serializers).
 
 ### [`package:logd_toon`](../packages/logd_toon)
 * **`ToonFormatter(dialect: ToonDialect.strict, sortKeys: true, maxDepth: 3)`**: Emits Tab-Oriented Object Notation (30–50% fewer tokens than JSON for LLMs).
