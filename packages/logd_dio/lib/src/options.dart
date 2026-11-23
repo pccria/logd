@@ -1,5 +1,7 @@
 import 'package:logd/logd.dart';
 import 'package:meta/meta.dart';
+import 'serializer/body_serializer.dart';
+import 'tracing/w3c_trace_context.dart';
 
 /// Configuration options for [LogdDioInterceptor].
 @immutable
@@ -9,16 +11,26 @@ class LogdDioOptions {
     this.logger,
     this.requestLevel = LogLevel.debug,
     this.responseLevel = LogLevel.info,
+    this.warningLevel = LogLevel.warning,
     this.errorLevel = LogLevel.error,
     this.cancelLevel = LogLevel.debug,
+    this.streamCompleteLevel = LogLevel.info,
     this.logRequestHeaders = true,
     this.logRequestBody = true,
     this.logResponseHeaders = false,
     this.logResponseBody = true,
     this.logCurl = false,
+    this.prettyCurl = false,
+    this.curlIncludeCompressed = true,
     this.maxBodyLength = 1024,
     this.attachAmbientTraceId = true,
+    this.tracePropagationMode = TracePropagationMode.both,
     this.traceIdHeader = 'x-request-id',
+    this.extractResponseTraceId = true,
+    this.logMetrics = true,
+    this.trackStreamMetrics = true,
+    this.elevateHttpErrors = true,
+    this.bodySerializers = const [],
     this.redactedPlaceholder = '***REDACTED***',
     this.sensitiveHeaders = defaultSensitiveHeaders,
     this.sensitiveQueryParams = defaultSensitiveQueryParams,
@@ -82,14 +94,20 @@ class LogdDioOptions {
   /// Log level used when logging outgoing HTTP requests.
   final LogLevel requestLevel;
 
-  /// Log level used when logging successful HTTP responses.
+  /// Log level used when logging successful HTTP responses (< 400).
   final LogLevel responseLevel;
 
-  /// Log level used when logging HTTP request failures.
+  /// Log level used when logging client HTTP errors (4xx) when [elevateHttpErrors] is enabled.
+  final LogLevel warningLevel;
+
+  /// Log level used when logging HTTP request failures or server errors (5xx).
   final LogLevel errorLevel;
 
   /// Log level used when a request is cancelled by a CancelToken.
   final LogLevel cancelLevel;
+
+  /// Log level used when a streaming response finishes.
+  final LogLevel streamCompleteLevel;
 
   /// Whether to include request headers in the log context.
   final bool logRequestHeaders;
@@ -106,15 +124,44 @@ class LogdDioOptions {
   /// Whether to generate and log an executable cURL command on outgoing requests.
   final bool logCurl;
 
+  /// Whether to pretty-print generated cURL commands across multiple lines with `\` escapes.
+  final bool prettyCurl;
+
+  /// Whether to append `--compressed` to generated cURL when `Accept-Encoding` contains gzip/deflate/br.
+  final bool curlIncludeCompressed;
+
   /// Maximum character length before request/response bodies are truncated.
   final int maxBodyLength;
 
-  /// Whether to automatically look up `LogContext.current['requestId']` and
-  /// inject it into the outgoing request's headers if not already present.
+  /// Legacy toggle: whether to automatically look up `LogContext.current` and inject trace headers.
+  ///
+  /// When `false`, distributed tracing is disabled (equivalent to [TracePropagationMode.none]).
   final bool attachAmbientTraceId;
 
-  /// The header name used when injecting the ambient trace ID. Defaults to `'x-request-id'`.
+  /// Distributed tracing header propagation strategy (W3C, custom single header, both, or none).
+  final TracePropagationMode tracePropagationMode;
+
+  /// The header name used when injecting the ambient trace ID in [TracePropagationMode.custom] or [TracePropagationMode.both].
+  ///
+  /// Defaults to `'x-request-id'`.
   final String traceIdHeader;
+
+  /// Whether to inspect incoming response headers for server trace IDs (`traceparent`, `x-request-id`, etc.)
+  /// and attach them to the response log context.
+  final bool extractResponseTraceId;
+
+  /// Whether to compute and attach network performance metrics (byte sizes, throughput KB/s, duration).
+  final bool logMetrics;
+
+  /// Whether to attach non-blocking streaming telemetry to `ResponseBody.stream` responses.
+  final bool trackStreamMetrics;
+
+  /// Whether to automatically elevate HTTP 4xx responses to [warningLevel] and 5xx to [errorLevel]
+  /// when non-throwing status validation (`validateStatus`) is configured.
+  final bool elevateHttpErrors;
+
+  /// Ordered list of pluggable payload serializers to inspect before falling back to default preview logic.
+  final List<LogdBodySerializer> bodySerializers;
 
   /// Replacement string for sensitive values. Defaults to `'***REDACTED***'`.
   final String redactedPlaceholder;

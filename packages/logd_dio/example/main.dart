@@ -15,9 +15,10 @@ import 'package:logd_dio/logd_dio.dart';
 /// - `showcase_gallery.dart`: Interactive multi-demo CLI launcher.
 Future<void> main() async {
   // 1. Initialize logd with styled console output
-  Logger.configure('global', handlers: [
-    ConsoleHandler(theme: const DarkTheme()),
-  ]);
+  Logger.configure(
+    'global',
+    handlers: [ConsoleHandler(theme: const DarkTheme())],
+  );
 
   // 2. Configure Dio with LogdDioInterceptor
   final dio = Dio(

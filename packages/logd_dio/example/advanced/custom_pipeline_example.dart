@@ -19,9 +19,10 @@ Future<void> main() async {
   // 1. Configure a dedicated logger pipeline for network telemetry
   final networkLogger = Logger.get('telemetry.http');
 
-  Logger.configure('telemetry', handlers: [
-    ConsoleHandler(theme: const DarkTheme()),
-  ]);
+  Logger.configure(
+    'telemetry',
+    handlers: [ConsoleHandler(theme: const DarkTheme())],
+  );
 
   // 2. Configure Dio with advanced options
   final dio = Dio();
@@ -54,16 +55,13 @@ Future<void> main() async {
   networkLogger.info('Starting Advanced Configuration & cURL Demo');
 
   // Scenario A: Request with cURL generation & response headers inspection
-  networkLogger
-      .info('--- Scenario A: Executing POST with cURL & Response Headers ---');
+  networkLogger.info(
+    '--- Scenario A: Executing POST with cURL & Response Headers ---',
+  );
   await dio.post<void>(
     'https://api.example.com/v2/compute/job',
     queryParameters: {'priority': 'high', 'env': 'staging'},
-    data: {
-      'jobType': 'ml_training',
-      'dataset': 'telemetry_q4',
-      'epochs': 50,
-    },
+    data: {'jobType': 'ml_training', 'dataset': 'telemetry_q4', 'epochs': 50},
     options: Options(
       headers: {
         'Authorization': 'Bearer test-bearer-token',
@@ -73,8 +71,9 @@ Future<void> main() async {
   );
 
   // Scenario B: High-Throughput Minimal Mode (Headers & Body disabled)
-  networkLogger
-      .info('--- Scenario B: High-Throughput Lightweight Interceptor ---');
+  networkLogger.info(
+    '--- Scenario B: High-Throughput Lightweight Interceptor ---',
+  );
   final fastDio = Dio();
   fastDio.httpClientAdapter = _CannedApiResponseAdapter();
 

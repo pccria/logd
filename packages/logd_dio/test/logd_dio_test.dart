@@ -46,8 +46,10 @@ void main() {
 
     test('safely truncates long body strings', () {
       final longString = 'a' * 200;
-      final preview =
-          LogdSanitizer.safeBodyPreview(longString, maxBodyLength: 50);
+      final preview = LogdSanitizer.safeBodyPreview(
+        longString,
+        maxBodyLength: 50,
+      );
 
       expect(preview, isA<String>());
       expect((preview! as String).startsWith('a' * 50), isTrue);
@@ -55,9 +57,7 @@ void main() {
     });
 
     test('formats FormData and binary list safely without error', () {
-      final formData = FormData.fromMap({
-        'user': 'alice',
-      });
+      final formData = FormData.fromMap({'user': 'alice'});
       final binary = [0, 1, 2, 3, 4];
 
       expect(
@@ -74,11 +74,10 @@ void main() {
       final uri = Uri.parse(
         'https://api.example.com/v1/auth?token=secret-token&api_key=my-key&filter=active',
       );
-      final sanitized = LogdSanitizer.sanitizeUri(
-        uri,
-        {'token', 'api_key'},
-        '[REDACTED]',
-      );
+      final sanitized = LogdSanitizer.sanitizeUri(uri, {
+        'token',
+        'api_key',
+      }, '[REDACTED]');
 
       expect(sanitized.queryParameters['token'], equals('[REDACTED]'));
       expect(sanitized.queryParameters['api_key'], equals('[REDACTED]'));
@@ -86,40 +85,44 @@ void main() {
     });
 
     test(
-        'sanitizeBody recursively redacts sensitive keys in maps, lists, and json',
-        () {
-      final nestedData = {
-        'user': {
-          'name': 'Alice',
-          'password': 'super-secret-password',
-          'nested': {
-            'credit_card': '1234-5678-9012-3456',
-            'token': 'bearer-jwt',
+      'sanitizeBody recursively redacts sensitive keys in maps, lists, and json',
+      () {
+        final nestedData = {
+          'user': {
+            'name': 'Alice',
+            'password': 'super-secret-password',
+            'nested': {
+              'credit_card': '1234-5678-9012-3456',
+              'token': 'bearer-jwt',
+            },
           },
-        },
-        'items': [
-          {'id': 1, 'api_key': 'key-1'},
-          {'id': 2, 'safe': 'value'},
-        ],
-      };
+          'items': [
+            {'id': 1, 'api_key': 'key-1'},
+            {'id': 2, 'safe': 'value'},
+          ],
+        };
 
-      final sanitized = LogdSanitizer.sanitizeBody(
-        nestedData,
-        {'password', 'credit_card', 'token', 'api_key'},
-        '***REDACTED***',
-      ) as Map<String, Object?>;
+        final sanitized =
+            LogdSanitizer.sanitizeBody(nestedData, {
+                  'password',
+                  'credit_card',
+                  'token',
+                  'api_key',
+                }, '***REDACTED***')
+                as Map<String, Object?>;
 
-      final user = sanitized['user'] as Map<String, Object?>;
-      expect(user['name'], equals('Alice'));
-      expect(user['password'], equals('***REDACTED***'));
-      final nested = user['nested'] as Map<String, Object?>;
-      expect(nested['credit_card'], equals('***REDACTED***'));
-      expect(nested['token'], equals('***REDACTED***'));
+        final user = sanitized['user'] as Map<String, Object?>;
+        expect(user['name'], equals('Alice'));
+        expect(user['password'], equals('***REDACTED***'));
+        final nested = user['nested'] as Map<String, Object?>;
+        expect(nested['credit_card'], equals('***REDACTED***'));
+        expect(nested['token'], equals('***REDACTED***'));
 
-      final items = sanitized['items'] as List<Object?>;
-      final item1 = items[0] as Map<String, Object?>;
-      expect(item1['api_key'], equals('***REDACTED***'));
-    });
+        final items = sanitized['items'] as List<Object?>;
+        final item1 = items[0] as Map<String, Object?>;
+        expect(item1['api_key'], equals('***REDACTED***'));
+      },
+    );
 
     test('safeBodyPreview redacts sensitive keys in JSON string bodies', () {
       const jsonBody = '{"user": "bob", "password": "plaintext-password"}';
@@ -175,34 +178,30 @@ void main() {
     });
 
     test(
-        'escapes single quotes and newlines in URI to prevent command injection',
-        () {
-      final maliciousUri =
-          "https://api.example.com/search?q=test'; rm -rf /; echo 'owned\n\r";
-      final options = RequestOptions(
-        path: maliciousUri,
-        method: 'GET',
-      );
+      'escapes single quotes and newlines in URI to prevent command injection',
+      () {
+        final maliciousUri =
+            "https://api.example.com/search?q=test'; rm -rf /; echo 'owned\n\r";
+        final options = RequestOptions(path: maliciousUri, method: 'GET');
 
-      final curl = LogdCurlGenerator.generate(
-        options,
-        sensitiveHeaders: const {},
-        placeholder: '***REDACTED***',
-      );
+        final curl = LogdCurlGenerator.generate(
+          options,
+          sensitiveHeaders: const {},
+          placeholder: '***REDACTED***',
+        );
 
-      // Verify no unescaped single quote breakout and newlines stripped
-      expect(curl.contains('\n'), isFalse);
-      expect(curl.contains('\r'), isFalse);
-      expect(curl, contains(r"test'\''"));
-    });
+        // Verify no unescaped single quote breakout and newlines stripped
+        expect(curl.contains('\n'), isFalse);
+        expect(curl.contains('\r'), isFalse);
+        expect(curl, contains(r"test'\''"));
+      },
+    );
 
     test('escapes single quotes and newlines in header keys and values', () {
       final options = RequestOptions(
         path: 'https://api.example.com',
         method: 'GET',
-        headers: {
-          "X-Custom-Header'; evil_cmd;": "val'ue\nwith\rnewlines",
-        },
+        headers: {"X-Custom-Header'; evil_cmd;": "val'ue\nwith\rnewlines"},
       );
 
       final curl = LogdCurlGenerator.generate(
@@ -262,10 +261,7 @@ void main() {
     setUp(() {
       testLogger = TestLogger('http');
       interceptor = LogdDioInterceptor(
-        LogdDioOptions(
-          logger: testLogger.logger,
-          logCurl: true,
-        ),
+        LogdDioOptions(logger: testLogger.logger, logCurl: true),
       );
     });
 
@@ -294,24 +290,28 @@ void main() {
       );
     });
 
-    test('propagates ambient LogContext requestId into request headers',
-        () async {
-      final options = RequestOptions(
+    test(
+      'propagates ambient LogContext requestId into request headers',
+      () async {
+        final options = RequestOptions(
+          path: 'https://api.example.com/data',
+          method: 'GET',
+        );
+
+        LogContext.run({'requestId': 'req-xyz-999'}, () {
+          final handler = RequestInterceptorHandler();
+          interceptor.onRequest(options, handler);
+        });
+
+        expect(options.headers['x-request-id'], equals('req-xyz-999'));
+      },
+    );
+
+    test('logs successful response with status and latency', () async {
+      final req = RequestOptions(
         path: 'https://api.example.com/data',
         method: 'GET',
       );
-
-      LogContext.run({'requestId': 'req-xyz-999'}, () {
-        final handler = RequestInterceptorHandler();
-        interceptor.onRequest(options, handler);
-      });
-
-      expect(options.headers['x-request-id'], equals('req-xyz-999'));
-    });
-
-    test('logs successful response with status and latency', () async {
-      final req =
-          RequestOptions(path: 'https://api.example.com/data', method: 'GET');
       interceptor.onRequest(req, RequestInterceptorHandler());
 
       final response = Response(
@@ -333,8 +333,10 @@ void main() {
     });
 
     test('logs cancellation as debug rather than error', () async {
-      final req =
-          RequestOptions(path: 'https://api.example.com/data', method: 'GET');
+      final req = RequestOptions(
+        path: 'https://api.example.com/data',
+        method: 'GET',
+      );
       interceptor.onRequest(req, RequestInterceptorHandler());
 
       final cancelErr = DioException(
@@ -357,8 +359,10 @@ void main() {
     });
 
     test('logs server failure as error with diagnostic context', () async {
-      final req =
-          RequestOptions(path: 'https://api.example.com/fail', method: 'POST');
+      final req = RequestOptions(
+        path: 'https://api.example.com/fail',
+        method: 'POST',
+      );
       interceptor.onRequest(req, RequestInterceptorHandler());
 
       final serverErr = DioException(
@@ -398,29 +402,28 @@ void main() {
       expect(options.headers['x-request-id'], equals('trace-abc-123'));
     });
 
-    test('does not overwrite existing trace header even if case differs',
-        () async {
-      final options = RequestOptions(
-        path: 'https://api.example.com/data',
-        method: 'GET',
-        headers: {'X-Request-Id': 'custom-id-999'},
-      );
+    test(
+      'does not overwrite existing trace header even if case differs',
+      () async {
+        final options = RequestOptions(
+          path: 'https://api.example.com/data',
+          method: 'GET',
+          headers: {'X-Request-Id': 'custom-id-999'},
+        );
 
-      LogContext.run({'requestId': 'ambient-id-111'}, () {
-        final handler = RequestInterceptorHandler();
-        interceptor.onRequest(options, handler);
-      });
+        LogContext.run({'requestId': 'ambient-id-111'}, () {
+          final handler = RequestInterceptorHandler();
+          interceptor.onRequest(options, handler);
+        });
 
-      expect(options.headers['X-Request-Id'], equals('custom-id-999'));
-      expect(options.headers['x-request-id'], equals('custom-id-999'));
-    });
+        expect(options.headers['X-Request-Id'], equals('custom-id-999'));
+        expect(options.headers['x-request-id'], equals('custom-id-999'));
+      },
+    );
 
     test('ignores LogContext when attachAmbientTraceId is disabled', () async {
       final customInterceptor = LogdDioInterceptor(
-        LogdDioOptions(
-          logger: testLogger.logger,
-          attachAmbientTraceId: false,
-        ),
+        LogdDioOptions(logger: testLogger.logger, attachAmbientTraceId: false),
       );
 
       final options = RequestOptions(
@@ -436,48 +439,48 @@ void main() {
       expect(options.headers.containsKey('x-request-id'), isFalse);
     });
 
-    test('logs response headers and redacts sensitive response headers',
-        () async {
-      final customInterceptor = LogdDioInterceptor(
-        LogdDioOptions(
-          logger: testLogger.logger,
-          logResponseHeaders: true,
-        ),
-      );
+    test(
+      'logs response headers and redacts sensitive response headers',
+      () async {
+        final customInterceptor = LogdDioInterceptor(
+          LogdDioOptions(logger: testLogger.logger, logResponseHeaders: true),
+        );
 
-      final req =
-          RequestOptions(path: 'https://api.example.com/data', method: 'GET');
-      customInterceptor.onRequest(req, RequestInterceptorHandler());
+        final req = RequestOptions(
+          path: 'https://api.example.com/data',
+          method: 'GET',
+        );
+        customInterceptor.onRequest(req, RequestInterceptorHandler());
 
-      final response = Response(
-        requestOptions: req,
-        statusCode: 200,
-        headers: Headers.fromMap({
-          'content-type': ['application/json'],
-          'set-cookie': ['session=secret-abc'],
-        }),
-        data: {'ok': true},
-      );
+        final response = Response(
+          requestOptions: req,
+          statusCode: 200,
+          headers: Headers.fromMap({
+            'content-type': ['application/json'],
+            'set-cookie': ['session=secret-abc'],
+          }),
+          data: {'ok': true},
+        );
 
-      customInterceptor.onResponse(response, ResponseInterceptorHandler());
-      await Future<void>.value();
+        customInterceptor.onResponse(response, ResponseInterceptorHandler());
+        await Future<void>.value();
 
-      expect(
-        testLogger,
-        hasLog(
-          level: LogLevel.info,
-          message: contains('<-- 200 GET https://api.example.com/data'),
-        ),
-      );
-    });
+        expect(
+          testLogger,
+          hasLog(
+            level: LogLevel.info,
+            message: contains('<-- 200 GET https://api.example.com/data'),
+          ),
+        );
+      },
+    );
 
     test('handles missing stopwatch in extra gracefully', () async {
-      final req =
-          RequestOptions(path: 'https://api.example.com/orphan', method: 'GET');
-      final response = Response(
-        requestOptions: req,
-        statusCode: 200,
+      final req = RequestOptions(
+        path: 'https://api.example.com/orphan',
+        method: 'GET',
       );
+      final response = Response(requestOptions: req, statusCode: 200);
 
       // onRequest was never called, so extra does not have the stopwatch
       expect(
@@ -490,31 +493,33 @@ void main() {
         type: DioExceptionType.badResponse,
       );
       final handler = _TestErrorHandler();
-      expect(
-        () => interceptor.onError(err, handler),
-        returnsNormally,
-      );
+      expect(() => interceptor.onError(err, handler), returnsNormally);
       expect(handler.forwardedError, equals(err));
     });
 
-    test('redacts sensitive query parameters in logged URI message and curl',
-        () async {
-      final options = RequestOptions(
-        path: 'https://api.example.com/search?token=secret-token-123&user=john',
-        method: 'GET',
-      );
+    test(
+      'redacts sensitive query parameters in logged URI message and curl',
+      () async {
+        final options = RequestOptions(
+          path:
+              'https://api.example.com/search?token=secret-token-123&user=john',
+          method: 'GET',
+        );
 
-      final handler = RequestInterceptorHandler();
-      interceptor.onRequest(options, handler);
-      await Future<void>.value();
+        final handler = RequestInterceptorHandler();
+        interceptor.onRequest(options, handler);
+        await Future<void>.value();
 
-      final loggedUri = testLogger.logs.first.message;
-      expect(loggedUri.contains('secret-token-123'), isFalse);
-      expect(
-          loggedUri, contains('--> GET https://api.example.com/search?token='));
-      expect(loggedUri, contains('REDACTED'));
-      expect(loggedUri, contains('user=john'));
-    });
+        final loggedUri = testLogger.logs.first.message;
+        expect(loggedUri.contains('secret-token-123'), isFalse);
+        expect(
+          loggedUri,
+          contains('--> GET https://api.example.com/search?token='),
+        );
+        expect(loggedUri, contains('REDACTED'));
+        expect(loggedUri, contains('user=john'));
+      },
+    );
 
     test('redacts sensitive keys in request and response body', () async {
       final req = RequestOptions(
@@ -570,50 +575,50 @@ void main() {
       testLogger.dispose();
     });
 
-    test('completes successful request-response lifecycle end-to-end',
-        () async {
-      dio.httpClientAdapter = _MockHttpClientAdapter((final options) async {
-        return ResponseBody.fromString(
-          '{"id": 42, "name": "Logd"}',
-          200,
-          headers: {
-            Headers.contentTypeHeader: [Headers.jsonContentType],
-          },
-        );
-      });
+    test(
+      'completes successful request-response lifecycle end-to-end',
+      () async {
+        dio.httpClientAdapter = _MockHttpClientAdapter((final options) async {
+          return ResponseBody.fromString(
+            '{"id": 42, "name": "Logd"}',
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        });
 
-      dio.interceptors.add(
-        LogdDioInterceptor(
-          LogdDioOptions(
-            logger: testLogger.logger,
-            logCurl: true,
+        dio.interceptors.add(
+          LogdDioInterceptor(
+            LogdDioOptions(logger: testLogger.logger, logCurl: true),
           ),
-        ),
-      );
+        );
 
-      final res = await LogContext.run({'requestId': 'req-e2e-1'}, () async {
-        return dio
-            .get<Map<String, dynamic>>('https://api.example.com/users/42');
-      });
+        final res = await LogContext.run({'requestId': 'req-e2e-1'}, () async {
+          return dio.get<Map<String, dynamic>>(
+            'https://api.example.com/users/42',
+          );
+        });
 
-      expect(res.statusCode, equals(200));
-      expect(res.data?['name'], equals('Logd'));
+        expect(res.statusCode, equals(200));
+        expect(res.data?['name'], equals('Logd'));
 
-      expect(
-        testLogger,
-        hasLog(
-          level: LogLevel.debug,
-          message: contains('--> GET https://api.example.com/users/42'),
-        ),
-      );
-      expect(
-        testLogger,
-        hasLog(
-          level: LogLevel.info,
-          message: contains('<-- 200 GET https://api.example.com/users/42'),
-        ),
-      );
-    });
+        expect(
+          testLogger,
+          hasLog(
+            level: LogLevel.debug,
+            message: contains('--> GET https://api.example.com/users/42'),
+          ),
+        );
+        expect(
+          testLogger,
+          hasLog(
+            level: LogLevel.info,
+            message: contains('<-- 200 GET https://api.example.com/users/42'),
+          ),
+        );
+      },
+    );
 
     test('handles 404 response end-to-end with error log', () async {
       dio.httpClientAdapter = _MockHttpClientAdapter((final options) async {
@@ -627,11 +632,7 @@ void main() {
       });
 
       dio.interceptors.add(
-        LogdDioInterceptor(
-          LogdDioOptions(
-            logger: testLogger.logger,
-          ),
-        ),
+        LogdDioInterceptor(LogdDioOptions(logger: testLogger.logger)),
       );
 
       await expectLater(
@@ -643,8 +644,9 @@ void main() {
         testLogger,
         hasLog(
           level: LogLevel.error,
-          message:
-              contains('<-- FAILED 404 GET https://api.example.com/missing'),
+          message: contains(
+            '<-- FAILED 404 GET https://api.example.com/missing',
+          ),
         ),
       );
     });
@@ -659,11 +661,7 @@ void main() {
       });
 
       dio.interceptors.add(
-        LogdDioInterceptor(
-          LogdDioOptions(
-            logger: testLogger.logger,
-          ),
-        ),
+        LogdDioInterceptor(LogdDioOptions(logger: testLogger.logger)),
       );
 
       final requestFuture = dio.get<void>(
@@ -720,15 +718,17 @@ class _MockHttpClientAdapter implements HttpClientAdapter {
       }
     });
 
-    handler(options).then((final res) {
-      if (!completer.isCompleted) {
-        completer.complete(res);
-      }
-    }).catchError((final Object err, final StackTrace st) {
-      if (!completer.isCompleted) {
-        completer.completeError(err, st);
-      }
-    });
+    handler(options)
+        .then((final res) {
+          if (!completer.isCompleted) {
+            completer.complete(res);
+          }
+        })
+        .catchError((final Object err, final StackTrace st) {
+          if (!completer.isCompleted) {
+            completer.completeError(err, st);
+          }
+        });
 
     return completer.future;
   }
