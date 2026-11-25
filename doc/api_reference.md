@@ -378,11 +378,11 @@ Specialized formatters, databases, and network adapters maintained within the `l
 * **`ToonDocument`**: Complete parsed TOON document exposing immutable `schema` and `records`.
 * **`ToonRecord`**: Strongly typed row accessor providing `timestamp`, `logger`, `origin`, `level`, `message`, `error`, `stackTrace`, and `context`.
 * **`ToonSchema({required String name, required List<String> columns, Map<String, String> columnTypes, ToonDialect dialect})`**: Structured schema model supporting `parse`, `parseBytes` (8KB zero-allocation preamble scan), `toPreamble`, `toJson`, and `fromJson`.
-* **`ToonContextWindow.slice(String toonText, {int maxTokens = 2048})` & `ToonContextWindow.sliceBytes(List<int> bytes, ...)`**: Token-budgeted sliding-window tail slicer for LLM prompts with guaranteed preamble retention and truncation notice.
-* **`ToonTokenEstimator.estimate(String text)`**: Zero-dependency calibrated BPE heuristic token counter calibrated against OpenAI cl100k and Anthropic Claude tokenizers.
-* **`ToonTokenEstimator.compareWithJson({required String toonText, required List<Map<String, Object?>> records})`**: Returns `ToonTokenMetrics` measuring exact token savings, byte reductions, and percentage efficiency gains over JSON.
-* **`ToonDuckDb.selectQuery(String path, {ToonSchema? schema})`**: Generates zero-copy DuckDB SQL queries utilizing `read_csv()`.
-* **`ToonDuckDb.createTableSql(String tableName, {ToonSchema? schema})` & `ToonDuckDb.ingestSql(String tableName, String path, ...)`**: Generates DDL table creation and COPY ingestion statements mapping TOON schema column definitions to DuckDB types.
+* **`ToonContextWindow.slice(String toonSource, {int? maxTokens, int? maxRows, String? truncationIndicator})` & `ToonContextWindow.sliceBytes(Uint8List bytes, ...)`**: Token-budgeted sliding-window tail slicer for LLM prompts with guaranteed preamble retention and truncation notice.
+* **`ToonTokenEstimator.estimateTokens(String text)`**: Zero-dependency calibrated BPE heuristic token counter calibrated against OpenAI cl100k and Anthropic Claude tokenizers.
+* **`ToonTokenEstimator.analyze(String toonSource)` & `analyzeDocument(ToonDocument document)`**: Returns `ToonTokenMetrics` measuring exact token savings, byte reductions, and percentage efficiency gains over JSON (`savingsPercent`).
+* **`ToonDuckDb.selectQuery(ToonSchema schema, {required String filePath, String? whereClause, int? limit})`**: Generates zero-copy DuckDB SQL queries utilizing `read_csv()`.
+* **`ToonDuckDb.createTableSql(ToonSchema schema, {String? tableName, bool ifNotExists = true})` & `ToonDuckDb.ingestSql(ToonSchema schema, {required String filePath, String? tableName})`**: Generates DDL table creation and `INSERT INTO ... SELECT * FROM read_csv(...)` ingestion statements mapping TOON schema column definitions to DuckDB types.
 * **`registerLogdToonSerializers()`**: Registers all TOON formatter and handler deserializers with the core `LoggerSerializationRegistry` for multi-isolate configuration syncing.
 * **Showcase Gallery Runner**: `dart run packages/logd_toon/example/showcase_gallery.dart` (runs 6 modular scenarios demonstrating file logging, isolate offloading, context columns, decoding, LLM context budgeting, and DuckDB SQL generation).
 

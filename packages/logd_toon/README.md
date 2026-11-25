@@ -126,7 +126,8 @@ final handler = ToonFileHandler(
 Parse TOON files or streams back into typed documents and records:
 
 ```dart
-final decoder = ToonDecoder();
+final rawToonString = await File('logs/app.toon').readAsString();
+const decoder = ToonDecoder();
 final document = decoder.decode(rawToonString);
 
 print('Log count: ${document.records.length}');
@@ -157,11 +158,8 @@ ${slice.content}
 ''';
 
 // Compare token savings against standard JSON:
-final metrics = ToonTokenEstimator.compareWithJson(
-  toonText: slice.content,
-  records: slice.records.map((r) => r.toMap()).toList(),
-);
-print('Token reduction: ${metrics.reductionPercent.toStringAsFixed(1)}%');
+final metrics = ToonTokenEstimator.analyze(slice.content);
+print('Token reduction: ${metrics.savingsPercent.toStringAsFixed(1)}%');
 ```
 
 ### 7. Analytical SQL Integration with DuckDB (`ToonDuckDb`)
@@ -169,15 +167,21 @@ print('Token reduction: ${metrics.reductionPercent.toStringAsFixed(1)}%');
 Generate zero-copy DuckDB SQL queries directly from your TOON schema:
 
 ```dart
+final rawToonString = await File('logs/app.toon').readAsString();
 final schema = ToonSchema.parse(rawToonString);
+if (schema != null) {
+  // Direct ad-hoc file query:
+  final query = ToonDuckDb.selectQuery(schema, filePath: 'logs/app.toon');
 
-// Direct ad-hoc file query:
-final query = ToonDuckDb.selectQuery('logs/app.toon', schema: schema);
-// SELECT * FROM read_csv('logs/app.toon', delim='\t', quote='"', escape='\\', nullstr='\\N', skip=1, header=false, ...);
-
-// Bulk table creation & ingestion:
-final ddl = ToonDuckDb.createTableSql('server_logs', schema: schema);
-final copySql = ToonDuckDb.ingestSql('server_logs', 'logs/app.toon', schema: schema);
+  // Bulk table creation & ingestion:
+  final ddl = ToonDuckDb.createTableSql(schema, tableName: 'server_logs');
+  final copySql = ToonDuckDb.ingestSql(
+    schema,
+    filePath: 'logs/app.toon',
+    tableName: 'server_logs',
+  );
+  print('$query\n$ddl\n$copySql');
+}
 ```
 
 ---

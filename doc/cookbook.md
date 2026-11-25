@@ -449,20 +449,18 @@ ${slice.content}
 
 /// Measures token reduction of TOON against standard JSON
 void logTokenSavings(String logContent) {
-  final document = ToonDecoder().decode(logContent);
-  final metrics = ToonTokenEstimator.compareWithJson(
-    toonText: logContent,
-    records: document.records.map((r) => r.toMap()).toList(),
-  );
+  final metrics = ToonTokenEstimator.analyze(logContent);
 
   print('JSON Tokens: ${metrics.jsonTokens}');
   print('TOON Tokens: ${metrics.toonTokens}');
-  print('Saved: ${metrics.savedTokens} tokens (${metrics.reductionPercent.toStringAsFixed(1)}%)');
+  print('Saved: ${metrics.savedTokens} tokens (${metrics.savingsPercent.toStringAsFixed(1)}%)');
 }
 
 /// Generates DuckDB SQL query to analyze tool durations
-String getDuckDbQuery(String logFilePath) {
-  return ToonDuckDb.selectQuery(logFilePath);
+String? getDuckDbQuery(String logContent, String logFilePath) {
+  final schema = ToonSchema.parse(logContent);
+  if (schema == null) return null;
+  return ToonDuckDb.selectQuery(schema, filePath: logFilePath);
 }
 ```
 

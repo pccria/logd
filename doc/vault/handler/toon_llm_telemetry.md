@@ -123,8 +123,8 @@ To eliminate the need for heavy native bindings (e.g., C/Rust BPE libraries), `T
 - Space sequences: $1$ token per 4 spaces
 
 ### Comparative Metrics (`ToonTokenMetrics`)
-`ToonTokenEstimator.compareWithJson()` calculates exact token and byte savings:
-$$\text{reductionPercent} = \frac{\text{jsonTokens} - \text{toonTokens}}{\text{jsonTokens}} \times 100$$
+`ToonTokenEstimator.analyze()` calculates exact token and byte savings:
+$$\text{savingsPercent} = \frac{\text{jsonTokens} - \text{toonTokens}}{\text{jsonTokens}} \times 100$$
 Demonstrating real-world token savings of 30% to 50% across microservice and agent traces.
 
 ---

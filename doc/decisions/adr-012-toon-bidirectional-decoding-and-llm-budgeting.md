@@ -56,7 +56,7 @@ To solve the prompt context dilemma, `ToonContextWindow` implements a reverse-ac
 To avoid heavy native tokenizer dependencies (e.g. `tiktoken` native bindings) in logging packages:
 - `ToonTokenEstimator` provides a zero-dependency Byte-Pair Encoding (BPE) heuristic calibrated against OpenAI `cl100k_base` and Anthropic Claude tokenizers.
 - It differentiates token weights across alphanumeric identifiers, numeric timestamps, code punctuation, whitespace, and Unicode sequences.
-- `ToonTokenEstimator.compareWithJson()` calculates exact token savings, byte reductions, and percentage efficiency gains over equivalent JSON structures (`ToonTokenMetrics`).
+- `ToonTokenEstimator.analyze()` and `ToonTokenEstimator.analyzeDocument()` calculate exact token savings, byte reductions, and percentage efficiency gains over equivalent JSON structures (`ToonTokenMetrics`).
 
 ### 5. Zero-Copy DuckDB Analytical SQL Bridge (`ToonDuckDb`)
 Because TOON adheres strictly to tab-separated value standards with well-defined escape semantics:
