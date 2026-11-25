@@ -1,3 +1,19 @@
+## 0.2.0
+
+- **CI/CD Step Summary Integration (`GitHubStepSummaryHandler` & `MarkdownRunSummary`)**:
+  - Introduced `GitHubStepSummaryHandler`, automatically resolving `$GITHUB_STEP_SUMMARY` (with `path` / `fallbackPath` overrides and safe no-op local fallback) and remaining Web-compatible via conditional imports.
+  - Added `MarkdownRunSummary` and `MarkdownSummaryFailure` to track per-severity entry counts, elapsed duration, and bounded failure details, emitting an executive GFM summary table and collapsible failure section on `writeSummary()` / `dispose()`.
+- **Compact Table Digest Mode (`MarkdownTableFormatter`)**:
+  - Added `MarkdownTableFormatter` for rendering aligned GFM/CommonMark/GitLab table rows with pipe escaping, newline handling (`<br>` vs space), and inline JSON context cells.
+- **Multi-Dialect Support (`MarkdownDialect`)**:
+  - Introduced `MarkdownDialect` (`gfm`, `commonmark`, `gitlab`) across `MarkdownEncoder`, `MarkdownFormatter`, `MarkdownTableFormatter`, `MarkdownFileHandler`, and `GitHubStepSummaryHandler`.
+- **Safe Context Serialization (`MapNode`)**:
+  - Updated `MarkdownEncoder` to serialize `MapNode` payloads with `toEncodable` fallbacks for `DateTime`, `Duration`, `Enum`, and custom objects, plus configurable `contextLanguage` (default `'json'`).
+- **Handler Parity, Serializers & Showcase**:
+  - Added `metadata`, `dialect`, `contextLanguage`, and `tableMode` parameters to `MarkdownFileHandler` and `MarkdownFileHandler.async()`.
+  - Updated `registerLogdMarkdownSerializers()` to serialize `MarkdownFormatter` (`dialect`, `contextLanguage`, `metadata`) and `MarkdownTableFormatter`.
+  - Added runnable 4-scenario showcase (`example/showcase_gallery.dart`) and expanded test coverage.
+
 ## 0.1.7
 
 - Requires logd ^0.10.6.

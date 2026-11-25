@@ -9,16 +9,36 @@ void main() {
     });
 
     test('round-trips MarkdownFormatter correctly', () {
-      final original = const MarkdownFormatter(
+      const original = MarkdownFormatter(
         metadata: {LogMetadata.timestamp, LogMetadata.logger},
+        dialect: MarkdownDialect.commonmark,
+        contextLanguage: 'yaml',
       );
 
       final json = LoggerSerializationRegistry.serializeFormatter(original);
 
       expect(json['type'], 'MarkdownFormatter');
 
-      final deserialized =
-          LoggerSerializationRegistry.deserializeFormatter(json);
+      final deserialized = LoggerSerializationRegistry.deserializeFormatter(
+        json,
+      );
+      expect(deserialized, equals(original));
+    });
+
+    test('round-trips MarkdownTableFormatter correctly', () {
+      const original = MarkdownTableFormatter(
+        metadata: {LogMetadata.timestamp, LogMetadata.origin},
+        includeContext: false,
+        dialect: MarkdownDialect.gitlab,
+      );
+
+      final json = LoggerSerializationRegistry.serializeFormatter(original);
+
+      expect(json['type'], 'MarkdownTableFormatter');
+
+      final deserialized = LoggerSerializationRegistry.deserializeFormatter(
+        json,
+      );
       expect(deserialized, equals(original));
     });
   });

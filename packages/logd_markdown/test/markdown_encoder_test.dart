@@ -36,10 +36,7 @@ void main() {
       encoder.encode(entry, document, LogLevel.info, context, factory);
       final output = const Utf8Decoder().convert(context.takeBytes());
 
-      expect(
-        output,
-        contains('### ℹ️ 2023-10-27T10:00:00.000Z [INFO] [test]'),
-      );
+      expect(output, contains('### ℹ️ 2023-10-27T10:00:00.000Z [INFO] [test]'));
       expect(output, contains('**Hello Markdown**'));
       expect(output, contains('---'));
     });
@@ -126,22 +123,30 @@ void main() {
           children: [
             TableRowNode(
               children: [
-                TableCellNode(children: [
-                  MessageNode(segments: [const StyledText('Header 1')])
-                ]),
-                TableCellNode(children: [
-                  MessageNode(segments: [const StyledText('Header 2')])
-                ]),
+                TableCellNode(
+                  children: [
+                    MessageNode(segments: [const StyledText('Header 1')]),
+                  ],
+                ),
+                TableCellNode(
+                  children: [
+                    MessageNode(segments: [const StyledText('Header 2')]),
+                  ],
+                ),
               ],
             ),
             TableRowNode(
               children: [
-                TableCellNode(children: [
-                  MessageNode(segments: [const StyledText('Val 1')])
-                ]),
-                TableCellNode(children: [
-                  MessageNode(segments: [const StyledText('Val 2')])
-                ]),
+                TableCellNode(
+                  children: [
+                    MessageNode(segments: [const StyledText('Val 1')]),
+                  ],
+                ),
+                TableCellNode(
+                  children: [
+                    MessageNode(segments: [const StyledText('Val 2')]),
+                  ],
+                ),
               ],
             ),
           ],
@@ -248,30 +253,43 @@ void main() {
             title: const StyledText('System Audit'),
             children: [
               SectionNode(
-                summary:
-                    MessageNode(segments: [const StyledText('Table Details')]),
+                summary: MessageNode(
+                  segments: [const StyledText('Table Details')],
+                ),
                 children: [
                   TableNode(
                     title: const StyledText('Metrics'),
                     children: [
                       TableRowNode(
                         children: [
-                          TableCellNode(children: [
-                            MessageNode(segments: [const StyledText('Metric')])
-                          ]),
-                          TableCellNode(children: [
-                            MessageNode(segments: [const StyledText('Value')])
-                          ]),
+                          TableCellNode(
+                            children: [
+                              MessageNode(
+                                segments: [const StyledText('Metric')],
+                              ),
+                            ],
+                          ),
+                          TableCellNode(
+                            children: [
+                              MessageNode(
+                                segments: [const StyledText('Value')],
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                       TableRowNode(
                         children: [
-                          TableCellNode(children: [
-                            MessageNode(segments: [const StyledText('CPU')])
-                          ]),
-                          TableCellNode(children: [
-                            MessageNode(segments: [const StyledText('12%')])
-                          ]),
+                          TableCellNode(
+                            children: [
+                              MessageNode(segments: [const StyledText('CPU')]),
+                            ],
+                          ),
+                          TableCellNode(
+                            children: [
+                              MessageNode(segments: [const StyledText('12%')]),
+                            ],
+                          ),
                         ],
                       ),
                     ],
@@ -287,19 +305,33 @@ void main() {
           ),
         )
         ..writeNode(
-            MetadataNode(segments: [const StyledText('Host: worker-1')]))
-        ..writeNode(AlignmentNode(children: [
-          MessageNode(segments: [const StyledText('Aligned Message')])
-        ]))
-        ..writeNode(RowNode(children: [
-          MessageNode(segments: [const StyledText('Left')]),
-          MessageNode(segments: [const StyledText('Right')])
-        ]))
-        ..writeNode(ParagraphNode(children: [
-          MessageNode(segments: [const StyledText('Paragraph content')])
-        ]))
+          MetadataNode(segments: [const StyledText('Host: worker-1')]),
+        )
         ..writeNode(
-            ErrorNode(segments: [const StyledText('Warning anomaly detected')]))
+          AlignmentNode(
+            children: [
+              MessageNode(segments: [const StyledText('Aligned Message')]),
+            ],
+          ),
+        )
+        ..writeNode(
+          RowNode(
+            children: [
+              MessageNode(segments: [const StyledText('Left')]),
+              MessageNode(segments: [const StyledText('Right')]),
+            ],
+          ),
+        )
+        ..writeNode(
+          ParagraphNode(
+            children: [
+              MessageNode(segments: [const StyledText('Paragraph content')]),
+            ],
+          ),
+        )
+        ..writeNode(
+          ErrorNode(segments: [const StyledText('Warning anomaly detected')]),
+        )
         ..writeNode(FooterNode(segments: [const StyledText('End of audit')]));
 
       final context = HandlerContext();
@@ -340,11 +372,7 @@ void main() {
       );
 
       final document = factory.checkoutDocument();
-      document.writeNode(
-        MapNode({
-          'payload': '```bash\necho "hello"\n```',
-        }),
-      );
+      document.writeNode(MapNode({'payload': '```bash\necho "hello"\n```'}));
 
       final context = HandlerContext();
       encoder.encode(entry, document, LogLevel.info, context, factory);

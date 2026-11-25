@@ -6,9 +6,7 @@ void main() async {
   registerLogdMarkdownSerializers();
 
   // Configure a logger to write GitHub-Flavored Markdown logs in the background
-  final handler = MarkdownFileHandler.async(
-    path: 'logs/app_logs.md',
-  );
+  final handler = MarkdownFileHandler.async(path: 'logs/app_logs.md');
 
   Logger.configure('md_demo', handlers: [handler]);
 

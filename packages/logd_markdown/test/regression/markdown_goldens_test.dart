@@ -23,7 +23,8 @@ void main() {
       level: LogLevel.error,
       message: 'Database connection failed.',
       timestamp: '2025-01-01 12:00:01',
-      error: 'SocketException: Connection refused '
+      error:
+          'SocketException: Connection refused '
           '(OS Error: Connection refused, errno = 111)',
       stackTrace: StackTrace.fromString(
         '#0      Socket.connect (dart:io/socket.dart:100:5)\n'
