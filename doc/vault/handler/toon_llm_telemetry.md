@@ -157,3 +157,18 @@ FROM read_csv(
 ```
 
 `ToonDuckDb` generates these queries, DDL table declarations, and COPY statements automatically from the parsed `ToonSchema`.
+
+---
+
+## 7. Integration with `logd_sqlite` (Local RAG & Decoupled Bridge)
+
+`package:logd_toon` and `package:logd_sqlite` address complementary layers of local observability without taking direct dependencies on each other (`logd_toon` remains pure Dart and Web-compatible, while `logd_sqlite` binds native `sqlite3`):
+
+- **`logd_sqlite` (Indexed Retrieval)**: Persists logs in WAL-mode SQLite with FTS5 full-text search, `SqliteLogQuery` filtering, and `maxDiskBytes` disk quotas, returning strongly typed `SqliteLogRecord` instances.
+- **`logd_toon` (Token-Budgeted Transport)**: Formats `LogEntry` payloads into compact tabular rows and slices them to exact token budgets via `ToonContextWindow.slice()`.
+
+### Architectural Bridge (`LogEntry` as Shared Contract)
+Rather than coupling `package:logd_toon` to `package:sqlite3` or duplicating TOON escaping logic:
+1. **Local RAG Pipeline (SQLite $\to$ TOON $\to$ LLM)**: Query `SqliteHandler.query()` for relevant errors or FTS5 matches, map each `SqliteLogRecord` (`loggerName`, `context`, `level`, `timestamp`, `message`, `error`, `stackTrace`) to a `LogEntry`, encode via `ToonFormatter` + `ToonEncoder`, and trim to the LLM prompt ceiling with `ToonContextWindow.slice()`.
+2. **Dual-Handler Pipeline**: Attach both `SqliteHandler.async(...)` (for app-local FTS5 search) and `ToonFileHandler.async(...)` (for rolling LLM context or DuckDB queries) to the same `Logger`.
+3. **Offline Audit Import (TOON $\to$ SQLite)**: Stream archived `.toon` files with `ToonDecoder.decodeStream()` in $O(1)$ memory and insert `ToonRecord` rows into SQLite for indexed investigation.

@@ -464,6 +464,8 @@ String? getDuckDbQuery(String logContent, String logFilePath) {
 }
 ```
 
+> **Tip — Combining `logd_sqlite` + `logd_toon` for Local RAG**: Query filtered/FTS5 logs via `SqliteHandler.query()`, map each `SqliteLogRecord` to a `LogEntry`, encode with `ToonFormatter` + `ToonEncoder`, and pass the result to `ToonContextWindow.slice(toonText, maxTokens: 2048)` to pack only relevant history into your LLM budget without coupling the two packages.
+
 ---
 
 ## 7. CI/CD: GitHub Actions Job Summaries in Markdown
