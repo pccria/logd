@@ -52,8 +52,8 @@ final class ToonDuckDb {
 
   /// Generates a DuckDB DDL `CREATE TABLE` statement mapped from [schema].
   ///
-  /// Maps semantic column types ([ToonType.iso8601] $\to$ `TIMESTAMP`,
-  /// [ToonType.object] $\to$ `JSON`, others $\to$ `VARCHAR`).
+  /// Maps semantic column types ([ToonType.iso8601] → `TIMESTAMP`,
+  /// [ToonType.object] → `JSON`, others → `VARCHAR`).
   static String createTableSql(
     final ToonSchema schema, {
     final String? tableName,

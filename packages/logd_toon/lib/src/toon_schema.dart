@@ -170,7 +170,7 @@ final class ToonSchema {
 
   /// Scans a byte buffer window and extracts a parsed [ToonSchema].
   ///
-  /// Limits decoding to an initial 8 KB window to guarantee $O(1)$ memory
+  /// Limits decoding to an initial 8 KB window to guarantee `O(1)` memory
   /// allocation overhead even on multi-gigabyte log streams.
   static ToonSchema? parseBytes(final Uint8List bytes) {
     if (bytes.isEmpty) {

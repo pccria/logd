@@ -95,7 +95,7 @@ final class ToonDecoder {
     return ToonRecord(fields: fields, schema: schema);
   }
 
-  /// Decodes an asynchronous stream of TOON lines in $O(1)$ memory.
+  /// Decodes an asynchronous stream of TOON lines in `O(1)` memory.
   ///
   /// If [schema] is omitted, the preamble is automatically parsed from the
   /// initial stream lines before data records are emitted.

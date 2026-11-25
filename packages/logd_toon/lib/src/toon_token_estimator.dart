@@ -38,7 +38,7 @@ final class ToonTokenMetrics {
   /// Absolute number of tokens saved by using TOON instead of JSON.
   int get savedTokens => jsonTokens - toonTokens;
 
-  /// Percentage reduction in token consumption achieved by TOON ($0.0$ to $100.0$).
+  /// Percentage reduction in token consumption achieved by TOON (`0.0` to `100.0`).
   double get savingsPercent {
     if (jsonTokens <= 0) {
       return 0.0;
