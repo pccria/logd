@@ -1,6 +1,6 @@
 # logd_markdown Roadmap
 
-Package version at time of writing: **0.1.3**
+Package version at time of writing: **0.2.0**
 
 ---
 
@@ -11,7 +11,7 @@ Package version at time of writing: **0.1.3**
 
 | Increment | Triggers |
 |---|---|
-| **Patch** (`0.1.x`) | Non-breaking formatting bug fixes, CommonMark escaping corrections, and table formatting passes. |
+| **Patch** (`0.2.x`) | Non-breaking formatting bug fixes, CommonMark escaping corrections, and table formatting passes. |
 | **Minor** (`0.x.0`) | New CI integration sinks, syntax highlighting themes, or custom block encoders. |
 | **Major** (`x.0.0`) | Breaking changes to Markdown encoding contracts, AST mapping, or public handler APIs. |
 
@@ -19,20 +19,29 @@ Package version at time of writing: **0.1.3**
 
 ## Next Milestones
 
-### 🔲 v0.2.0: CI/CD Platform Observability & Automated Step Summaries
+### 🔲 v0.3.0: Richer CI/CD Artifacts & Diff-Aware PR Reports
+**Goal**: Expand CI/CD observability with PR comment templates and multi-run trend comparisons.
 
-**Goal**: Seamlessly bridge developer log telemetry with modern CI/CD step summary interfaces.
-
-- [ ] **GitHub Actions `$GITHUB_STEP_SUMMARY` Integration**:
-  - Add native handler to stream formatted execution logs, benchmark summaries, and error diagnostics directly to the GitHub Actions Job Summary output.
-- [ ] **GitLab CI & Bitbucket Pipelines Formatter**:
-  - Add specialized markdown templates tailored for GitLab CI collapsible log sections and Bitbucket Pipelines report artifacts.
-- [ ] **Syntax-Highlighted Context Blocks**:
-  - Automatic language tag inference (`json`, `yaml`, `dart`, `sql`) for code blocks based on context payload structure.
+- [ ] **Bitbucket & Azure DevOps Templates**:
+  - Dedicated formatting presets for Bitbucket Pipelines and Azure Pipelines Markdown renderers.
+- [ ] **Baseline Comparison Deltas**:
+  - Side-by-side severity and duration delta columns in `MarkdownRunSummary` against previous CI artifacts.
 
 ---
 
 ## Completed
+
+### ✅ v0.2.0: CI/CD Step Summaries, Table Digest Mode & Multi-Dialect Support
+- [x] **GitHub Actions `$GITHUB_STEP_SUMMARY` Integration (`GitHubStepSummaryHandler`)**:
+  - Auto-resolves `GITHUB_STEP_SUMMARY` (with local fallback and Web-safe conditional imports), tracks `MarkdownRunSummary` severity counts and bounded failures, and appends an executive GFM summary table + collapsible failure details.
+- [x] **Compact Table Mode (`MarkdownTableFormatter`)**:
+  - Emits aligned GFM/CommonMark/GitLab table rows with pipe escaping and inline JSON context cells.
+- [x] **Multi-Dialect Output (`MarkdownDialect`)**:
+  - Added `MarkdownDialect.gfm`, `MarkdownDialect.commonmark`, and `MarkdownDialect.gitlab` across formatters, encoders, and handlers.
+- [x] **Safe `MapNode` Context Serialization & Handler Parity**:
+  - Safe `toEncodable` JSON serialization for non-JSON Dart types, configurable `contextLanguage`, and parameter parity across `MarkdownFileHandler` / `.async()`.
+
+---
 
 ### ✅ v0.1.3: CommonMark Dynamic Code Fence Scaling & Dependency Alignment
 - [x] **Dynamic Fence Scaling (`_writeFencedBlock`)**:

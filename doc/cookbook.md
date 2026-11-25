@@ -474,23 +474,29 @@ String? getDuckDbQuery(String logContent, String logFilePath) {
 In automated CI runs, raw terminal logs are thousands of lines long, making test results and error diagnostics hard to skim.
 
 ### Solution
-Use `MarkdownFileHandler` from [`package:logd_markdown`](../packages/logd_markdown) to write formatted test summaries directly to `$GITHUB_STEP_SUMMARY`.
+Use `GitHubStepSummaryHandler` from [`package:logd_markdown`](../packages/logd_markdown) to stream a compact Markdown table directly to `$GITHUB_STEP_SUMMARY` (with automatic local fallback) and append an executive severity rollup + collapsible failure details on `dispose()`.
 
 ```dart
-import 'dart:io';
 import 'package:logd/logd.dart';
 import 'package:logd_markdown/logd_markdown.dart';
 
-void setupCiLogging() {
-  final summaryPath = Platform.environment['GITHUB_STEP_SUMMARY'] ?? 'logs/ci_summary.md';
+Future<void> runCiWithStepSummary() async {
+  final summaryHandler = GitHubStepSummaryHandler(
+    title: 'CI Verification Run',
+    fallbackPath: 'logs/ci_summary.md',
+    tableMode: true,
+  );
 
   Logger.configure('ci', handlers: [
     ConsoleHandler(),
-    MarkdownFileHandler(summaryPath),
+    summaryHandler,
   ]);
 
   final logger = Logger.get('ci.pipeline');
-  logger.info('Pipeline execution initialized');
+  logger.info('Pipeline execution initialized', context: {'packages': 7});
+  logger.error('Integration test failed', error: 'Connection refused');
+
+  await summaryHandler.dispose();
 }
 ```
 

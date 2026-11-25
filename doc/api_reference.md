@@ -414,4 +414,11 @@ Specialized formatters, databases, and network adapters maintained within the `l
 * **`HtmlFormatter`**: Semantic formatter that maps `LogEntry` into `LogDocument` and auto-injects `HtmlEncoder`.
 
 ### [`package:logd_markdown`](../packages/logd_markdown)
-* **`MarkdownFileHandler(String path)`**: Generates GitHub-Flavored Markdown files (ideal for `$GITHUB_STEP_SUMMARY` in CI/CD).
+* **`MarkdownFileHandler({required String path, Set<LogMetadata> metadata, MarkdownDialect dialect = MarkdownDialect.gfm, String contextLanguage = 'json', bool tableMode = false, ...})` & `MarkdownFileHandler.async(...)`**: Generates GFM, CommonMark, or GitLab Markdown files synchronously or in a background worker isolate.
+* **`GitHubStepSummaryHandler({String title = 'Log Summary', String? path, String? fallbackPath, bool tableMode = true, bool includeEntries = true, bool includeSummaryRollup = true, int maxFailures = 50, MarkdownDialect dialect = MarkdownDialect.gfm, ...})`**: Auto-resolves `$GITHUB_STEP_SUMMARY` (with safe local/Web fallback), tracks `MarkdownRunSummary` severity counts and bounded failures, and appends an executive summary rollup on `writeSummary()` / `dispose()`.
+* **`MarkdownTableFormatter({Set<LogMetadata> metadata, bool includeContext = true, MarkdownDialect dialect = MarkdownDialect.gfm})`**: Emits compact Markdown table headers and aligned rows with pipe escaping and inline JSON context.
+* **`MarkdownFormatter({Set<LogMetadata> metadata, MarkdownDialect dialect = MarkdownDialect.gfm, String contextLanguage = 'json'})`**: Emits detailed Markdown cards with emoji headings, alert callouts, and fenced context blocks.
+* **`MarkdownEncoder({MarkdownDialect dialect = MarkdownDialect.gfm, String contextLanguage = 'json'})`**: Serializes semantic `LogDocument`s into GFM, CommonMark, or GitLab Markdown with safe JSON `MapNode` encoding and dynamic code-fence scaling.
+* **`MarkdownDialect`**: Rendering flavors (`gfm`, `commonmark`, `gitlab`).
+* **`registerLogdMarkdownSerializers()`**: Registers `MarkdownFormatter` and `MarkdownTableFormatter` with `LoggerSerializationRegistry` for isolate config syncing.
+* **Showcase Gallery Runner**: `dart run packages/logd_markdown/example/showcase_gallery.dart`.

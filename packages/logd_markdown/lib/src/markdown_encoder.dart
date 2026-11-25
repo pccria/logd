@@ -3,18 +3,31 @@ import 'dart:convert' as convert;
 import 'package:logd/logd.dart';
 import 'package:meta/meta.dart';
 
-/// An encoder that transforms [LogDocument] into Markdown (GFM) markup.
+import 'markdown_dialect.dart';
+
+/// An encoder that transforms [LogDocument] into Markdown markup.
 ///
-/// It translates the semantic structure of the log into Markdown elements:
-/// - [HeaderNode]: Headers (###) + Emojis based on [LogLevel].
-/// - [MessageNode]: Bold text (**message**)
-/// - [ErrorNode]: Alert blocks (`> [!ERROR]`)
-/// - [LogTag.collapsible]: `<details>` blocks for collapsible content.
-/// - [LogTag.stackFrame]: Code blocks (```).
+/// Translates the semantic structure of the log into Markdown elements
+/// according to the configured [dialect] (GFM, CommonMark, or GitLab):
+/// - [HeaderNode]: Headers (`###`) with [LogLevel] emoji indicators.
+/// - [MessageNode]: Bold text (`**message**`).
+/// - [ErrorNode]: Alert blocks (`> [!ERROR]` in GFM, `> **Error:**` in CommonMark/GitLab).
+/// - [LogTag.collapsible]: `<details>` blocks in GFM/GitLab, bold sections in CommonMark.
+/// - [LogTag.stackFrame]: Dynamically scaled fenced code blocks.
+/// - [MapNode]: Pretty-printed JSON fenced blocks (or [contextLanguage]).
 @immutable
 class MarkdownEncoder implements LogEncoder {
   /// Creates a [MarkdownEncoder].
-  const MarkdownEncoder();
+  const MarkdownEncoder({
+    this.dialect = MarkdownDialect.gfm,
+    this.contextLanguage = 'json',
+  });
+
+  /// The Markdown flavor used for alerts, callouts, and collapsible blocks.
+  final MarkdownDialect dialect;
+
+  /// The fenced code-block language tag used when rendering [MapNode] context.
+  final String contextLanguage;
 
   @override
   WrappingStrategy get wrappingStrategy => WrappingStrategy.none;
@@ -25,7 +38,16 @@ class MarkdownEncoder implements LogEncoder {
     final LogLevel level,
     final LogPipelineFactory factory, {
     final LogDocument? document,
-  }) {}
+  }) {
+    final columns =
+        document?.metadata['markdown_table_columns'] as List<String>?;
+    if (columns == null || columns.isEmpty) {
+      return;
+    }
+    context
+      ..writeString('| ${columns.join(' | ')} |\n')
+      ..writeString('| ${List.filled(columns.length, '---').join(' | ')} |\n');
+  }
 
   @override
   void postamble(
@@ -43,6 +65,13 @@ class MarkdownEncoder implements LogEncoder {
     final LogPipelineFactory factory, {
     final int? width,
   }) {
+    final tableCells =
+        document.metadata['markdown_table_cells'] as List<String>?;
+    if (tableCells != null) {
+      context.writeString('| ${tableCells.join(' | ')} |');
+      return;
+    }
+
     // 1. Header Extraction Pass: Find all text intended for headers.
     final headers = <String>[];
     for (final node in document.nodes) {
@@ -118,7 +147,9 @@ class MarkdownEncoder implements LogEncoder {
     if (trimmed.isEmpty) {
       return true;
     }
-    if (trimmed.split('').every(
+    if (trimmed
+        .split('')
+        .every(
           (final char) =>
               char == '_' || char == '-' || char == ' ' || char == '|',
         )) {
@@ -148,13 +179,19 @@ class MarkdownEncoder implements LogEncoder {
       case MessageNode():
         context.writeString('**${_renderContent(node).trim()}**\n');
       case ErrorNode():
+        final alertHeader = dialect == MarkdownDialect.gfm
+            ? '> [!ERROR]'
+            : '> **Error:**';
         context
-          ..writeString('\n> [!ERROR]\n')
+          ..writeString('\n$alertHeader\n')
           ..writeString('> ${_renderContent(node)}\n');
       case FooterNode():
         _renderFooter(context, node);
       case MetadataNode():
-        context.writeString('> [!NOTE]\n> ${_renderContent(node).trim()}\n');
+        final noteHeader = dialect == MarkdownDialect.gfm
+            ? '> [!NOTE]'
+            : '> **Note:**';
+        context.writeString('$noteHeader\n> ${_renderContent(node).trim()}\n');
       case IndentationNode():
         context.writeString('> ');
         for (final child in node.children) {
@@ -167,13 +204,15 @@ class MarkdownEncoder implements LogEncoder {
             ? node.leading!.map((final s) => s.text).join().trim()
             : '';
 
-        final skipLeading = isBodyPass &&
+        final skipLeading =
+            isBodyPass &&
             leadingText.isNotEmpty &&
             (_getHeaderText(node) != null || _isPureFiller(leadingText));
 
         if (!skipLeading && node.leading != null) {
-          context
-              .writeString('${node.leading!.map((final s) => s.text).join()} ');
+          context.writeString(
+            '${node.leading!.map((final s) => s.text).join()} ',
+          );
         }
 
         for (final child in node.children) {
@@ -182,10 +221,14 @@ class MarkdownEncoder implements LogEncoder {
 
         if (node.trailing != null) {
           context.writeString(
-              ' ${node.trailing!.map((final s) => s.text).join()}');
+            ' ${node.trailing!.map((final s) => s.text).join()}',
+          );
         }
       case BoxNode():
-        context.writeString('\n> [!NOTE]\n');
+        final noteHeader = dialect == MarkdownDialect.gfm
+            ? '> [!NOTE]'
+            : '> **Note:**';
+        context.writeString('\n$noteHeader\n');
         if (node.title != null) {
           context.writeString('> **${node.title!.text}**\n');
         }
@@ -195,13 +238,34 @@ class MarkdownEncoder implements LogEncoder {
         }
         context.writeString('\n');
       case SectionNode():
-        context.writeString('\n<details>\n<summary>');
-        _renderNode(context, node.summary, document, entry);
-        context.writeString('</summary>\n\n');
-        for (final child in node.children) {
-          _renderNode(context, child, document, entry, isBodyPass: isBodyPass);
+        if (dialect == MarkdownDialect.commonmark) {
+          context.writeString('\n**');
+          _renderNode(context, node.summary, document, entry);
+          context.writeString('**\n\n');
+          for (final child in node.children) {
+            _renderNode(
+              context,
+              child,
+              document,
+              entry,
+              isBodyPass: isBodyPass,
+            );
+          }
+        } else {
+          context.writeString('\n<details>\n<summary>');
+          _renderNode(context, node.summary, document, entry);
+          context.writeString('</summary>\n\n');
+          for (final child in node.children) {
+            _renderNode(
+              context,
+              child,
+              document,
+              entry,
+              isBodyPass: isBodyPass,
+            );
+          }
+          context.writeString('\n</details>\n');
         }
-        context.writeString('\n</details>\n');
       case ParagraphNode():
         for (final child in node.children) {
           _renderNode(context, child, document, entry, isBodyPass: isBodyPass);
@@ -240,7 +304,7 @@ class MarkdownEncoder implements LogEncoder {
 
           _writeFencedBlock(context, row, 'text');
         } else {
-          _writeFencedBlock(context, node.toString(), 'json');
+          _writeFencedBlock(context, _formatMapJson(node.map), contextLanguage);
         }
       case ListNode():
         _renderList(context, node);
@@ -339,11 +403,16 @@ class MarkdownEncoder implements LogEncoder {
     final LogDocument document,
     final LogEntry entry,
   ) {
-    final summary =
-        (node.tags & LogTag.stackFrame) != 0 ? 'Stack Trace' : 'Details';
-    context
-      ..writeString('\n<details>\n')
-      ..writeString('<summary>$summary</summary>\n\n');
+    final summary = (node.tags & LogTag.stackFrame) != 0
+        ? 'Stack Trace'
+        : 'Details';
+    if (dialect == MarkdownDialect.commonmark) {
+      context.writeString('\n**$summary**\n\n');
+    } else {
+      context
+        ..writeString('\n<details>\n')
+        ..writeString('<summary>$summary</summary>\n\n');
+    }
 
     if (node is ContentNode) {
       if ((node.tags & LogTag.stackFrame) != 0) {
@@ -357,7 +426,9 @@ class MarkdownEncoder implements LogEncoder {
       }
     }
 
-    context.writeString('\n</details>\n');
+    if (dialect != MarkdownDialect.commonmark) {
+      context.writeString('\n</details>\n');
+    }
   }
 
   void _renderFooter(final HandlerContext context, final FooterNode node) {
@@ -450,10 +521,45 @@ class MarkdownEncoder implements LogEncoder {
   }
 
   String _levelEmoji(final LogLevel level) => switch (level) {
-        LogLevel.trace => '🧬',
-        LogLevel.debug => '🔍',
-        LogLevel.info => 'ℹ️',
-        LogLevel.warning => '⚠️',
-        LogLevel.error => '❌',
-      };
+    LogLevel.trace => '🧬',
+    LogLevel.debug => '🔍',
+    LogLevel.info => 'ℹ️',
+    LogLevel.warning => '⚠️',
+    LogLevel.error => '❌',
+  };
+
+  static String _formatMapJson(final Map<String, Object?> map) {
+    try {
+      return convert.jsonEncode(map, toEncodable: _toJsonEncodable);
+    } on Object {
+      return map.toString();
+    }
+  }
+
+  static Object? _toJsonEncodable(final Object? value) {
+    if (value == null || value is num || value is bool || value is String) {
+      return value;
+    }
+    if (value is DateTime) {
+      return value.toIso8601String();
+    }
+    if (value is Duration) {
+      return value.toString();
+    }
+    if (value is Enum) {
+      return value.name;
+    }
+    return value.toString();
+  }
+
+  @override
+  bool operator ==(final Object other) =>
+      identical(this, other) ||
+      other is MarkdownEncoder &&
+          runtimeType == other.runtimeType &&
+          dialect == other.dialect &&
+          contextLanguage == other.contextLanguage;
+
+  @override
+  int get hashCode => Object.hash(runtimeType, dialect, contextLanguage);
 }

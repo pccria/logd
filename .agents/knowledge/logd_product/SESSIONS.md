@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-11-25 | logd_markdown v0.2.0 | Maturation: CI Step Summaries, Table Digest & Multi-Dialect
+
+- **Focus**: Phase 2 maturation of `packages/logd_markdown` for CI/CD job summaries, compact table reporting, and multi-dialect Markdown compatibility.
+- **Key Deliverables**:
+  - `GitHubStepSummaryHandler` & `MarkdownRunSummary`: Auto-resolves `$GITHUB_STEP_SUMMARY` via Web-safe conditional imports, tracks per-level counts and bounded `MarkdownSummaryFailure`s, and appends an executive summary table + collapsible failure block.
+  - `MarkdownTableFormatter`: Emits aligned Markdown table headers (`preamble`) and rows with pipe escaping and inline JSON context cells.
+  - `MarkdownDialect` (`gfm`, `commonmark`, `gitlab`): Dialect-aware callouts, alerts, and collapsible sections across formatters, encoders, and handlers.
+  - Safe `MapNode` JSON encoding with `toEncodable` fallback and configurable `contextLanguage`.
+  - Handler parity (`MarkdownFileHandler` / `.async()`), `registerLogdMarkdownSerializers()`, ADR-013, vault doc (`doc/vault/handler/markdown_ci_reporting.md`), Cookbook Recipe 7, and 4-scenario showcase gallery.
+
+---
+
 ## 2026-11-25 | logd_toon v0.2.0 | Maturation: Bidirectional Parsing, LLM Budgeting & DuckDB Bridge
 
 - **Focus**: Phase 2 maturation of `packages/logd_toon` for autonomous LLM agent telemetry, prompt context window budgeting, and analytical SQL ingestion.
