@@ -21,10 +21,11 @@ void main() {
     LogdSanitizer.sanitizeUri(testUri, sensitiveQueryParams, '***REDACTED***');
   }
   swUri.stop();
-  final uriUsPerOp =
-      (swUri.elapsedMicroseconds / iterations).toStringAsFixed(2);
-  final uriOpsSec =
-      (iterations / (swUri.elapsedMicroseconds / 1000000)).toStringAsFixed(0);
+  final uriUsPerOp = (swUri.elapsedMicroseconds / iterations).toStringAsFixed(
+    2,
+  );
+  final uriOpsSec = (iterations / (swUri.elapsedMicroseconds / 1000000))
+      .toStringAsFixed(0);
 
   // 2. Benchmark LogdSanitizer.sanitizeBody
   final complexPayload = {
@@ -65,10 +66,11 @@ void main() {
     );
   }
   swBody.stop();
-  final bodyUsPerOp =
-      (swBody.elapsedMicroseconds / iterations).toStringAsFixed(2);
-  final bodyOpsSec =
-      (iterations / (swBody.elapsedMicroseconds / 1000000)).toStringAsFixed(0);
+  final bodyUsPerOp = (swBody.elapsedMicroseconds / iterations).toStringAsFixed(
+    2,
+  );
+  final bodyOpsSec = (iterations / (swBody.elapsedMicroseconds / 1000000))
+      .toStringAsFixed(0);
 
   // 3. Benchmark LogdCurlGenerator.generate
   final requestOptions = RequestOptions(
@@ -105,20 +107,18 @@ void main() {
     );
   }
   swCurl.stop();
-  final curlUsPerOp =
-      (swCurl.elapsedMicroseconds / iterations).toStringAsFixed(2);
-  final curlOpsSec =
-      (iterations / (swCurl.elapsedMicroseconds / 1000000)).toStringAsFixed(0);
+  final curlUsPerOp = (swCurl.elapsedMicroseconds / iterations).toStringAsFixed(
+    2,
+  );
+  final curlOpsSec = (iterations / (swCurl.elapsedMicroseconds / 1000000))
+      .toStringAsFixed(0);
 
   // 4. Benchmark Full Interceptor Request + Response Cycle
   // Configure dev-null sink to measure pure CPU overhead without terminal I/O
   Logger.configure(
     'bench_http',
     handlers: [
-      Handler(
-        formatter: const PlainFormatter(),
-        sink: _DevNullSink(),
-      ),
+      Handler(formatter: const PlainFormatter(), sink: _DevNullSink()),
     ],
   );
   final noopLogger = Logger.get('bench_http');
@@ -172,10 +172,10 @@ void main() {
     interceptor.onResponse(res, dummyHandlerRes);
   }
   swCycle.stop();
-  final cycleUsPerOp =
-      (swCycle.elapsedMicroseconds / iterations).toStringAsFixed(2);
-  final cycleOpsSec =
-      (iterations / (swCycle.elapsedMicroseconds / 1000000)).toStringAsFixed(0);
+  final cycleUsPerOp = (swCycle.elapsedMicroseconds / iterations)
+      .toStringAsFixed(2);
+  final cycleOpsSec = (iterations / (swCycle.elapsedMicroseconds / 1000000))
+      .toStringAsFixed(0);
 
   print('===============================================================');
   print('          logd_dio Sanitization & Overhead Benchmark           ');

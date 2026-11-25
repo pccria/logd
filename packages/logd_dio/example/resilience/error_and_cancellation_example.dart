@@ -15,9 +15,10 @@ import 'package:logd_dio/logd_dio.dart';
 /// 3. Connection and timeout error diagnostics.
 Future<void> main() async {
   // 1. Configure logd console output
-  Logger.configure('global', handlers: [
-    ConsoleHandler(theme: const DarkTheme()),
-  ]);
+  Logger.configure(
+    'global',
+    handlers: [ConsoleHandler(theme: const DarkTheme())],
+  );
 
   final appLogger = Logger.get('resilience_demo');
   appLogger.info('Starting Resilience & Cancellation Demo');
@@ -135,9 +136,7 @@ class _FaultInjectingAdapter implements HttpClientAdapter {
       );
     }
 
-    return Future.value(
-      ResponseBody.fromString('{"status": "ok"}', 200),
-    );
+    return Future.value(ResponseBody.fromString('{"status": "ok"}', 200));
   }
 
   @override

@@ -15,9 +15,10 @@ import 'package:logd_dio/logd_dio.dart';
 ///    in-flight requests executing under separate [LogContext] zones.
 Future<void> main() async {
   // 1. Configure logd console output
-  Logger.configure('global', handlers: [
-    ConsoleHandler(theme: const DarkTheme()),
-  ]);
+  Logger.configure(
+    'global',
+    handlers: [ConsoleHandler(theme: const DarkTheme())],
+  );
 
   final appLogger = Logger.get('checkout_service');
 
@@ -38,59 +39,62 @@ Future<void> main() async {
   appLogger.info('Starting Distributed Tracing Demo');
 
   // Scenario A: Single Trace Scope
-  appLogger
-      .info('--- Scenario A: Sequential Request inside LogContext Scope ---');
-  await LogContext.run({
-    'requestId': 'req-order-9821',
-    'tenantId': 'enterprise-corp',
-    'userId': 4002,
-  }, () async {
-    appLogger.info('Preparing order payload...');
-    await dio.post<void>(
-      'https://api.example.com/orders',
-      data: {'item': 'Widget Pro', 'qty': 2},
-    );
-    appLogger.info('Order placed successfully.');
-  });
+  appLogger.info(
+    '--- Scenario A: Sequential Request inside LogContext Scope ---',
+  );
+  await LogContext.run(
+    {
+      'requestId': 'req-order-9821',
+      'tenantId': 'enterprise-corp',
+      'userId': 4002,
+    },
+    () async {
+      appLogger.info('Preparing order payload...');
+      await dio.post<void>(
+        'https://api.example.com/orders',
+        data: {'item': 'Widget Pro', 'qty': 2},
+      );
+      appLogger.info('Order placed successfully.');
+    },
+  );
 
   // Scenario B: Concurrent Asynchronous Requests (Zero Cross-Talk Verification)
   appLogger.info('--- Scenario B: Concurrent Requests in Isolated Zones ---');
   await Future.wait([
     // Worker 1: Customer Alice
-    LogContext.run({
-      'requestId': 'worker-alice-001',
-      'customer': 'Alice',
-    }, () async {
-      appLogger.info('Alice worker initiating payment...');
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      await dio.post<void>(
-        'https://api.example.com/payments',
-        data: {'customer': 'Alice', 'amount': 150.0},
-      );
-      appLogger.info('Alice payment complete.');
-    }),
+    LogContext.run(
+      {'requestId': 'worker-alice-001', 'customer': 'Alice'},
+      () async {
+        appLogger.info('Alice worker initiating payment...');
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await dio.post<void>(
+          'https://api.example.com/payments',
+          data: {'customer': 'Alice', 'amount': 150.0},
+        );
+        appLogger.info('Alice payment complete.');
+      },
+    ),
 
     // Worker 2: Customer Bob
-    LogContext.run({
-      'requestId': 'worker-bob-002',
-      'customer': 'Bob',
-    }, () async {
-      appLogger.info('Bob worker initiating payment...');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      await dio.post<void>(
-        'https://api.example.com/payments',
-        data: {'customer': 'Bob', 'amount': 89.5},
-      );
-      appLogger.info('Bob payment complete.');
-    }),
+    LogContext.run(
+      {'requestId': 'worker-bob-002', 'customer': 'Bob'},
+      () async {
+        appLogger.info('Bob worker initiating payment...');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await dio.post<void>(
+          'https://api.example.com/payments',
+          data: {'customer': 'Bob', 'amount': 89.5},
+        );
+        appLogger.info('Bob payment complete.');
+      },
+    ),
   ]);
 
   // Scenario C: Trace ID Fallback
-  appLogger
-      .info('--- Scenario C: Fallback to traceId when requestId is absent ---');
-  await LogContext.run({
-    'traceId': 'trace-uuid-4488-bbf',
-  }, () async {
+  appLogger.info(
+    '--- Scenario C: Fallback to traceId when requestId is absent ---',
+  );
+  await LogContext.run({'traceId': 'trace-uuid-4488-bbf'}, () async {
     await dio.get<void>('https://api.example.com/inventory/check');
   });
 

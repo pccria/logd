@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.2.0: W3C TraceContext, Network Metrics & Stream Telemetry
+
+- **W3C TraceContext Distributed Tracing (`W3cTraceContext`)**:
+  - Full compliance with W3C TraceContext recommendation: supports standard `traceparent` (`00-${traceId}-${spanId}-${traceFlags}`) and `tracestate` headers.
+  - Added `TracePropagationMode`: `both` (injects both W3C `traceparent` and custom trace header), `w3c` (W3C standard only), `custom` (legacy single header), or `none`.
+  - Automatic extraction of remote server trace IDs (`serverTraceparent`, `serverResponseTraceId`) from response headers (`traceparent`, `x-request-id`, `x-correlation-id`, `x-trace-id`, `x-amzn-trace-id`) attached directly to log context.
+- **Fine-Grained Network Metrics & Bandwidth Profiling (`HttpMetrics`)**:
+  - Added request/response byte sizing and throughput calculation (`throughputKBps`), attached under the `metrics` context map.
+  - Automatic status classification (`statusCategory`: `'1xx'`, `'2xx'`, `'3xx'`, `'4xx'`, `'5xx'`).
+- **Non-Blocking Stream & Chunked Response Telemetry (`StreamMetricsTracker`)**:
+  - Transparent tracking for streaming downloads and SSE (`ResponseBody.stream`) without buffering chunks in memory.
+  - Emits a structured `STREAM_COMPLETED` completion log upon stream finish, recording chunk count, total transferred bytes, and throughput.
+- **Pluggable Payload Serializers (`LogdBodySerializer`)**:
+  - Added `LogdBodySerializer` and `FunctionalBodySerializer` allowing custom decoders for Protocol Buffers (`GeneratedMessage`), XML, FlatBuffers, or custom binary models before truncation and redaction.
+- **HTTP Status Code Classification & Error Elevation**:
+  - Added `elevateHttpErrors` (default: `true`) to automatically elevate 4xx responses to `warningLevel` and 5xx responses to `errorLevel` in pipelines using non-throwing status validation (`validateStatus`).
+- **cURL Command Enhancements**:
+  - Added `prettyCurl: true` to generate multi-line formatted cURL commands with backslash breaks.
+  - Added `curlIncludeCompressed: true` to automatically append `--compressed` when `Accept-Encoding` contains `gzip`, `deflate`, or `br`.
+- **Examples & Showcases**:
+  - Added `example/telemetry/w3c_tracing_and_metrics_example.dart`.
+  - Added `example/streaming/stream_telemetry_example.dart`.
+  - Added `example/serializers/custom_serializer_example.dart`.
+  - Updated `example/showcase_gallery.dart` with interactive options for all new features.
+
 ## 0.1.6: Security Sanitization & Key Normalization Hardening
 
 - Requires logd ^0.10.6.

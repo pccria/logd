@@ -5,19 +5,16 @@ import 'package:logd_dio/logd_dio.dart';
 
 Future<void> main() async {
   // Configure logd with dark theme, box borders, and forced ANSI encoder
-  Logger.configure('global', handlers: [
-    Handler(
-      formatter: const StructuredFormatter(),
-      decorators: const [
-        StyleDecorator(DarkTheme()),
-        BoxDecorator(),
-      ],
-      sink: const ConsoleSink(
-        lineLength: 86,
-        encoder: AnsiEncoder(),
+  Logger.configure(
+    'global',
+    handlers: [
+      Handler(
+        formatter: const StructuredFormatter(),
+        decorators: const [StyleDecorator(DarkTheme()), BoxDecorator()],
+        sink: const ConsoleSink(lineLength: 86, encoder: AnsiEncoder()),
       ),
-    ),
-  ]);
+    ],
+  );
 
   final authLogger = Logger.get('auth');
 

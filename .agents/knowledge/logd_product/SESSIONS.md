@@ -90,6 +90,37 @@
 
 ---
 
+## 2026-11-23 | v0.2.0 | logd_dio W3C Distributed Tracing, Bandwidth Profiling & Stream Telemetry
+
+- **Focus**: Maturing `packages/logd_dio` to enterprise status with OpenTelemetry-compatible distributed tracing and non-buffering stream telemetry.
+- **Key Deliverables**:
+  - `W3cTraceContext` supporting W3C Level 1 `traceparent` (`00-${traceId}-${spanId}-${traceFlags}`) and `tracestate`.
+  - `TracePropagationMode` (`both`, `w3c`, `custom`, `none`) with ambient `LogContext` inheritance and remote server trace header extraction (`extractServerTraceContext`).
+  - Monotonic `HttpMetrics` tracking duration, request/response byte sizing, throughput (KB/s), and status classification.
+  - Zero-buffering `StreamMetricsTracker` wrapping `ResponseBody.stream` with transparent chunk forwarding and `STREAM_COMPLETED` lifecycle events.
+  - Pluggable `LogdBodySerializer` and `FunctionalBodySerializer` for Protocol Buffers, FlatBuffers, and XML.
+  - HTTP error elevation (`elevateHttpErrors`) elevating 4xx to `warningLevel` and 5xx to `errorLevel` in non-throwing pipelines (`validateStatus: (s) => true`).
+  - Pretty-formatted cURL (`prettyCurl: true`) with `--compressed` auto-detection.
+  - Authored and adopted **ADR-011**: W3C Distributed Tracing, Bandwidth Profiling, and Zero-Buffering Stream Telemetry in Dio Interceptor.
+  - Authored Architectural Knowledge Base entry `doc/vault/handler/http_inspection.md` and updated Recipe 2 in `doc/cookbook.md`.
+- **PR**: #110 open on `dev`.
+
+---
+
+## 2026-11-20 | v0.3.0 | logd_network Dual Memory Budgeting, Atomic Priority Eviction & ADR-010
+
+- **Focus**: Maturing `packages/logd_network` with client-side memory safety, jittered transport resilience, and decoupled offline durability.
+- **Key Deliverables**:
+  - Dual memory budgeting enforcing both entry-count (`maxBufferSize`) and byte limits (`maxBufferBytes`).
+  - Atomic headroom pre-validation in `DropPolicy.discardByPriority` eliminating uncompensated data loss.
+  - `@immutable` `BackoffPolicy` with decorrelated randomized jitter to eliminate thundering-herd reconnection waves across distributed fleets.
+  - Zero-copy `BytesBuilder` assembly for high-throughput NDJSON and binary streaming.
+  - Authored and adopted **ADR-010**: Client-Side Dual Memory Budgeting, Atomic Priority Eviction, and Jittered Transport Resilience.
+  - Published `logd_network` v0.3.0 to pub.dev.
+- **PR**: #109 merged to `master`. Tagged `logd_network-v0.3.0`.
+
+---
+
 ## 2026-08-19 | v0.9.4 | Hot-Path Origin Bypass & Ambient Structured Context (MDC)
 
 - **Focus**: Performance optimization and Mapped Diagnostic Context (MDC).

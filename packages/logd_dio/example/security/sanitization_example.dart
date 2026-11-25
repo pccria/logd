@@ -15,9 +15,10 @@ import 'package:logd_dio/logd_dio.dart';
 /// 6. Safe previewing of multipart [FormData] and binary buffers ([List<int>]).
 Future<void> main() async {
   // 1. Configure logd console output
-  Logger.configure('global', handlers: [
-    ConsoleHandler(theme: const DarkTheme()),
-  ]);
+  Logger.configure(
+    'global',
+    handlers: [ConsoleHandler(theme: const DarkTheme())],
+  );
 
   final logger = Logger.get('security_demo');
   logger.info('Starting Security & Sanitization Demo');
@@ -95,10 +96,7 @@ Future<void> main() async {
     ),
   });
 
-  await dio.post<void>(
-    'https://api.example.com/v1/upload',
-    data: formData,
-  );
+  await dio.post<void>('https://api.example.com/v1/upload', data: formData);
 
   // Scenario D: Sensitive Body Key Redaction (passwords, tokens, cards)
   logger.info('--- Scenario D: Sensitive Body Key Redaction ---');
