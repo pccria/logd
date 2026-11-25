@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-11-25 | logd_toon v0.2.0 | Maturation: Bidirectional Parsing, LLM Budgeting & DuckDB Bridge
+
+- **Focus**: Phase 2 maturation of `packages/logd_toon` for autonomous LLM agent telemetry, prompt context window budgeting, and analytical SQL ingestion.
+- **Key Deliverables**:
+  - `ToonSchema`: Structured immutable schema model with zero-allocation 8KB windowed byte scanning (`parseBytes`), bidirectional JSON serialization (`toJson`/`fromJson`), and preamble generation (`toPreamble`).
+  - `ToonDecoder`: State-machine tokenizer providing bidirectional deserialization of raw TOON text and chunked streams into typed `ToonDocument` and `ToonRecord` instances with control unescaping and nested context decoding.
+  - `ToonContextWindow`: Reverse-accumulating token-aware sliding-window tail slicer for LLM prompts with guaranteed preamble retention and explicit truncation notice (`-- [TRUNCATED: ...]`).
+  - `ToonTokenEstimator`: Zero-dependency calibrated BPE heuristic token counter (OpenAI cl100k and Anthropic Claude compatible) and comparative JSON efficiency metrics (`ToonTokenMetrics`).
+  - `ToonDuckDb`: Zero-copy DuckDB SQL generators (`selectQuery`, `createTableSql`, `ingestSql`) with automatic TOON-to-DuckDB type mapping.
+  - Column Invariance (`contextColumns`): Fixed-width tabular projection across heterogeneous log events in `ToonFormatter` and `ToonFileHandler`.
+  - Architecture & Knowledge Base: Authored ADR-012, vault article (`doc/vault/handler/toon_llm_telemetry.md`), modernized Cookbook Recipe 6, API reference, and 6-scenario showcase gallery.
+  - Test Suite: 60 tests passing with 0 analyzer issues.
+
+---
+
 ## 2026-11-20 | logd_sqlite v0.2.0 | Maturation: FTS5, Query Builder & Disk Quotas
 
 - **Focus**: Phase 2 maturation of `packages/logd_sqlite` with production-grade search, query abstractions, and storage budgets.
@@ -103,7 +118,7 @@
   - Pretty-formatted cURL (`prettyCurl: true`) with `--compressed` auto-detection.
   - Authored and adopted **ADR-011**: W3C Distributed Tracing, Bandwidth Profiling, and Zero-Buffering Stream Telemetry in Dio Interceptor.
   - Authored Architectural Knowledge Base entry `doc/vault/handler/http_inspection.md` and updated Recipe 2 in `doc/cookbook.md`.
-- **PR**: #110 open on `dev`.
+- **PR**: #110 merged to `master`. Tagged `logd_dio-v0.2.0` and published to pub.dev.
 
 ---
 

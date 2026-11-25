@@ -262,8 +262,5 @@ List<String> renderToon(
   final headerStr = header.isNotEmpty ? decoder.convert(header) : '';
   final rowStr = decoder.convert(row);
 
-  return [
-    if (headerStr.isNotEmpty) headerStr,
-    ...rowStr.split('\n'),
-  ];
+  return [if (headerStr.isNotEmpty) headerStr, ...rowStr.split('\n')];
 }

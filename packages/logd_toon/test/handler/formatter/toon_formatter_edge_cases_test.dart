@@ -27,7 +27,12 @@ void main() {
       final context = HandlerContext();
       const encoder = ToonEncoder();
       encoder.encode(
-          entry, doc, LogLevel.info, context, const StandardPipelineFactory());
+        entry,
+        doc,
+        LogLevel.info,
+        context,
+        const StandardPipelineFactory(),
+      );
 
       final output = utf8.decode(context.takeBytes());
       expect(output, contains('\\N'));
@@ -51,7 +56,12 @@ void main() {
       final context = HandlerContext();
       const encoder = ToonEncoder();
       encoder.encode(
-          entry, doc, LogLevel.info, context, const StandardPipelineFactory());
+        entry,
+        doc,
+        LogLevel.info,
+        context,
+        const StandardPipelineFactory(),
+      );
 
       final output = utf8.decode(context.takeBytes());
       expect(output, isNot(contains('\\N')));
@@ -72,38 +82,52 @@ void main() {
       const emptyMetaFormatter = ToonFormatter(metadata: {});
       final doc1 = formatDoc(emptyMetaFormatter, entry);
       final cols1 = doc1.metadata['toon_columns'] as List<String>;
-      expect(cols1,
-          equals(['level', 'message', 'error', 'stackTrace', 'context']));
+      expect(
+        cols1,
+        equals(['level', 'message', 'error', 'stackTrace', 'context']),
+      );
       doc1.releaseRecursive(Arena.instance);
 
       const customMetaFormatter = ToonFormatter(metadata: {LogMetadata.origin});
       final doc2 = formatDoc(customMetaFormatter, entry);
       final cols2 = doc2.metadata['toon_columns'] as List<String>;
       expect(
-          cols2,
-          equals([
-            'origin',
-            'level',
-            'message',
-            'error',
-            'stackTrace',
-            'context'
-          ]));
+        cols2,
+        equals([
+          'origin',
+          'level',
+          'message',
+          'error',
+          'stackTrace',
+          'context',
+        ]),
+      );
       doc2.releaseRecursive(Arena.instance);
 
-      const namedFormatter =
-          ToonFormatter(arrayName: 'custom_arr', delimiter: '|');
+      const namedFormatter = ToonFormatter(
+        arrayName: 'custom_arr',
+        delimiter: '|',
+      );
       final doc3 = formatDoc(namedFormatter, entry);
 
       final context = HandlerContext();
       const encoder = ToonEncoder();
-      encoder.preamble(context, LogLevel.info, const StandardPipelineFactory(),
-          document: doc3);
+      encoder.preamble(
+        context,
+        LogLevel.info,
+        const StandardPipelineFactory(),
+        document: doc3,
+      );
       final header = utf8.decode(context.takeBytes());
       expect(header, startsWith('custom_arr[]{'));
 
       encoder.encode(
-          entry, doc3, LogLevel.info, context, const StandardPipelineFactory());
+        entry,
+        doc3,
+        LogLevel.info,
+        context,
+        const StandardPipelineFactory(),
+      );
       final row = utf8.decode(context.takeBytes());
       expect(row, contains('|'));
 
@@ -126,7 +150,12 @@ void main() {
       final ctx1 = HandlerContext();
       const encoder = ToonEncoder();
       encoder.encode(
-          mapEntry, doc1, LogLevel.info, ctx1, const StandardPipelineFactory());
+        mapEntry,
+        doc1,
+        LogLevel.info,
+        ctx1,
+        const StandardPipelineFactory(),
+      );
       expect(utf8.decode(ctx1.takeBytes()), contains('{key:value}'));
       doc1.releaseRecursive(Arena.instance);
 
@@ -141,7 +170,12 @@ void main() {
 
       final doc2 = formatDoc(formatter, strEntry);
       encoder.encode(
-          strEntry, doc2, LogLevel.info, ctx1, const StandardPipelineFactory());
+        strEntry,
+        doc2,
+        LogLevel.info,
+        ctx1,
+        const StandardPipelineFactory(),
+      );
       expect(utf8.decode(ctx1.takeBytes()), contains('plain string'));
       doc2.releaseRecursive(Arena.instance);
 
@@ -156,9 +190,16 @@ void main() {
 
       final doc3 = formatDoc(formatter, objEntry);
       encoder.encode(
-          objEntry, doc3, LogLevel.info, ctx1, const StandardPipelineFactory());
-      expect(utf8.decode(ctx1.takeBytes()),
-          contains('"https://example.com:8080/path"'));
+        objEntry,
+        doc3,
+        LogLevel.info,
+        ctx1,
+        const StandardPipelineFactory(),
+      );
+      expect(
+        utf8.decode(ctx1.takeBytes()),
+        contains('"https://example.com:8080/path"'),
+      );
       doc3.releaseRecursive(Arena.instance);
     });
 
@@ -197,10 +238,7 @@ void main() {
       );
 
       const emptyDelimFormatter = ToonFormatter(delimiter: '');
-      expect(
-        () => formatDoc(emptyDelimFormatter, entry),
-        throwsArgumentError,
-      );
+      expect(() => formatDoc(emptyDelimFormatter, entry), throwsArgumentError);
 
       const newlineDelimFormatter = ToonFormatter(delimiter: '\n');
       expect(
@@ -210,15 +248,16 @@ void main() {
     });
 
     test(
-        'extractPreamble extracts correctly on large buffers without full scan',
-        () {
-      const header = 'logs[]{timestamp,logger,origin,level,message}:\n';
-      final headerBytes = utf8.encode(header);
-      final largeBuffer = Uint8List(20000);
-      largeBuffer.setRange(0, headerBytes.length, headerBytes);
+      'extractPreamble extracts correctly on large buffers without full scan',
+      () {
+        const header = 'logs[]{timestamp,logger,origin,level,message}:\n';
+        final headerBytes = utf8.encode(header);
+        final largeBuffer = Uint8List(20000);
+        largeBuffer.setRange(0, headerBytes.length, headerBytes);
 
-      final extracted = ToonEncoder.extractPreamble(largeBuffer);
-      expect(extracted, equals(header));
-    });
+        final extracted = ToonEncoder.extractPreamble(largeBuffer);
+        expect(extracted, equals(header));
+      },
+    );
   });
 }

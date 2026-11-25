@@ -11,9 +11,7 @@ LogDocument createTestDocument(
   final f = factory ?? Arena.instance;
   final doc = f.checkoutDocument();
   for (final line in lines) {
-    doc.nodes.add(
-      f.checkoutMessage()..segments.add(StyledText(line)),
-    );
+    doc.nodes.add(f.checkoutMessage()..segments.add(StyledText(line)));
   }
   return doc;
 }
@@ -88,20 +86,20 @@ List<String> renderLines(
 }
 
 String _getAnsiColor(final LogColor color) => switch (color) {
-      LogColor.black => '\x1B[30m',
-      LogColor.red => '\x1B[31m',
-      LogColor.green => '\x1B[32m',
-      LogColor.yellow => '\x1B[33m',
-      LogColor.blue => '\x1B[34m',
-      LogColor.magenta => '\x1B[35m',
-      LogColor.cyan => '\x1B[36m',
-      LogColor.white => '\x1B[37m',
-      LogColor.brightBlack => '\x1B[90m',
-      LogColor.brightRed => '\x1B[91m',
-      LogColor.brightGreen => '\x1B[92m',
-      LogColor.brightYellow => '\x1B[93m',
-      LogColor.brightBlue => '\x1B[94m',
-      LogColor.brightMagenta => '\x1B[95m',
-      LogColor.brightCyan => '\x1B[96m',
-      LogColor.brightWhite => '\x1B[97m',
-    };
+  LogColor.black => '\x1B[30m',
+  LogColor.red => '\x1B[31m',
+  LogColor.green => '\x1B[32m',
+  LogColor.yellow => '\x1B[33m',
+  LogColor.blue => '\x1B[34m',
+  LogColor.magenta => '\x1B[35m',
+  LogColor.cyan => '\x1B[36m',
+  LogColor.white => '\x1B[37m',
+  LogColor.brightBlack => '\x1B[90m',
+  LogColor.brightRed => '\x1B[91m',
+  LogColor.brightGreen => '\x1B[92m',
+  LogColor.brightYellow => '\x1B[93m',
+  LogColor.brightBlue => '\x1B[94m',
+  LogColor.brightMagenta => '\x1B[95m',
+  LogColor.brightCyan => '\x1B[96m',
+  LogColor.brightWhite => '\x1B[97m',
+};

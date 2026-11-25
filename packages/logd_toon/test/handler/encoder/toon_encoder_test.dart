@@ -73,9 +73,11 @@ void main() {
       const encoder = ToonEncoder();
 
       doc.nodes.clear();
-      doc.nodes.add(MapNode({
-        'test_col': ['a', 'b', 'c']
-      }));
+      doc.nodes.add(
+        MapNode({
+          'test_col': ['a', 'b', 'c'],
+        }),
+      );
 
       encoder.encode(entry, doc, LogLevel.info, context, factory);
       expect(utf8.decode(context.takeBytes()), equals('[a,b,c]'));
@@ -86,7 +88,7 @@ void main() {
       doc.metadata['toon_columns'] = ['col1', 'col2'];
       doc.metadata['toon_schema'] = {
         'col1': ToonType.string,
-        'col2': ToonType.object
+        'col2': ToonType.object,
       };
       doc.metadata['toon_dialect'] = ToonDialect.strict;
 
@@ -102,8 +104,9 @@ void main() {
       expect(output, contains('  col2 : object;'));
       expect(output, contains('}:\n'));
 
-      final preamble =
-          ToonEncoder.extractPreamble(Uint8List.fromList(utf8.encode(output)));
+      final preamble = ToonEncoder.extractPreamble(
+        Uint8List.fromList(utf8.encode(output)),
+      );
       expect(preamble, isNotNull);
       expect(preamble, contains('}:\n'));
     });

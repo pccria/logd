@@ -1,17 +1,24 @@
 /// Tab-Oriented Object Notation (TOON) satellite package for logd.
 ///
-/// Provides [ToonFormatter], [ToonEncoder], and [ToonFileHandler] for streaming
-/// token-optimized, machine-readable structured logs into LLMs, DuckDB, or
-/// analytical query engines.
+/// Provides [ToonFormatter], [ToonEncoder], [ToonDecoder], [ToonSchema],
+/// [ToonRecord], [ToonTokenEstimator], [ToonContextWindow], [ToonDuckDb], and
+/// [ToonFileHandler] for token-optimized, bidirectional structured logging,
+/// LLM prompt context injection, and analytical query engines.
 library;
 
 import 'package:logd/logd.dart';
 
 import 'src/toon_formatter.dart';
 
+export 'src/toon_context_window.dart';
+export 'src/toon_decoder.dart';
+export 'src/toon_duckdb.dart';
 export 'src/toon_encoder.dart';
 export 'src/toon_file_handler.dart';
 export 'src/toon_formatter.dart';
+export 'src/toon_record.dart';
+export 'src/toon_schema.dart';
+export 'src/toon_token_estimator.dart';
 
 /// Registers TOON components into logd's [LoggerSerializationRegistry].
 ///
@@ -31,20 +38,22 @@ void registerLogdToonSerializers() {
       sortKeys: json['sortKeys'] as bool? ?? false,
       maxDepth: json['maxDepth'] as int? ?? 5,
       dialect: ToonDialect.values.firstWhere(
-        (e) => e.name == json['dialect'],
+        (final e) => e.name == json['dialect'],
         orElse: () => ToonDialect.compact,
       ),
-      metadata: (json['metadata'] as List<dynamic>?)
-              ?.map((e) => LogMetadata.values.firstWhere(
-                    (m) => m.name == e,
-                    orElse: () => LogMetadata.timestamp,
-                  ))
+      contextColumns:
+          (json['contextColumns'] as List<dynamic>?)?.cast<String>().toList() ??
+          const [],
+      metadata:
+          (json['metadata'] as List<dynamic>?)
+              ?.map(
+                (final e) => LogMetadata.values.firstWhere(
+                  (final m) => m.name == e,
+                  orElse: () => LogMetadata.timestamp,
+                ),
+              )
               .toSet() ??
-          const {
-            LogMetadata.timestamp,
-            LogMetadata.logger,
-            LogMetadata.origin,
-          },
+          const {LogMetadata.timestamp, LogMetadata.logger, LogMetadata.origin},
     ),
     toJson: (final val) => <String, dynamic>{
       'delimiter': val.delimiter,
@@ -53,7 +62,8 @@ void registerLogdToonSerializers() {
       'sortKeys': val.sortKeys,
       'maxDepth': val.maxDepth,
       'dialect': val.dialect.name,
-      'metadata': val.metadata.map((e) => e.name).toList(),
+      'contextColumns': val.contextColumns,
+      'metadata': val.metadata.map((final e) => e.name).toList(),
     },
   );
 }

@@ -1,3 +1,31 @@
+## 0.2.0
+
+- **Bidirectional TOON Parsing & Structured Decoding**:
+  - Introduced `ToonDecoder` for high-throughput streaming and string decoding of TOON documents into typed `ToonDocument` and `ToonRecord` structures.
+  - Full support for unescaping control sequences (`\t`, `\n`, `\r`, `\\`, `\"`), parsing dialect-specific null representations (`\N` vs empty strings), and reconstructing deeply nested maps and primitive lists from context tokens.
+  - Added `decodeStream()` for memory-safe chunked reading of large `.toon` audit logs.
+- **Structured Schema Representation (`ToonSchema`)**:
+  - Introduced `@immutable final class ToonSchema` representing table structure, column orders, types, and dialect metadata.
+  - Added zero-allocation preamble parsing from UTF-8 byte buffers via `ToonSchema.parseBytes()` without decoding entire files.
+  - Added bidirectional JSON serialization (`toJson()` / `fromJson()`) and preamble reconstruction (`toPreamble()`).
+- **LLM Context Window Budgeting & Tail Slicing**:
+  - Introduced `ToonContextWindow` and `ToonWindowSlice` for token-budgeted prompt construction from recent log history.
+  - Guaranteed preservation of schema preambles and explicit truncation indicators (`-- [TRUNCATED: omitted N older log entries]`) within token limits.
+  - Implemented `ToonTokenEstimator` with calibrated BPE heuristic estimation (cl100k/Claude compatible) and comparative JSON token reduction metrics (`ToonTokenMetrics`).
+- **DuckDB & Analytical SQL Bridge (`ToonDuckDb`)**:
+  - Added zero-copy DuckDB SQL query generation via `ToonDuckDb.selectQuery()`, `ToonDuckDb.createTableSql()`, and `ToonDuckDb.ingestSql()`.
+  - Automatic type mapping from TOON schema column definitions to DuckDB types (`TIMESTAMP`, `VARCHAR`, `JSON`, `BIGINT`, `DOUBLE`, `BOOLEAN`).
+- **TOON Column Invariance (`contextColumns`)**:
+  - Added optional `contextColumns` to `ToonFormatter` and `ToonFileHandler` to guarantee strict tabular column counts across heterogeneous log events.
+  - Fixed-width column projection preserves DuckDB ingestion compatibility and LLM prompt consistency.
+- **API Parity & Configuration Registry**:
+  - Added parameter parity (`metadata`, `sortKeys`, `maxDepth`, `contextColumns`) across `ToonFileHandler` and `ToonFileHandler.async()`.
+  - Marked `ToonEncoder.extractPreamble` as `@Deprecated`, routing calls to `ToonSchema.parseBytes(bytes)?.toPreamble()`.
+  - Updated `registerLogdToonSerializers()` with `contextColumns` isolate transfer support.
+- **Showcase & Tests**:
+  - Added interactive showcase gallery (`example/showcase_gallery.dart`) demonstrating all 6 core workflows.
+  - Expanded test coverage across decoders, schemas, LLM tools, DuckDB SQL generators, and context column projections (60 tests).
+
 ## 0.1.8
 
 - Requires logd ^0.10.8.

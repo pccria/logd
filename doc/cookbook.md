@@ -392,49 +392,79 @@ void main() {
 ## 6. AI & Agents: Deterministic Token-Efficient Telemetry (TOON)
 
 ### Problem
-1. **Context Window Token Waste**: Standard JSON repeats keys (`"timestamp"`, `"level"`, `"message"`, `"metadata"`) on every entry, wasting 30–50% of prompt tokens.
-2. **Cyclic Map Crashes & Non-Deterministic Order**: Nested tool results from LLM calls can contain cyclic objects or arbitrary key ordering that causes token jitter across runs.
+1. **Context Window Token Waste**: Standard JSON repeats keys (`"timestamp"`, `"level"`, `"message"`, `"metadata"`) on every entry, wasting 30–50% of LLM prompt tokens.
+2. **Context Window Overflows**: Naively slicing recent logs by line count risks exceeding token limits when large tool payloads or stack traces occur.
+3. **Preamble Stripping**: Ad-hoc tail slicing strips away schema definitions, depriving reasoning models of column types.
+4. **Cyclic Map Crashes & Non-Deterministic Order**: Nested tool results from LLM calls can contain cyclic objects or arbitrary key ordering that causes token jitter across runs.
 
 ### Solution
-Use `ToonFormatter` with `sortKeys: true` and bounded depth `maxDepth: 3` from [`package:logd_toon`](../packages/logd_toon). Tab-Oriented Object Notation outputs the column schema once in a compact preamble, followed by tab-delimited rows.
+Use `ToonFileHandler` with `contextColumns`, `sortKeys: true`, and bounded depth `maxDepth: 3` from [`package:logd_toon`](../packages/logd_toon). Tab-Oriented Object Notation outputs the column schema once in a compact preamble, followed by tab-delimited rows. Use `ToonContextWindow` to slice recent logs strictly within token budgets.
 
 ```dart
+import 'dart:io';
 import 'package:logd/logd.dart';
 import 'package:logd_toon/logd_toon.dart';
 
 void setupAgentLogging() {
   Logger.configure('agent', handlers: [
-    Handler(
-      formatter: const ToonFormatter(
-        dialect: ToonDialect.strict,
-        sortKeys: true, // Deterministic key ordering prevents token variance
-        maxDepth: 3,    // Bounded depth guards against circular or deeply nested maps
-      ),
-      sink: FileSink('logs/agent_session.toon'),
+    ToonFileHandler.async(
+      path: 'logs/agent_session.toon',
+      dialect: ToonDialect.strict,
+      sortKeys: true, // Deterministic key ordering prevents token variance
+      maxDepth: 3,    // Bounded depth guards against circular or deeply nested maps
+      contextColumns: const ['tool', 'durationMs', 'status'], // Invariant columns
     ),
   ]);
 }
 
-void recordToolExecution(String toolName, Map<String, dynamic> arguments, int durationMs) {
+void recordToolExecution(String toolName, Map<String, Object?> arguments, int durationMs) {
   Logger.get('agent.tools').info(
     'Tool executed: $toolName',
     context: {
       'tool': toolName,
-      'args': arguments,
       'durationMs': durationMs,
+      'status': 'success',
+      'args': arguments,
     },
   );
 }
 
-/// Slices the TOON log file to feed into a sliding-window LLM prompt
-String buildSlidingWindowPrompt(List<int> rawToonBytes, {int lastEntries = 30}) {
-  final preamble = ToonEncoder.extractPreamble(rawToonBytes) ?? '';
-  final recentLines = sliceLines(rawToonBytes, last: lastEntries);
+/// Slices the TOON log file to fit within an exact LLM prompt token budget
+Future<String> buildTokenBudgetedPrompt(String logFilePath, {int maxTokens = 2048}) async {
+  final file = File(logFilePath);
+  if (!file.existsSync()) return '';
+  final bytes = await file.readAsBytes();
 
-  // Schema is emitted once at the top; rows are compact tab-separated values.
-  return '$preamble\n${recentLines.join('\n')}';
+  // Slices historical logs from tail up to maxTokens, guaranteeing preamble retention:
+  final slice = ToonContextWindow.sliceBytes(
+    bytes,
+    maxTokens: maxTokens,
+  );
+
+  return '''
+You are an autonomous engineering agent. Diagnose recent failures from these execution logs:
+${slice.content}
+''';
+}
+
+/// Measures token reduction of TOON against standard JSON
+void logTokenSavings(String logContent) {
+  final metrics = ToonTokenEstimator.analyze(logContent);
+
+  print('JSON Tokens: ${metrics.jsonTokens}');
+  print('TOON Tokens: ${metrics.toonTokens}');
+  print('Saved: ${metrics.savedTokens} tokens (${metrics.savingsPercent.toStringAsFixed(1)}%)');
+}
+
+/// Generates DuckDB SQL query to analyze tool durations
+String? getDuckDbQuery(String logContent, String logFilePath) {
+  final schema = ToonSchema.parse(logContent);
+  if (schema == null) return null;
+  return ToonDuckDb.selectQuery(schema, filePath: logFilePath);
 }
 ```
+
+> **Tip — Combining `logd_sqlite` + `logd_toon` for Local RAG**: Query filtered/FTS5 logs via `SqliteHandler.query()`, map each `SqliteLogRecord` to a `LogEntry`, encode with `ToonFormatter` + `ToonEncoder`, and pass the result to `ToonContextWindow.slice(toonText, maxTokens: 2048)` to pack only relevant history into your LLM budget without coupling the two packages.
 
 ---
 

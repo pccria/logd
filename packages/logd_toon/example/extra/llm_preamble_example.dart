@@ -24,7 +24,7 @@ Future<void> main() async {
   logger.info(
     'Database returned 3 results',
     context: {
-      'results': ['r1', 'r2', 'r3']
+      'results': ['r1', 'r2', 'r3'],
     },
   );
 

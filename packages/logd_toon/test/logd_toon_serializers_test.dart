@@ -16,6 +16,7 @@ void main() {
         sortKeys: true,
         maxDepth: 10,
         dialect: ToonDialect.strict,
+        contextColumns: ['traceId', 'userId'],
         metadata: {LogMetadata.origin, LogMetadata.logger},
       );
 
@@ -29,10 +30,12 @@ void main() {
       expect(config['sortKeys'], isTrue);
       expect(config['maxDepth'], equals(10));
       expect(config['dialect'], equals('strict'));
+      expect(config['contextColumns'], equals(['traceId', 'userId']));
       expect(config['metadata'], containsAll(['origin', 'logger']));
 
-      final recovered = LoggerSerializationRegistry.deserializeFormatter(json)
-          as ToonFormatter;
+      final recovered =
+          LoggerSerializationRegistry.deserializeFormatter(json)
+              as ToonFormatter;
 
       expect(recovered.delimiter, equals(original.delimiter));
       expect(recovered.arrayName, equals(original.arrayName));
@@ -40,6 +43,7 @@ void main() {
       expect(recovered.sortKeys, equals(original.sortKeys));
       expect(recovered.maxDepth, equals(original.maxDepth));
       expect(recovered.dialect, equals(original.dialect));
+      expect(recovered.contextColumns, equals(original.contextColumns));
       expect(recovered.metadata, containsAll(original.metadata));
       expect(recovered.metadata.length, equals(original.metadata.length));
     });
@@ -48,8 +52,9 @@ void main() {
       const original = ToonFormatter();
 
       final json = LoggerSerializationRegistry.serializeFormatter(original);
-      final recovered = LoggerSerializationRegistry.deserializeFormatter(json)
-          as ToonFormatter;
+      final recovered =
+          LoggerSerializationRegistry.deserializeFormatter(json)
+              as ToonFormatter;
 
       expect(recovered.delimiter, equals('\t'));
       expect(recovered.arrayName, equals('logs'));
@@ -58,9 +63,13 @@ void main() {
       expect(recovered.maxDepth, equals(5));
       expect(recovered.dialect, equals(ToonDialect.compact));
       expect(
-          recovered.metadata,
-          containsAll(
-              [LogMetadata.timestamp, LogMetadata.logger, LogMetadata.origin]));
+        recovered.metadata,
+        containsAll([
+          LogMetadata.timestamp,
+          LogMetadata.logger,
+          LogMetadata.origin,
+        ]),
+      );
     });
   });
 }

@@ -6,20 +6,29 @@ import 'toon_encoder.dart';
 /// A [LogFormatter] that facilitates Token-Oriented Object Notation (TOON).
 ///
 /// TOON is a compact, token-efficient format designed for feeding logs into
-/// machine parsers or Large Language Models (LLMs). It uses a header definition
-/// followed by uniform rows of values separated by a delimiter (default: Tab).
+/// machine parsers, analytical query engines, or Large Language Models (LLMs).
+/// It outputs a column schema definition once in a preamble header followed by
+/// uniform, tab-delimited rows of values.
 @immutable
 final class ToonFormatter implements LogFormatter {
   /// Creates a [ToonFormatter].
   ///
-  /// - [delimiter]: The separator between values. Defaults to tab (`\t`).
-  /// - [arrayName]: The name of the array in the header (e.g., 'logs').
-  /// - [metadata]: Contextual metadata to include in the output columns.
-  /// - [explicitSchema]: Whether to include a typed, aligned schema definition
-  ///   in the header block (default: false).
-  /// - [sortKeys]: Whether to sort Map keys alphabetically.
-  /// - [maxDepth]: Maximum depth for recursive object serialization.
-  /// - [dialect]: Controls preamble header comments and null token encoding.
+  /// The [delimiter] specifies the separator between column values (defaults to `\t`).
+  ///
+  /// The [arrayName] defines the root dataset identifier in the preamble header (e.g. `'logs'`).
+  ///
+  /// Contextual [metadata] defines which standard log attributes to include as columns.
+  ///
+  /// When [explicitSchema] is `true`, an aligned, type-annotated schema block is emitted.
+  ///
+  /// If [sortKeys] is `true`, nested map keys are sorted alphabetically.
+  ///
+  /// The [maxDepth] bounds recursive serialization for deeply nested objects (defaults to 5).
+  ///
+  /// The [dialect] specifies whether to emit compact headers or strict SQL/DuckDB parser comments.
+  ///
+  /// The [contextColumns] specifies top-level keys from [LogEntry.context] to promote to
+  /// dedicated first-class TOON columns placed immediately before the catch-all `context` column.
   const ToonFormatter({
     this.delimiter = '\t',
     this.arrayName = 'logs',
@@ -32,29 +41,36 @@ final class ToonFormatter implements LogFormatter {
     this.sortKeys = false,
     this.maxDepth = 5,
     this.dialect = ToonDialect.compact,
+    this.contextColumns = const [],
   }) : assert(maxDepth >= 1, 'maxDepth must be >= 1');
 
   /// Whether to include an explicit schema definition in the header.
   final bool explicitSchema;
 
-  /// The character used to separate values.
+  /// The character used to separate values within rows.
   final String delimiter;
 
-  /// The name of the array in the header (e.g., 'logs').
+  /// The name of the array in the header (e.g., `'logs'`).
   final String arrayName;
 
-  /// Contextual metadata to include.
+  /// Contextual metadata to include as leading columns.
   @override
   final Set<LogMetadata> metadata;
 
   /// Whether to sort Map keys alphabetically.
   final bool sortKeys;
 
-  /// Maximum depth for recursion.
+  /// Maximum depth for recursive object serialization.
   final int maxDepth;
 
   /// Controls preamble header comments and null token encoding.
   final ToonDialect dialect;
+
+  /// Specific context map keys to extract as dedicated first-class TOON columns.
+  ///
+  /// Promoted context keys are placed immediately before the catch-all `context`
+  /// column, strictly preserving column invariance across all rows.
+  final List<String> contextColumns;
 
   @override
   void format(
@@ -74,8 +90,9 @@ final class ToonFormatter implements LogFormatter {
 
     final columns = <String>[];
     final schema = <String, ToonType>{};
-    final normalized =
-        entry.message.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final normalized = entry.message
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n');
     final messageLines = normalized.split('\n');
     var isFirst = true;
 
@@ -105,6 +122,18 @@ final class ToonFormatter implements LogFormatter {
       add('message', line, ToonType.markdown);
       add('error', entry.error ?? '', ToonType.string);
       add('stackTrace', entry.stackTrace ?? '', ToonType.stacktrace);
+
+      // Promoted context columns
+      final entryContext = entry.context;
+      final contextMap = entryContext is Map
+          ? (entryContext as Map).cast<String, Object?>()
+          : null;
+
+      for (final ctxCol in contextColumns) {
+        final val = contextMap?[ctxCol];
+        add(ctxCol, val ?? '', ToonType.string);
+      }
+
       add('context', entry.context ?? '', ToonType.string);
 
       document.metadataBlock(map, factory: factory);
@@ -133,19 +162,33 @@ final class ToonFormatter implements LogFormatter {
           sortKeys == other.sortKeys &&
           maxDepth == other.maxDepth &&
           dialect == other.dialect &&
+          _listEquals(contextColumns, other.contextColumns) &&
           setEquals(metadata, other.metadata);
 
   @override
   int get hashCode => Object.hash(
-        runtimeType,
-        delimiter,
-        arrayName,
-        explicitSchema,
-        sortKeys,
-        maxDepth,
-        dialect,
-        Object.hashAll(metadata),
-      );
+    runtimeType,
+    delimiter,
+    arrayName,
+    explicitSchema,
+    sortKeys,
+    maxDepth,
+    dialect,
+    Object.hashAll(contextColumns),
+    Object.hashAll(metadata),
+  );
+
+  static bool _listEquals(final List<String> a, final List<String> b) {
+    if (a.length != b.length) {
+      return false;
+    }
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
 }
 
 /// A [LogFormatter] for TOON with "Wise" object representation.
@@ -224,8 +267,9 @@ final class ToonPrettyFormatter implements LogFormatter {
     final columns = <String>[];
     final tags = <String, int>{};
     final schema = <String, ToonType>{};
-    final normalized =
-        entry.message.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final normalized = entry.message
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n');
     final messageLines = normalized.split('\n');
     var isFirst = true;
 
@@ -303,12 +347,12 @@ final class ToonPrettyFormatter implements LogFormatter {
 
   @override
   int get hashCode => Object.hash(
-        runtimeType,
-        delimiter,
-        arrayName,
-        color,
-        sortKeys,
-        maxDepth,
-        Object.hashAll(metadata),
-      );
+    runtimeType,
+    delimiter,
+    arrayName,
+    color,
+    sortKeys,
+    maxDepth,
+    Object.hashAll(metadata),
+  );
 }

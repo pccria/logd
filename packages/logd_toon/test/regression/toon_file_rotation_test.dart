@@ -25,10 +25,7 @@ void main() {
       () async {
         final handler = ToonFileHandler(
           path: basePath,
-          fileRotation: SizeRotation(
-            maxSize: '100B',
-            backupCount: 3,
-          ),
+          fileRotation: SizeRotation(maxSize: '100B', backupCount: 3),
         );
 
         final logger = Logger.get('test.toon.rot');
