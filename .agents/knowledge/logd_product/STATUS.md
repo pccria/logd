@@ -32,7 +32,7 @@ v0.10.8 released. Satellite maturation wave complete: `logd_html` v0.2.0, `logd_
 | **v0.2.0 (logd_sqlite Maturation)** | FTS5 full-text search, type-safe `SqliteLogQuery`, cursor pagination, typed records, and `maxDiskBytes` storage quotas | ✅ Released |
 | **v0.3.0 (logd_network Maturation)** | Dual memory budgeting, atomic headroom pre-validation, decorrelated jitter, zero-copy streaming, and ADR-010 | ✅ Released |
 | **v0.2.0 (logd_dio Maturation)** | W3C TraceContext Level 1, bandwidth profiling, zero-buffering stream telemetry, pluggable serializers, status elevation, ADR-011 | ✅ Released |
-| **v0.2.0 (logd_toon Maturation)** | Bidirectional decoding, typed records, schema representation, LLM token budgeting, DuckDB SQL bridge, ADR-012 | ✅ Implemented |
+| **v0.2.0 (logd_toon Maturation)** | Bidirectional decoding, typed records, schema representation, LLM token budgeting, DuckDB SQL bridge, ADR-012 | ✅ Released |
 | **v0.11.0 (Satellite Telemetry & API Freeze)** | Cross-isolate `LogContext.capture`, OpenTelemetry trace ID in core, hard removal of `needsRotation` | 🔲 Next |
 | **v0.12.0 (Native Phase 2)** | SIMD-accelerated colorization, vectorized layout, zero-copy pointer transfer | 🔲 Queued |
 | **v1.0.0 (API Freeze & Stability)** | Full stability declaration, breaking-change policy lock, deprecation guides | 🔲 Future |
