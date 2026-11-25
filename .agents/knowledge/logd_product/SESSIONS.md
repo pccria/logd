@@ -103,7 +103,7 @@
   - Pretty-formatted cURL (`prettyCurl: true`) with `--compressed` auto-detection.
   - Authored and adopted **ADR-011**: W3C Distributed Tracing, Bandwidth Profiling, and Zero-Buffering Stream Telemetry in Dio Interceptor.
   - Authored Architectural Knowledge Base entry `doc/vault/handler/http_inspection.md` and updated Recipe 2 in `doc/cookbook.md`.
-- **PR**: #110 open on `dev`.
+- **PR**: #110 merged to `master`. Tagged `logd_dio-v0.2.0` and published to pub.dev.
 
 ---
 
