@@ -25,10 +25,7 @@ Future<void> main() async {
   );
 
   // Configure the global logger instance
-  Logger.configure(
-    'app',
-    handlers: [consoleHandler, fileHandler],
-  );
+  Logger.configure('app', handlers: [consoleHandler, fileHandler]);
 
   final logger = Logger.get('app.billing');
 
@@ -72,10 +69,7 @@ Future<void> main() async {
       'Payment processing failed',
       error: e,
       stackTrace: stack,
-      context: {
-        'gateway': 'stripe',
-        'amount': 49.99,
-      },
+      context: {'gateway': 'stripe', 'amount': 49.99},
     );
   }
 

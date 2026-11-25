@@ -21,7 +21,8 @@ void main() {
       loggerName: 'LongSnap',
       origin: 'long.dart',
       level: LogLevel.warning,
-      message: 'A very long message that should trigger wrapping across '
+      message:
+          'A very long message that should trigger wrapping across '
           'multiple lines to verify structural integrity and spacing.',
       timestamp: '2025-01-01 12:00:01',
     );

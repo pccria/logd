@@ -13,4 +13,5 @@ This directory contains the ADRs for logd:
 - [ADR-009: Strict Terminal Cell-Grid Authority and Rejection of Client-Side Web Fallback Spacing Hacks](adr-009-terminal-grid-authority.md)
 - [ADR-010: Client-Side Dual Memory Budgeting, Atomic Priority Eviction, and Jittered Transport Resilience](adr-010-network-memory-budgeting-and-jittered-resilience.md)
 - [ADR-011: W3C Distributed Tracing, Bandwidth Profiling, and Zero-Buffering Stream Telemetry in Dio Interceptor](adr-011-dio-distributed-tracing-and-stream-telemetry.md)
+- [ADR-012: Bidirectional TOON Parsing, Invariant LLM Prompt Budgeting, and Zero-Copy Analytical SQL Bridge](adr-012-toon-bidirectional-decoding-and-llm-budgeting.md)
 

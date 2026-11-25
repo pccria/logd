@@ -371,9 +371,20 @@ Specialized formatters, databases, and network adapters maintained within the `l
 * **Showcase Gallery Runner**: `dart run packages/logd_dio/example/showcase_gallery.dart` (runs 8 modular scenarios covering basic integration, SOC2 sanitization, distributed tracing, error resilience, cURL generation, W3C tracing, streaming telemetry, and custom serializers).
 
 ### [`package:logd_toon`](../packages/logd_toon)
-* **`ToonFormatter(dialect: ToonDialect.strict, sortKeys: true, maxDepth: 3)`**: Emits Tab-Oriented Object Notation (30–50% fewer tokens than JSON for LLMs).
-* **`ToonFileHandler(String path)`**: Pre-wired file sink emitting TOON logs.
-* **`ToonEncoder.extractPreamble(bytes)`**: Extracts schema preamble for sliding-window LLM prompts.
+* **`ToonFormatter({ToonDialect dialect = ToonDialect.compact, bool sortKeys = false, int maxDepth = 4, bool explicitSchema = false, String delimiter = '\t', List<String>? contextColumns})`**: Emits Tab-Oriented Object Notation (30–50% fewer tokens than JSON for LLMs) with optional `contextColumns` fixed tabular projection.
+* **`ToonFileHandler(String path, {ToonDialect dialect, bool explicitSchema, Set<LogMetadata>? metadata, bool sortKeys, int maxDepth, List<String>? contextColumns, ...})`**: Pre-wired synchronous file logging handler for TOON logs.
+* **`ToonFileHandler.async(String path, ...)`**: Offloads TOON formatting, escaping, and disk I/O to a dedicated background isolate worker with full parameter parity.
+* **`ToonDecoder({ToonDialect dialect = ToonDialect.compact})`**: Bidirectional parser converting raw TOON text or asynchronous streams into strongly typed `ToonDocument` and `ToonRecord` instances with state-machine unescaping and nested context decoding.
+* **`ToonDocument`**: Complete parsed TOON document exposing immutable `schema` and `records`.
+* **`ToonRecord`**: Strongly typed row accessor providing `timestamp`, `logger`, `origin`, `level`, `message`, `error`, `stackTrace`, and `context`.
+* **`ToonSchema({required String name, required List<String> columns, Map<String, String> columnTypes, ToonDialect dialect})`**: Structured schema model supporting `parse`, `parseBytes` (8KB zero-allocation preamble scan), `toPreamble`, `toJson`, and `fromJson`.
+* **`ToonContextWindow.slice(String toonText, {int maxTokens = 2048})` & `ToonContextWindow.sliceBytes(List<int> bytes, ...)`**: Token-budgeted sliding-window tail slicer for LLM prompts with guaranteed preamble retention and truncation notice.
+* **`ToonTokenEstimator.estimate(String text)`**: Zero-dependency calibrated BPE heuristic token counter calibrated against OpenAI cl100k and Anthropic Claude tokenizers.
+* **`ToonTokenEstimator.compareWithJson({required String toonText, required List<Map<String, Object?>> records})`**: Returns `ToonTokenMetrics` measuring exact token savings, byte reductions, and percentage efficiency gains over JSON.
+* **`ToonDuckDb.selectQuery(String path, {ToonSchema? schema})`**: Generates zero-copy DuckDB SQL queries utilizing `read_csv()`.
+* **`ToonDuckDb.createTableSql(String tableName, {ToonSchema? schema})` & `ToonDuckDb.ingestSql(String tableName, String path, ...)`**: Generates DDL table creation and COPY ingestion statements mapping TOON schema column definitions to DuckDB types.
+* **`registerLogdToonSerializers()`**: Registers all TOON formatter and handler deserializers with the core `LoggerSerializationRegistry` for multi-isolate configuration syncing.
+* **Showcase Gallery Runner**: `dart run packages/logd_toon/example/showcase_gallery.dart` (runs 6 modular scenarios demonstrating file logging, isolate offloading, context columns, decoding, LLM context budgeting, and DuckDB SQL generation).
 
 ### [`package:logd_sqlite`](../packages/logd_sqlite)
 * **`SqliteHandler(dbPath: ..., maxEntries: 5000, maxAge: Duration(days: 7), walMode: true)`**: WAL-mode SQLite persistence.

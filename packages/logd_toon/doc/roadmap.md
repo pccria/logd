@@ -1,6 +1,6 @@
 # logd_toon Roadmap
 
-Package version at time of writing: **0.1.3**
+Package version at time of writing: **0.2.0**
 
 ---
 
@@ -11,28 +11,55 @@ Package version at time of writing: **0.1.3**
 
 | Increment | Triggers |
 |---|---|
-| **Patch** (`0.1.x`) | Non-breaking formatting bug fixes, preamble parsing optimizations, and dialect corrections. |
-| **Minor** (`0.x.0`) | New schema inference features, DuckDB export utilities, or dialect extensions. |
+| **Patch** (`0.2.x`) | Non-breaking formatting bug fixes, decoder edge cases, and token estimator calibrations. |
+| **Minor** (`0.x.0`) | New schema inference features, analytical export integrations, or dialect extensions. |
 | **Major** (`x.0.0`) | Breaking changes to the core TOON specification format, delimiter conventions, or public APIs. |
 
 ---
 
 ## Next Milestones
 
-### 🔲 v0.2.0: DuckDB & Analytics Telemetry Ingestion
+### 🔲 v0.3.0: High-Throughput Streaming & Continuous Ingestion
+**Goal**: Vectorized native parsing and live ingestion pipelines for real-time telemetry processing.
 
-**Goal**: Extend TOON from LLM agent context optimization into analytical ingestion and zero-copy tabular processing.
+- [ ] **Native Vectorized Scanner**:
+  - Implement C/FFI vectorized tab and escape scanner via Dart Native Assets (`hook/build.dart`) for high-throughput ingestion (>250,000 rows/sec).
+- [ ] **Chunked Continuous Ingestion Stream**:
+  - Add reactive backpressure-aware stream decoders with automatic schema drift detection.
+- [ ] **ClickHouse & Apache Arrow Bridges**:
+  - Extend tabular export utilities beyond DuckDB to generate ClickHouse HTTP schemas and Apache Arrow RecordBatches.
 
-- [ ] **DuckDB Direct Ingestion Helpers**:
-  - Provide copy-paste DuckDB SQL schemas and automated ingest scripts for querying `.toon` log files directly via DuckDB.
-- [ ] **Dynamic Schema Evolution**:
-  - Add schema reconciliation when heterogeneous log events introduce new keys or change scalar types across a single session.
-- [ ] **Native Vectorized TOON Parser**:
-  - Implement C/FFI vectorized tab scanner for ultra-high-throughput ingestion and validation (>100,000 rows/sec).
+---
+
+### 🔲 v1.0.0: Specification Freeze & Cross-Platform Parity
+**Goal**: Lock in the TOON 1.0 specification with multi-language reference implementations (Python, Rust, Go).
+
+- [ ] Complete formal specification validation suite.
+- [ ] Cross-language test fixtures for TOON strict and compact dialects.
+- [ ] Deprecation cleanup and frozen API surface.
 
 ---
 
 ## Completed
+
+### ✅ v0.2.0: Bidirectional Decoding, LLM Budgeting & DuckDB Bridge
+- [x] **Bidirectional Decoding Engine (`ToonDecoder`)**:
+  - Full stream and string decoding into strongly typed `ToonDocument` and `ToonRecord` models.
+  - State-machine unescaping for `\t`, `\n`, `\r`, `\\`, `\"`, dialect nulls (`\N` vs empty), and nested map/list tokens.
+- [x] **Immutable Schema Representation (`ToonSchema`)**:
+  - Structured metadata model with column types, dialects, and zero-allocation 8KB byte scanning (`parseBytes`).
+  - Bidirectional JSON serialization (`toJson` / `fromJson`) and preamble reconstruction.
+- [x] **LLM Context Window Budgeting (`ToonContextWindow`)**:
+  - Token-aware sliding-window tail slicer with invariant schema preamble retention and explicit truncation notice.
+  - Zero-dependency BPE heuristic token counter (`ToonTokenEstimator`) and comparative token reduction analysis (`ToonTokenMetrics`).
+- [x] **DuckDB Analytical SQL Bridge (`ToonDuckDb`)**:
+  - Zero-copy DuckDB SQL queries (`selectQuery`), DDL table creation (`createTableSql`), and COPY ingestion (`ingestSql`).
+- [x] **Column Invariance with `contextColumns`**:
+  - Fixed-width column projections across heterogeneous log events in `ToonFormatter` and `ToonFileHandler`.
+- [x] **Showcase Gallery & Test Suite**:
+  - Runnable 6-scenario showcase gallery (`example/showcase_gallery.dart`) and comprehensive 60-test verification suite.
+
+---
 
 ### ✅ v0.1.3: Memory Safety Optimization & CRLF Normalization
 - [x] **Memory-Safe Windowed Preamble Extraction**:

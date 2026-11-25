@@ -14,13 +14,7 @@ Future<void> main() async {
   final logger = Logger.get('app.evolution');
 
   print('--- Schema is locked on the first log ---');
-  logger.info(
-    'Initial log',
-    context: {
-      'user_id': 123,
-      'action': 'login',
-    },
-  );
+  logger.info('Initial log', context: {'user_id': 123, 'action': 'login'});
 
   print('\n--- Subsequent log WITH MISSING keys (should print \\N) ---');
   logger.info(

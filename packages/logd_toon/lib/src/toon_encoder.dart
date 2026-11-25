@@ -1,7 +1,8 @@
-import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:logd/logd.dart';
+
+import 'toon_schema.dart';
 
 /// An encoder that serializes [LogDocument]s into Token-Oriented Object
 /// Notation (TOON).
@@ -29,7 +30,8 @@ class ToonEncoder implements LogEncoder {
     final delimiter = document.metadata['toon_delimiter'] as String? ?? '\t';
     final columns = document.metadata['toon_columns'] as List<String>?;
     final schema = document.metadata['toon_schema'] as Map<String, ToonType>?;
-    final dialect = document.metadata['toon_dialect'] as ToonDialect? ??
+    final dialect =
+        document.metadata['toon_dialect'] as ToonDialect? ??
         ToonDialect.compact;
 
     if (columns == null) {
@@ -68,33 +70,10 @@ class ToonEncoder implements LogEncoder {
 
   /// Extracts the TOON preamble (schema header line) from a TOON byte buffer.
   ///
-  /// Returns the header string (e.g., `logs[]{timestamp,logger,...}:`) or
-  /// `null` if no valid TOON preamble is found.
-  ///
-  /// Use this when slicing a TOON stream for LLM context injection:
-  /// ```dart
-  /// final schema = ToonEncoder.extractPreamble(await file.readAsBytes());
-  /// final chunk = [schema, ...windowLines].join('\n');
-  /// ```
-  static String? extractPreamble(final Uint8List bytes) {
-    if (bytes.isEmpty) {
-      return null;
-    }
-    // Limit decoding window to first 8KB to avoid massive memory allocations
-    // on large multi-megabyte log files.
-    final scanLength = bytes.length > 8192 ? 8192 : bytes.length;
-    final scanBytes = Uint8List.sublistView(bytes, 0, scanLength);
-    final str = convert.utf8.decode(scanBytes, allowMalformed: true);
-    final endMarker = str.indexOf('}:\n');
-    if (endMarker != -1) {
-      return str.substring(0, endMarker + 3);
-    }
-    final endMarkerFallback = str.indexOf('}:');
-    if (endMarkerFallback != -1) {
-      return str.substring(0, endMarkerFallback + 2);
-    }
-    return null;
-  }
+  /// Deprecated in favor of [ToonSchema.parseBytes].
+  @Deprecated('Use ToonSchema.parseBytes(bytes)?.toPreamble() instead.')
+  static String? extractPreamble(final Uint8List bytes) =>
+      ToonSchema.parseBytes(bytes)?.toPreamble();
 
   @override
   void postamble(
@@ -116,7 +95,8 @@ class ToonEncoder implements LogEncoder {
     final columns = document.metadata['toon_columns'] as List<String>?;
     final sortKeys = document.metadata['toon_sort_keys'] as bool? ?? false;
     final maxDepth = document.metadata['toon_max_depth'] as int? ?? 5;
-    final dialect = document.metadata['toon_dialect'] as ToonDialect? ??
+    final dialect =
+        document.metadata['toon_dialect'] as ToonDialect? ??
         ToonDialect.compact;
 
     final nodes = document.nodes;
@@ -124,29 +104,31 @@ class ToonEncoder implements LogEncoder {
       final node = nodes[i];
       if (node is MapNode) {
         if (columns != null) {
-          final row = columns.map((final col) {
-            final val = node.map[col];
-            var serialized = _formatValue(
-              val,
-              0,
-              delimiter: delimiter,
-              sortKeys: sortKeys,
-              maxDepth: maxDepth,
-            );
+          final row = columns
+              .map((final col) {
+                final val = node.map[col];
+                var serialized = _formatValue(
+                  val,
+                  0,
+                  delimiter: delimiter,
+                  sortKeys: sortKeys,
+                  maxDepth: maxDepth,
+                );
 
-            if (dialect == ToonDialect.strict && serialized.isEmpty) {
-              serialized = r'\N';
-            }
+                if (dialect == ToonDialect.strict && serialized.isEmpty) {
+                  serialized = r'\N';
+                }
 
-            // Optional truncation if width is provided.
-            // In TOON, we only truncate if a width is specified, and we
-            // do it per-field to maintain row integrity.
-            if (width != null && serialized.length > width) {
-              serialized = '${serialized.substring(0, width - 3)}...';
-            }
+                // Optional truncation if width is provided.
+                // In TOON, we only truncate if a width is specified, and we
+                // do it per-field to maintain row integrity.
+                if (width != null && serialized.length > width) {
+                  serialized = '${serialized.substring(0, width - 3)}...';
+                }
 
-            return serialized;
-          }).join(delimiter);
+                return serialized;
+              })
+              .join(delimiter);
           context.writeString(row);
         } else {
           context.writeString(node.map.toString());
@@ -186,20 +168,9 @@ class ToonEncoder implements LogEncoder {
       }
       final items = entries
           .map(
-            (final e) => '${_formatValue(
-              e.key,
-              depth + 1,
-              delimiter: delimiter,
-              sortKeys: sortKeys,
-              maxDepth: maxDepth,
-            )}:'
-                '${_formatValue(
-              e.value,
-              depth + 1,
-              delimiter: delimiter,
-              sortKeys: sortKeys,
-              maxDepth: maxDepth,
-            )}',
+            (final e) =>
+                '${_formatValue(e.key, depth + 1, delimiter: delimiter, sortKeys: sortKeys, maxDepth: maxDepth)}:'
+                '${_formatValue(e.value, depth + 1, delimiter: delimiter, sortKeys: sortKeys, maxDepth: maxDepth)}',
           )
           .join(',');
       return '{$items}';
@@ -218,10 +189,7 @@ class ToonEncoder implements LogEncoder {
       return '[$items]';
     }
 
-    return _escape(
-      value.toString(),
-      delimiter,
-    );
+    return _escape(value.toString(), delimiter);
   }
 
   String _escape(final String value, final String delimiter) {
@@ -230,7 +198,8 @@ class ToonEncoder implements LogEncoder {
     }
     final hasDelimiter = value.contains(delimiter);
     final hasNewline = value.contains('\n') || value.contains('\r');
-    final hasSpecial = value.contains('{') ||
+    final hasSpecial =
+        value.contains('{') ||
         value.contains('}') ||
         value.contains('[') ||
         value.contains(']') ||
@@ -241,12 +210,6 @@ class ToonEncoder implements LogEncoder {
       return value;
     }
 
-    return '"${value.replaceAll('"', r'\"').replaceAll(
-          '\n',
-          r'\n',
-        ).replaceAll(
-          '\r',
-          r'\r',
-        )}"';
+    return '"${value.replaceAll('"', r'\"').replaceAll('\n', r'\n').replaceAll('\r', r'\r')}"';
   }
 }

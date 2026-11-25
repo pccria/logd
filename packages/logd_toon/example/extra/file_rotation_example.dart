@@ -8,10 +8,7 @@ Future<void> main() async {
   // We use a tiny 10 KB max size so we can easily trigger rotation in a short loop.
   final handler = ToonFileHandler(
     path: 'logs/rotation_test.toon',
-    fileRotation: SizeRotation(
-      maxSize: '10 KB',
-      backupCount: 2,
-    ),
+    fileRotation: SizeRotation(maxSize: '10 KB', backupCount: 2),
     formatter: const ToonFormatter(
       dialect: ToonDialect.strict,
       explicitSchema: true,
@@ -41,12 +38,13 @@ Future<void> main() async {
 
   // Validate the outputs
   final dir = Directory('logs');
-  final files = dir
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.contains('rotation_test'))
-      .toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
+  final files =
+      dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.contains('rotation_test'))
+          .toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
 
   print('\n--- Generated Files ---');
   for (final file in files) {

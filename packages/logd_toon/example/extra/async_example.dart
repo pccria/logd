@@ -18,10 +18,7 @@ Future<void> main() async {
   );
 
   // 3. Configure the logger
-  Logger.configure(
-    'app.async',
-    handlers: [asyncHandler],
-  );
+  Logger.configure('app.async', handlers: [asyncHandler]);
 
   final logger = Logger.get('app.async');
 
